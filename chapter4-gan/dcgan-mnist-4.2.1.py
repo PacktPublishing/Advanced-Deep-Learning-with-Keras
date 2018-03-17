@@ -28,6 +28,7 @@ from keras.optimizers import RMSprop
 from keras.models import Model
 from keras.datasets import mnist
 from keras.models import load_model
+
 import numpy as np
 import math
 import matplotlib.pyplot as plt
@@ -129,11 +130,11 @@ def train(models, x_train, params):
     for i in range(train_steps):
         # Random real images
         rand_indexes = np.random.randint(0, x_train.shape[0], size=batch_size)
-        train_images = x_train[rand_indexes]
+        real_images = x_train[rand_indexes]
         # Generate fake images
         noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
         fake_images = generator.predict(noise)
-        x = np.concatenate((train_images, fake_images))
+        x = np.concatenate((real_images, fake_images))
         # Label real and fake images
         y = np.ones([2 * batch_size, 1])
         y[batch_size:, :] = 0
