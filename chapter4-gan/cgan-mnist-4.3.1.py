@@ -297,15 +297,20 @@ def build_and_train_models():
 
 def test_generator(generator, class_label=None):
     noise_input = np.random.uniform(-1.0, 1.0, size=[16, 100])
+    step = 0
     if class_label is None:
+        num_labels = 10
         noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
     else:
         noise_class = np.zeros((16, 10))
         noise_class[:,class_label] = 1
+        step = class_label
 
     plot_images(generator,
                 noise_input=noise_input,
+                noise_class=noise_class,
                 show=True,
+                step=step,
                 model_name="test_outputs")
 
 
@@ -319,7 +324,7 @@ if __name__ == '__main__':
     if args.generator:
         generator = load_model(args.generator)
         class_label = None
-        if args.digit:
+        if args.digit is not None:
             class_label = args.digit
         test_generator(generator, class_label)
     else:
