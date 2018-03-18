@@ -213,8 +213,9 @@ def build_and_train_models():
     x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
     x_train = x_train.astype('float32') / 255
 
-    # The latent or z vector is 100-dim
     model_name = "dcgan_mnist"
+    # Network parameters
+    # The latent or z vector is 100-dim
     latent_size = 100
     batch_size = 64
     train_steps = 40000
@@ -248,6 +249,7 @@ def build_and_train_models():
                         optimizer=optimizer,
                         metrics=['accuracy'])
     adversarial.summary()
+
     # Train Discriminator and Adversarial Networks
     models = (generator, discriminator, adversarial)
     params = (batch_size, latent_size, train_steps, model_name)
