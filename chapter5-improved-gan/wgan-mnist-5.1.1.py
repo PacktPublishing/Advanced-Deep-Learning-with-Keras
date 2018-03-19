@@ -144,8 +144,8 @@ def train(models, x_train, params):
             fake_images = generator.predict(noise)
 
             # Train the discriminator network
-            real_loss, real_acc = discriminator.train_on_batch(real_images, -np.ones((batch_size, 1)))
-            fake_loss, fake_acc = discriminator.train_on_batch(fake_images, np.ones((batch_size, 1)))
+            real_loss, real_acc = discriminator.train_on_batch(real_images, np.ones((batch_size, 1)))
+            fake_loss, fake_acc = discriminator.train_on_batch(fake_images, -np.ones((batch_size, 1)))
             loss += 0.5 * (real_loss + fake_loss)
             acc += 0.5 * (real_acc + fake_acc)
 
@@ -163,7 +163,7 @@ def train(models, x_train, params):
         # Generate random noise
         noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
         # Label fake images as real
-        y = -np.ones([batch_size, 1])
+        y = np.ones([batch_size, 1])
         # Train the adversarial network
         loss, acc = adversarial.train_on_batch(noise, y)
         log = "%s [adversarial loss: %f, acc: %f]" % (log, loss, acc)
@@ -183,8 +183,7 @@ def train(models, x_train, params):
 
 
 def wgan_loss(y_label, y_pred):
-    return K.mean(y_label*y_pred)
-
+    return -y_label * K.mean(y_pred)
 
 
 def plot_images(generator,
