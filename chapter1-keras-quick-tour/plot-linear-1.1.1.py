@@ -10,7 +10,7 @@ Usage: python3 <this file>
 import numpy as np
 import matplotlib.pyplot as plt
 
-want_noise = False
+want_noise = True
 # grayscale plot, comment if color is wanted
 plt.style.use('grayscale')
 
@@ -23,13 +23,14 @@ plt.plot(x, y, 'o-', label="y")
 
 if want_noise:
     # generate data with uniform distribution
-    noise = np.random.uniform(-0.1, 0.1, y.shape)
-    yn = y + noise
+    noise = np.random.uniform(-0.2, 0.2, x.shape)
+    xn = x + noise
 
-    plt.ylabel('y and yn')
-    plt.plot(x, yn, 's-', label="yn = y + noise")
+    plt.ylabel('y=f(x)')
+    plt.plot(xn, y, 's-', label="y with noised x")
 
 plt.legend(loc=0)
 plt.grid(b=True)
+plt.savefig("linear_regression.png")
 plt.show()
 plt.close('all')

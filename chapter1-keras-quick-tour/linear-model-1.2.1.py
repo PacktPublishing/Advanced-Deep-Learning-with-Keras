@@ -25,12 +25,12 @@ x = np.reshape(x, [-1,1])
 y = 2 * x + 3
 
 # True if noise is added to y
-is_noisy = False
+is_noisy = True
 
 # add noise if enabled
 if is_noisy:
-    noise = np.random.uniform(-0.1,0.1,y.shape)
-    y = y + noise
+    noise = np.random.uniform(-0.1, 0.1, x.shape)
+    x = x + noise
 
 # deep learning method
 # build 2-layer MLP network 
@@ -58,6 +58,8 @@ ones = np.ones(x.shape)
 A = np.concatenate([x,ones], axis=1)
 # compute k using using pseudo-inverse
 k = np.matmul(np.linalg.pinv(A), y) 
+print("k (Linear Algebra Method):")
+print(k)
 # predict the output using linear algebra solution
 yla = np.matmul(A, k)
 
