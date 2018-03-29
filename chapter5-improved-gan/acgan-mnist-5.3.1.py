@@ -118,7 +118,7 @@ def build_discriminator(inputs, num_labels, image_size):
 
     # Second output is 10-dim one-hot vector of label
     y_class = Dense(layer_filters[-2])(x)
-    y_class = Dense(num_labels)(x)
+    y_class = Dense(num_labels)(y_class)
     y_class = Activation('softmax', name='label')(y_class)
 
     discriminator = Model(inputs, [y_source, y_class], name='discriminator')
