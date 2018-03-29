@@ -118,13 +118,12 @@ def build_discriminator(inputs, num_labels, image_size):
     y_source = Activation('sigmoid', name='source')(y_source)
 
     # Second output is 10-dim one-hot vector of label
-    y_class = Dense(layer_filters[-2])(x)
-    y_class = Dense(num_labels)(y_class)
+    y_q = Dense(layer_filters[-2])(x)
+    y_class = Dense(num_labels)(y_q)
     y_class = Activation('softmax', name='label')(y_class)
 
     # Third is 1-dim continous latent code
-    y_code1 = Dense(layer_filters[-2])(x)
-    y_code1 = Dense(1)(y_code1)
+    y_code1 = Dense(1)(y_q)
     y_code1 = Activation('sigmoid', name='code1')(y_code1)
 
     discriminator = Model(inputs, [y_source, y_class, y_code1], name='discriminator')
@@ -165,7 +164,7 @@ def train(models, data, params):
         noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
-        fake_code1 = np.random.uniform(0, 1.0, size=[batch_size, 1])
+        fake_code1 = np.random.uniform(-1.0, 1.0, size=[batch_size, 1])
 
         fake_images = generator.predict([noise, fake_labels, fake_code1])
         x = np.concatenate((real_images, fake_images))
@@ -186,7 +185,7 @@ def train(models, data, params):
         noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                            batch_size)]
-        fake_code1 = np.random.uniform(0, 1.0, size=[batch_size, 1])
+        fake_code1 = np.random.uniform(-1.0, 1.0, size=[batch_size, 1])
         # Label fake images as real
         y = np.ones([batch_size, 1])
         # Train the Adversarial network
@@ -211,8 +210,8 @@ def train(models, data, params):
 def mutual_info_loss(c, c_given_x):
     """The mutual information metric we aim to minimize"""
     conditional_entropy = K.mean(-K.sum(K.log(c_given_x + K.epsilon()) * c, axis=1))
-    entropy = K.mean(-K.sum(K.log(c + K.epsilon()) * c, axis=1))
-    return conditional_entropy + entropy
+    # entropy = K.mean(-K.sum(K.log(c + K.epsilon()) * c, axis=1))
+    return conditional_entropy
 
 def plot_images(generator,
                 noise_params,
@@ -269,7 +268,7 @@ def build_and_train_models(latent_size=100):
     model_name = "infogan_mnist"
     # Network parameters
     batch_size = 64
-    train_steps = 40000
+    train_steps = 15000
     lr = 0.0002
     decay = 6e-8
     input_shape = (image_size, image_size, 1)
@@ -283,7 +282,7 @@ def build_and_train_models(latent_size=100):
     optimizer = RMSprop(lr=lr, decay=decay)
     # 2 loss fuctions: 1) Probability image is real
     # 2) Class label of the image
-    loss = ['binary_crossentropy', 'categorical_crossentropy', mutual_info_loss]
+    loss = ['binary_crossentropy', 'categorical_crossentropy', 'mse']
     discriminator.compile(loss=loss,
                           optimizer=optimizer,
                           metrics=['accuracy'])
