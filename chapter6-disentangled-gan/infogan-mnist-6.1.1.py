@@ -49,7 +49,7 @@ def build_generator(inputs, latent_codes, image_size):
 
     # Arguments
         inputs (Layer): Input layer of the generator (the z-vector)
-        y_labels (Layer): Input layer for one-hot vector to condition
+        latent_codes (tuple): dicrete code (labels), and continuous codes
             the inputs
         image_size: Target size of one side (assuming square image)
 
@@ -57,14 +57,12 @@ def build_generator(inputs, latent_codes, image_size):
         Model: Generator Model
     """
 
-    y_labels, y_code1 = latent_codes
-    # y_labels, y_code1, y_code2 = latent_codes
+    y_labels, y_code1, y_code2 = latent_codes
     image_resize = image_size // 4
     kernel_size = 5
     layer_filters = [128, 64, 32, 1]
 
-    generator_inputs = [inputs, y_labels, y_code1]
-    # generator_inputs = [inputs, y_labels, y_code1, y_code2]
+    generator_inputs = [inputs, y_labels, y_code1, y_code2]
     x = keras.layers.concatenate(generator_inputs, axis=1)
     x = Dense(image_resize * image_resize * layer_filters[0])(x)
     x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
@@ -122,21 +120,20 @@ def build_discriminator(inputs, num_labels, image_size):
     y_source = Dense(1)(x)
     y_source = Activation('sigmoid', name='source')(y_source)
 
-    # Second output is 10-dim one-hot vector of label
+    # 2nd output is 10-dim one-hot vector of label (discrete Q of c given x)
     y_q = Dense(layer_filters[-2])(x)
     y_class = Dense(num_labels)(y_q)
     y_class = Activation('softmax', name='label')(y_class)
 
-    # Third is 1-dim continous latent code
+    # 3rd output is 1-dim continous Q of 1st c given x
     y_code1 = Dense(1)(y_q)
     y_code1 = Activation('sigmoid', name='code1')(y_code1)
 
-    # 4th is 1-dim continous latent code
+    # 4th output is 1-dim continuous Q of 2nd c given x
     y_code2 = Dense(1)(y_q)
-    y_code2 = Activation('tanh', name='code2')(y_code2)
+    y_code2 = Activation('sigmoid', name='code2')(y_code2)
 
-    discriminator_outputs = [y_source, y_class, y_code1]
-    # discriminator_outputs = [y_source, y_class, y_code1, y_code2]
+    discriminator_outputs = [y_source, y_class, y_code1, y_code2]
     discriminator = Model(inputs, discriminator_outputs, name='discriminator')
     return discriminator
 
@@ -145,16 +142,16 @@ def train(models, data, params):
     """Train the discriminator and adversarial Networks
 
     Alternately train discriminator and adversarial networks by batch.
-    Discriminator is trained first with real and fake images and
-    corresponding one-hot labels.
-    Adversarial is trained next with fake images pretending to be real and 
-    corresponding one-hot labels.
+    Discriminator is trained first with real and fake images,
+    corresponding one-hot labels and continuous codes
+    Adversarial is trained next with fake images pretending to be real,
+    corresponding one-hot labels and continous codes
     Generate sample images per save_interval.
 
     # Arguments
-        models (list): Generator, Discriminator, Adversarial models
-        data (list): x_train, y_train data
-        params (list): Network parameters
+        models (tuple): Generator, Discriminator, Adversarial models
+        data (tuple): x_train, y_train data
+        params (tuple): Network parameters
 
     """
     generator, discriminator, adversarial = models
@@ -163,55 +160,57 @@ def train(models, data, params):
     save_interval = 500
     noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
     noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
-    noise_code1 = np.random.normal(scale=1, size=[16, 1])
-    # noise_code2 = np.random.normal(scale=1, size=[16, 1])
-    noise_params = (noise_input, noise_class, noise_code1)
+    noise_code1 = np.random.normal(scale=0.5, size=[16, 1])
+    noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
+    noise_params = [noise_input, noise_class, noise_code1, noise_code2]
     for i in range(train_steps):
-        # Random real images and their labels
+        # Random real images, labels and codes
         rand_indexes = np.random.randint(0, x_train.shape[0], size=batch_size)
-        real_images = x_train[rand_indexes, :, :, :]
-        real_labels = y_train[rand_indexes, :]
-        real_code1 = np.random.normal(scale=1, size=[batch_size, 1])
-        # real_code2 = np.random.normal(scale=1, size=[batch_size, 1])
-        # Generate fake images and their labels
+        real_images = x_train[rand_indexes]
+        real_labels = y_train[rand_indexes]
+        real_code1 = np.random.normal(scale=0.5, size=[batch_size, 1])
+        real_code2 = np.random.normal(scale=0.5, size=[batch_size, 1])
+
+        # Generate fake images, labels and codes
         noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
-        fake_code1 = np.random.normal(scale=1, size=[batch_size, 1])
-        # fake_code2 = np.random.normal(scale=1, size=[batch_size, 1])
+        fake_code1 = np.random.normal(scale=0.5, size=[batch_size, 1])
+        fake_code2 = np.random.normal(scale=0.5, size=[batch_size, 1])
 
-        fake_images = generator.predict([noise, fake_labels, fake_code1])
+        generator_inputs = [noise, fake_labels, fake_code1, fake_code2]
+        fake_images = generator.predict(generator_inputs)
+
         x = np.concatenate((real_images, fake_images))
-
         y_labels = np.concatenate((real_labels, fake_labels))
         y_codes1 = np.concatenate((real_code1, fake_code1))
-        # y_codes2 = np.concatenate((real_code2, fake_code2))
+        y_codes2 = np.concatenate((real_code2, fake_code2))
 
         # Label real and fake images
         y = np.ones([2 * batch_size, 1])
         y[batch_size:, :] = 0
-        # Train the Discriminator network
-        discriminator_outputs = [y, y_labels, y_codes1]
-        # discriminator_outputs = [y, y_labels, y_codes1, y_codes2]
+
+        # Train the discriminator network
+        discriminator_outputs = [y, y_labels, y_codes1, y_codes2]
         metrics = discriminator.train_on_batch(x, discriminator_outputs)
         loss = metrics[0]
         accuracy = metrics[1]
         log = "%d: [discriminator loss: %f, acc: %f]" % (i, loss, accuracy)
 
-        # Generate fake images and their labels
+        # Generate fake images, labels and codes
         noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
-        fake_code1 = np.random.normal(scale=1, size=[batch_size, 1])
-        # fake_code2 = np.random.normal(scale=1, size=[batch_size, 1])
+        fake_code1 = np.random.normal(scale=0.5, size=[batch_size, 1])
+        fake_code2 = np.random.normal(scale=0.5, size=[batch_size, 1])
         # Label fake images as real
         y = np.ones([batch_size, 1])
-        # Train the Adversarial network
-        # advers_inputs = [noise, fake_labels, fake_code1, fake_code2]
-        # advers_outputs = [y, fake_labels, fake_code1, fake_code2]
-        advers_inputs = [noise, fake_labels, fake_code1]
-        advers_outputs = [y, fake_labels, fake_code1]
+
+        # Train the adversarial network
+        advers_inputs = [noise, fake_labels, fake_code1, fake_code2]
+        advers_outputs = [y, fake_labels, fake_code1, fake_code2]
         metrics = adversarial.train_on_batch(advers_inputs, advers_outputs)
+
         loss = metrics[0]
         accuracy = metrics[1]
         log = "%s [adversarial loss: %f, acc: %f]" % (log, loss, accuracy)
@@ -230,10 +229,10 @@ def train(models, data, params):
     
 
 def mi_loss(c, q_of_c_given_x):
-    """ Equation 5 in [2] , assuming H(c) is constant"""
+    """ Mutual information, Equation 5 in [2] , assuming H(c) is constant"""
+    # lambda is 0.5
     conditional_entropy = K.mean(-K.sum(K.log(q_of_c_given_x + K.epsilon()) * c, axis=1))
-    # entropy = K.mean(-K.sum(K.log(c + K.epsilon()) * c, axis=1))
-    return conditional_entropy
+    return 0.5 * conditional_entropy
 
 def plot_images(generator,
                 noise_params,
@@ -247,24 +246,19 @@ def plot_images(generator,
 
     # Arguments
         generator (Model): The Generator Model for fake images generation
-        noise_params (list): noise parameters (noise, label, code)
+        noise_params (list): noise parameters (noise, label, codes)
         show (bool): Whether to show plot or not
         step (int): Appended to filename of the save images
         model_name (string): Model name
 
     """
-    # noise_input, noise_class, noise_code1, noise_code2 = noise_params
-    # inputs = [noise_input, noise_class, noise_code1, noise_code2]
-    noise_input, noise_class, noise_code1 = noise_params
-    inputs = [noise_input, noise_class, noise_code1]
+    noise_input, noise_class, _, _ = noise_params
     os.makedirs(model_name, exist_ok=True)
     filename = os.path.join(model_name, "%05d.png" % step)
-    images = (generator.predict(inputs) + 1.0) * 0.5 
+    images = (generator.predict(noise_params) + 1.0) * 0.5 
     print(model_name,
           " labels for generated images: ",
           np.argmax(noise_class, axis=1))
-    print(model_name , " noise code1: ", np.reshape(noise_code1, [1,-1]))
-    # print(model_name , " noise code2: ", np.reshape(noise_code2, [1,-1]))
 
     plt.figure(figsize=(2.2, 2.2))
     num_images = images.shape[0]
@@ -296,7 +290,7 @@ def build_and_train_models(latent_size=100):
     model_name = "infogan_mnist"
     # Network parameters
     batch_size = 64
-    train_steps = 10000
+    train_steps = 20000
     lr = 0.0002
     decay = 6e-8
     input_shape = (image_size, image_size, 1)
@@ -308,10 +302,9 @@ def build_and_train_models(latent_size=100):
     discriminator = build_discriminator(inputs, num_labels, image_size)
     # [1] uses Adam, but discriminator converges easily with RMSprop
     optimizer = RMSprop(lr=lr, decay=decay)
-    # 2 loss fuctions: 1) Probability image is real
-    # 2) Class label of the image
-    loss = ['binary_crossentropy', 'categorical_crossentropy', mi_loss]
-    # loss = ['binary_crossentropy', 'categorical_crossentropy', 'mse', 'mse']
+    # Loss fuctions: 1) Probability image is real
+    # 2) Class label of the image, 3) and 4) Mutual Information Loss
+    loss = ['binary_crossentropy', 'categorical_crossentropy', mi_loss, mi_loss]
     discriminator.compile(loss=loss,
                           optimizer=optimizer,
                           metrics=['accuracy'])
@@ -322,17 +315,15 @@ def build_and_train_models(latent_size=100):
     inputs = Input(shape=input_shape, name='z_input')
     y_labels = Input(shape=label_shape, name='y_labels')
     y_code1 = Input(shape=code_shape, name="continuous_latent_code1")
-    # y_code2 = Input(shape=code_shape, name="continuous_latent_code2")
-    latent_codes = (y_labels, y_code1)
-    # latent_codes = (y_labels, y_code1, y_code2)
+    y_code2 = Input(shape=code_shape, name="continuous_latent_code2")
+    latent_codes = (y_labels, y_code1, y_code2)
     generator = build_generator(inputs, latent_codes, image_size)
     generator.summary()
 
     # Build adversarial model = generator + discriminator
     optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
     discriminator.trainable = False
-    generator_inputs = [inputs, y_labels, y_code1]
-    # generator_inputs = [inputs, y_labels, y_code1, y_code2]
+    generator_inputs = [inputs, y_labels, y_code1, y_code2]
     adversarial = Model(generator_inputs,
                         discriminator(generator(generator_inputs)),
                         name=model_name)
@@ -349,8 +340,7 @@ def build_and_train_models(latent_size=100):
 
 
 def test_generator(generator, params, latent_size=100):
-    class_label, latent_code1 = params
-    # class_label, latent_code1, latent_code2 = params
+    class_label, latent_code1, latent_code2 = params
     noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
     step = 0
     if class_label is None:
@@ -362,17 +352,20 @@ def test_generator(generator, params, latent_size=100):
         step = class_label
 
     if latent_code1 is None:
-        noise_code1 = np.random.uniform(-1.0, 1.0, size=[16, 1])
+        noise_code1 = np.random.normal(scale=0.5, size=[16, 1])
     else:
         noise_code1 = np.ones((16, 1)) * latent_code1
 
-    # if latent_code2 is None:
-    #    noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
-    #else:
-    #    noise_code2 = np.ones((16, 1)) * latent_code2
+    if latent_code2 is None:
+        noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
+    else:
+        noise_code2 = np.ones((16, 1)) * latent_code2
+        # a = np.linspace(-2, 2, 16)
+        # a = np.reshape(a, [16, 1])
+        # noise_code2 = np.ones((16, 1)) * a
+        # print(noise_code2)
 
-    noise_params = (noise_input, noise_class, noise_code1)
-    # noise_params = (noise_input, noise_class, noise_code1, noise_code2)
+    noise_params = [noise_input, noise_class, noise_code1, noise_code2]
 
     plot_images(generator,
                 noise_params=noise_params,
@@ -403,8 +396,7 @@ if __name__ == '__main__':
             latent_code1 = args.code1
         if args.code2 is not None:
             latent_code2 = args.code2
-        params = (class_label, latent_code1)
-        # params = (class_label, latent_code1, latent_code2)
+        params = (class_label, latent_code1, latent_code2)
         test_generator(generator, params, latent_size=62)
     else:
         build_and_train_models(latent_size=62)
