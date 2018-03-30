@@ -183,7 +183,7 @@ def train(models, x_train, params):
 
 
 def wgan_loss(y_label, y_pred):
-    return -y_label * K.mean(y_pred)
+    return -y_label * K.mean(y_pred, axis=1)
 
 
 def plot_images(generator,

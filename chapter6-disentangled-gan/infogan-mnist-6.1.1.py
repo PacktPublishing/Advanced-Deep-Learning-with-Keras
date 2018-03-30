@@ -164,7 +164,7 @@ def train(models, data, params):
     noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
     noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
     noise_code1 = np.random.normal(scale=1, size=[16, 1])
-    # noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
+    # noise_code2 = np.random.normal(scale=1, size=[16, 1])
     noise_params = (noise_input, noise_class, noise_code1)
     for i in range(train_steps):
         # Random real images and their labels
@@ -172,13 +172,13 @@ def train(models, data, params):
         real_images = x_train[rand_indexes, :, :, :]
         real_labels = y_train[rand_indexes, :]
         real_code1 = np.random.normal(scale=1, size=[batch_size, 1])
-        # real_code2 = np.random.normal(scale=0.5, size=[batch_size, 1])
+        # real_code2 = np.random.normal(scale=1, size=[batch_size, 1])
         # Generate fake images and their labels
         noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
         fake_code1 = np.random.normal(scale=1, size=[batch_size, 1])
-        # fake_code2 = np.random.normal(scale=0.5, size=[batch_size, 1])
+        # fake_code2 = np.random.normal(scale=1, size=[batch_size, 1])
 
         fake_images = generator.predict([noise, fake_labels, fake_code1])
         x = np.concatenate((real_images, fake_images))
@@ -203,7 +203,7 @@ def train(models, data, params):
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
         fake_code1 = np.random.normal(scale=1, size=[batch_size, 1])
-        # fake_code2 = np.random.normal(scale=0.5, size=[batch_size, 1])
+        # fake_code2 = np.random.normal(scale=1, size=[batch_size, 1])
         # Label fake images as real
         y = np.ones([batch_size, 1])
         # Train the Adversarial network
@@ -229,9 +229,9 @@ def train(models, data, params):
                         model_name=model_name)
     
 
-def mutual_info_loss(c, c_given_x):
-    """The mutual information metric we aim to minimize"""
-    conditional_entropy = K.mean(-K.sum(K.log(c_given_x + K.epsilon()) * c, axis=1))
+def mi_loss(c, q_of_c_given_x):
+    """ Equation 5 in [2] , assuming H(c) is constant"""
+    conditional_entropy = K.mean(-K.sum(K.log(q_of_c_given_x + K.epsilon()) * c, axis=1))
     # entropy = K.mean(-K.sum(K.log(c + K.epsilon()) * c, axis=1))
     return conditional_entropy
 
@@ -310,7 +310,7 @@ def build_and_train_models(latent_size=100):
     optimizer = RMSprop(lr=lr, decay=decay)
     # 2 loss fuctions: 1) Probability image is real
     # 2) Class label of the image
-    loss = ['binary_crossentropy', 'categorical_crossentropy', 'mse']
+    loss = ['binary_crossentropy', 'categorical_crossentropy', mi_loss]
     # loss = ['binary_crossentropy', 'categorical_crossentropy', 'mse', 'mse']
     discriminator.compile(loss=loss,
                           optimizer=optimizer,
