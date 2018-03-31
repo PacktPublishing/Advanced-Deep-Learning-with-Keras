@@ -366,11 +366,11 @@ def test_generator(generator, params, latent_size=100):
     if latent_code2 is None:
         noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
     else:
-        # noise_code2 = np.ones((16, 1)) * latent_code2
-        a = np.linspace(-2, 2, 16)
-        a = np.reshape(a, [16, 1])
-        noise_code2 = np.ones((16, 1)) * a
-        print(noise_code2)
+        noise_code2 = np.ones((16, 1)) * latent_code2
+        # a = np.linspace(-2, 2, 16)
+        # a = np.reshape(a, [16, 1])
+        # noise_code2 = np.ones((16, 1)) * a
+        # print(noise_code2)
 
     noise_params = [noise_input, noise_class, noise_code1, noise_code2]
 
