@@ -232,7 +232,7 @@ def mi_loss(c, q_of_c_given_x):
     """ Mutual information, Equation 5 in [2] , assuming H(c) is constant"""
     # lambda is 0.5
     conditional_entropy = K.mean(-K.sum(K.log(q_of_c_given_x + K.epsilon()) * c, axis=1))
-    return 0.5 * conditional_entropy
+    return conditional_entropy
 
 def plot_images(generator,
                 noise_params,
@@ -305,7 +305,9 @@ def build_and_train_models(latent_size=100):
     # Loss fuctions: 1) Probability image is real
     # 2) Class label of the image, 3) and 4) Mutual Information Loss
     loss = ['binary_crossentropy', 'categorical_crossentropy', mi_loss, mi_loss]
+    loss_weights = [1.0, 1.0, 0.5, 0.5]
     discriminator.compile(loss=loss,
+                          loss_weights=loss_weights,
                           optimizer=optimizer,
                           metrics=['accuracy'])
     discriminator.summary()
@@ -328,6 +330,7 @@ def build_and_train_models(latent_size=100):
                         discriminator(generator(generator_inputs)),
                         name=model_name)
     adversarial.compile(loss=loss,
+                        loss_weights=loss_weights,
                         optimizer=optimizer,
                         metrics=['accuracy'])
     adversarial.summary()
@@ -363,7 +366,7 @@ def test_generator(generator, params, latent_size=100):
     if latent_code2 is None:
         noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
     else:
-        noise_code2 = np.ones((16, 1)) * latent_code2
+        # noise_code2 = np.ones((16, 1)) * latent_code2
         a = np.linspace(-2, 2, 16)
         a = np.reshape(a, [16, 1])
         noise_code2 = np.ones((16, 1)) * a
