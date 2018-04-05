@@ -1,9 +1,14 @@
-'''
-Using Functional API to build CNN
+''' Using Functional API to build CNN
 
-Project: https://github.com/roatienza/dl-keras
-Dependencies: keras 
-Usage: python3 <this file>
+3-layer CNN for MNIST digits classification 
+First 2 layers - Conv2D-ReLU-MaxPool
+3rd layer - Conv2D-ReLU-Dropout
+4th layer - Dense(10)
+Output Activation - softmax
+Optimizer - Adam
+
+99.4% test accuracy
+
 '''
 
 import numpy as np

@@ -1,12 +1,16 @@
-'''
-CNN MNIST digits classification
+''' CNN MNIST digits classification
 
-Project: https://github.com/roatienza/dl-keras
-Dependencies: keras 
-Usage: python3 <this file>
+3-layer CNN for MNIST digits classification 
+First 2 layers - Conv2D-ReLU-MaxPool
+3rd layer - Conv2D-ReLU-Dropout
+4th layer - Dense(10)
+Output Activation - softmax
+Optimizer - Adam
+
+99.2% test accuracy in 10epochs
+
 '''
 
-# numpy
 import numpy as np
 from keras.models import Sequential
 from keras.layers import Activation, Dense, Dropout
