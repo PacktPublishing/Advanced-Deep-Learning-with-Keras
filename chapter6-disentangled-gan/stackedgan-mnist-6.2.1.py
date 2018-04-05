@@ -61,7 +61,7 @@ def build_encoder(inputs, num_labels=10, z_dim=146):
     return e0, e1
 
 
-def build_generator(latent_codes, image_size):
+def build_generator(latent_codes, image_size, fc3_dim=146):
     """Build a Generator Model
 
     Inputs are concatenated before Dense layer.
@@ -77,7 +77,7 @@ def build_generator(latent_codes, image_size):
         Model: Generator Model
     """
 
-    y_labels, z0, z1 = latent_codes
+    y_labels, z0, z1, fc3 = latent_codes
     image_resize = image_size // 4
     kernel_size = 5
     layer_filters = [128, 64, 32, 1]
@@ -85,8 +85,10 @@ def build_generator(latent_codes, image_size):
     g1_inputs = [y_labels, z1] # 10 + 50
     x = keras.layers.concatenate(g1_inputs, axis=1)
     fc3_outputs = Dense(146)(x)
+    # Build generator 0 model
+    g1 = Model(g1_inputs, fc3_outputs, name='g1')
 
-    g0_inputs = [fc3_outputs, z0] # 146 + 50
+    g0_inputs = [fc3, z0] # 146 + 50
     x = keras.layers.concatenate(g0_inputs, axis=1)
     x = Reshape((image_resize, image_resize, 4))(x)
 
@@ -103,10 +105,8 @@ def build_generator(latent_codes, image_size):
                             padding='same')(x)
     
     x = Activation('tanh')(x)
-
-    # Build generator models
-    g0 = Model([y_labels, z0, z1], x, name="g0")
-    g1 = Model(g1_inputs, fc3_outputs, name='g1')
+    # Build generator 0 model
+    g0 = Model(g0_inputs, x, name="g0")
     return g0, g1
 
 
@@ -196,41 +196,62 @@ def train(models, data, params):
         params (tuple): Network parameters
 
     """
-    generator, discriminator, adversarial = models
-    x_train, y_train = data
-    batch_size, latent_size, train_steps, num_labels, model_name = params
+    e0, e1, g0, g1, d0, d1, a0, a1 = models
+    batch_size, train_steps, num_labels, z_dim, model_name = params
+    (x_train, y_train), (x_test, y_test) = data
     save_interval = 500
-    noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
-    noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
-    noise_code1 = np.random.normal(scale=0.5, size=[16, 1])
-    noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
-    noise_params = [noise_input, noise_class, noise_code1, noise_code2]
+    z0 = np.random.uniform(0.0, 1.0, size=[16, z_dim])
+    z1 = np.random.uniform(0.0, 1.0, size=[16, z_dim])
+    # noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
+    noise_params = [z0, z1]
     for i in range(train_steps):
-        # Random real images, labels and codes
+        # Random real images, labels 
         rand_indexes = np.random.randint(0, x_train.shape[0], size=batch_size)
         real_images = x_train[rand_indexes]
+        real_fc3 = e0.predict(real_images)
+        real_z1 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
         real_labels = y_train[rand_indexes]
-        real_code1 = np.random.normal(scale=0.5, size=[batch_size, 1])
-        real_code2 = np.random.normal(scale=0.5, size=[batch_size, 1])
 
-        # Generate fake images, labels and codes
-        noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
+        # Generate fake images, labels
+        fake_z1 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
-        fake_code1 = np.random.normal(scale=0.5, size=[batch_size, 1])
-        fake_code2 = np.random.normal(scale=0.5, size=[batch_size, 1])
 
-        generator_inputs = [noise, fake_labels, fake_code1, fake_code2]
-        fake_images = generator.predict(generator_inputs)
+        generator_inputs = [fake_labels, fake_z1]
+        fake_fc3 = g1.predict(generator_inputs)
 
-        x = np.concatenate((real_images, fake_images))
-        y_labels = np.concatenate((real_labels, fake_labels))
-        y_codes1 = np.concatenate((real_code1, fake_code1))
-        y_codes2 = np.concatenate((real_code2, fake_code2))
+        fc3 = np.concatenate((real_fc3, fake_fc3))
+        z1 = np.concatenate((real_z1, fake_z1))
 
-        # Label real and fake images
+        # Label real and fake fc3
         y = np.ones([2 * batch_size, 1])
         y[batch_size:, :] = 0
+
+        metrics = d1.train_on_batch(fc3, [y, z1])
+        loss = metrics[0]
+        accuracy = metrics[1]
+        log = "%d: [d1 loss: %f, acc: %f]" % (i, loss, accuracy)
+
+        # ----- 1 -----
+        real_z0 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
+
+        fake_z0 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
+        fake_images = g0.predict([fake_fc3, fake_z0])
+        
+        x = np.concatenate((real_images, fake_images))
+        z0 = np.concatenate((real_z0, fake_z0))
+
+        metrics = d0.train_on_batch(x, [y, z0])
+        loss = metrics[0]
+        accuracy = metrics[1]
+        log = "%s [d0 loss: %f, acc: %f]" % (log, loss, accuracy)
+
+        print(log)
+        continue
+        
+
+
+
 
         # Train the discriminator network
         discriminator_outputs = [y, y_labels, y_codes1, y_codes2]
@@ -319,7 +340,7 @@ def train_encoder(model, data, batch_size=64):
     model.fit(x_train,
               y_train,
               validation_data=(x_test, y_test),
-              epochs=20,
+              epochs=1,
               batch_size=batch_size)
 
     score = model.evaluate(x_test, y_test, batch_size=batch_size)
@@ -351,6 +372,7 @@ def build_and_train_models():
     z_dim = 50
     z_shape = (z_dim, )
     fc3_dim = 146
+    fc3_shape = (fc3_dim, )
 
     # Build discriminator zero model 
     inputs = Input(shape=input_shape, name='discriminator0_input')
@@ -372,10 +394,11 @@ def build_and_train_models():
     d1.summary() # fc3 discriminator, z1 discriminator
 
     # Build generator models
+    fc3 = Input(shape=fc3_shape, name='fc3_input')
     y_labels = Input(shape=label_shape, name='y_labels')
-    z1 = Input(shape=z_shape, name="z1_noise")
-    z0 = Input(shape=z_shape, name="z0_noise")
-    latent_codes = (y_labels, z0, z1)
+    z1 = Input(shape=z_shape, name="z1_input")
+    z0 = Input(shape=z_shape, name="z0_input")
+    latent_codes = (y_labels, z0, z1, fc3)
     g0, g1 = build_generator(latent_codes, image_size)
     g0.summary() # image generator 
     g1.summary() # fc3 generator
@@ -391,7 +414,7 @@ def build_and_train_models():
     # Build adversarial model = generator + discriminator
     optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
     d0.trainable = False
-    generator_inputs = [y_labels, z0, z1]
+    generator_inputs = [fc3, z0]
     a0 = Model(generator_inputs,
                d0(g0(generator_inputs)),
                name=model_name)
@@ -414,12 +437,11 @@ def build_and_train_models():
 
     data = (x_train, y_train), (x_test, y_test)
     train_encoder(e1, data)
-    exit()
-
+    e1.trainable = False
+    
     # Train discriminator and adversarial networks
-    models = (generator, discriminator, adversarial)
-    data = (x_train, y_train)
-    params = (batch_size, latent_size, train_steps, num_labels, model_name)
+    models = (e0, e1, g0, g1, d0, d1, a0, a1)
+    params = (batch_size, train_steps, num_labels, z_dim, model_name)
     train(models, data, params)
 
 
