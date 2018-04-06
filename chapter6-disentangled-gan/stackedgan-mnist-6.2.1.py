@@ -42,22 +42,25 @@ import argparse
 def build_encoder(inputs, num_labels=10, z_dim=146):
     kernel_size = 3
     filters = 64
+
+    x, fc3 = inputs
     y = Conv2D(filters=filters,
                kernel_size=kernel_size,
-               activation='relu')(inputs)
+               activation='relu')(x)
     y = MaxPooling2D()(y)
     y = Conv2D(filters=filters,
                kernel_size=kernel_size,
                activation='relu')(y)
     y = MaxPooling2D()(y)
     y = Flatten()(y)
-    fc3_outputs = Dense(z_dim)(y)
-    y = Dense(num_labels)(fc3_outputs)
-    outputs = Activation('softmax')(y)
+    fc3_output = Dense(z_dim)(y)
 
-    # Build encoder model 
-    e0 = Model(inputs=inputs, outputs=fc3_outputs, name="e0")
-    e1 = Model(inputs=inputs, outputs=outputs, name="e1")
+    y = Dense(num_labels)(fc3)
+    labels = Activation('softmax')(y)
+
+    # Build encoder models 
+    e0 = Model(inputs=x, outputs=fc3_output, name="e0")
+    e1 = Model(inputs=fc3, outputs=labels, name="e1")
     return e0, e1
 
 
@@ -202,8 +205,8 @@ def train(models, data, params):
     save_interval = 500
     z0 = np.random.uniform(0.0, 1.0, size=[16, z_dim])
     z1 = np.random.uniform(0.0, 1.0, size=[16, z_dim])
-    # noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
-    noise_params = [z0, z1]
+    noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
+    noise_params = [noise_class, z0, z1]
     for i in range(train_steps):
         # Random real images, labels 
         rand_indexes = np.random.randint(0, x_train.shape[0], size=batch_size)
@@ -216,9 +219,8 @@ def train(models, data, params):
         fake_z1 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
-
-        generator_inputs = [fake_labels, fake_z1]
-        fake_fc3 = g1.predict(generator_inputs)
+        # should we use fake or real labels
+        fake_fc3 = g1.predict([real_labels, fake_z1])
 
         fc3 = np.concatenate((real_fc3, fake_fc3))
         z1 = np.concatenate((real_z1, fake_z1))
@@ -233,8 +235,8 @@ def train(models, data, params):
         log = "%d: [d1 loss: %f, acc: %f]" % (i, loss, accuracy)
 
         # ----- 1 -----
+        # do we need real z0?
         real_z0 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
-
         fake_z0 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
         fake_images = g0.predict([fake_fc3, fake_z0])
         
@@ -246,52 +248,45 @@ def train(models, data, params):
         accuracy = metrics[1]
         log = "%s [d0 loss: %f, acc: %f]" % (log, loss, accuracy)
 
-        print(log)
-        continue
-        
 
-
-
-
-        # Train the discriminator network
-        discriminator_outputs = [y, y_labels, y_codes1, y_codes2]
-        metrics = discriminator.train_on_batch(x, discriminator_outputs)
-        loss = metrics[0]
-        accuracy = metrics[1]
-        log = "%d: [discriminator loss: %f, acc: %f]" % (i, loss, accuracy)
-
-        # Generate fake images, labels and codes
-        noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
+        # Adversarial training 
+        # Generate fake z1, labels
+        fake_z1 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
-        fake_code1 = np.random.normal(scale=0.5, size=[batch_size, 1])
-        fake_code2 = np.random.normal(scale=0.5, size=[batch_size, 1])
-        # Label fake images as real
+        # Label fake fc3 as real
         y = np.ones([batch_size, 1])
 
-        # Train the adversarial network
-        advers_inputs = [noise, fake_labels, fake_code1, fake_code2]
-        advers_outputs = [y, fake_labels, fake_code1, fake_code2]
-        metrics = adversarial.train_on_batch(advers_inputs, advers_outputs)
-
+        metrics = a1.train_on_batch([fake_labels, fake_z1], [y, fake_z1])
         loss = metrics[0]
         accuracy = metrics[1]
-        log = "%s [adversarial loss: %f, acc: %f]" % (log, loss, accuracy)
+        log = "%s [a1 loss: %f, acc: %f]" % (log, loss, accuracy)
+
+        fake_fc3 = g1.predict([fake_labels, fake_z1])
+        fake_z0 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
+
+        metrics = a0.train_on_batch([fake_fc3, fake_z0], [y, fake_z0])
+        loss = metrics[0]
+        accuracy = metrics[1]
+        log = "%s [a0 loss: %f, acc: %f]" % (log, loss, accuracy)
+
         print(log)
         if (i + 1) % save_interval == 0:
             if (i + 1) == train_steps:
-                generator.save(model_name + ".h5")
+                g1.save(model_name + "-g1.h5")
+                g0.save(model_name + "-g0.h5")
                 show = True
             else:
                 show = False
-            plot_images(generator,
+            generators = (g0, g1)
+            plot_images(generators,
                         noise_params=noise_params,
                         show=show,
                         step=(i + 1),
                         model_name=model_name)
     
 
-def plot_images(generator,
+def plot_images(generators,
                 noise_params,
                 show=False,
                 step=0,
@@ -309,10 +304,13 @@ def plot_images(generator,
         model_name (string): Model name
 
     """
-    noise_input, noise_class, _, _ = noise_params
+    g0, g1 = generators
+    noise_class, z0, z1 = noise_params
     os.makedirs(model_name, exist_ok=True)
     filename = os.path.join(model_name, "%05d.png" % step)
-    images = (generator.predict(noise_params) + 1.0) * 0.5 
+    fc3 = g1.predict([noise_class, z1])
+    images = g0.predict([fc3, z0])
+    images = (images + 1.0) * 0.5 
     print(model_name,
           " labels for generated images: ",
           np.argmax(noise_class, axis=1))
@@ -320,7 +318,7 @@ def plot_images(generator,
     plt.figure(figsize=(2.2, 2.2))
     num_images = images.shape[0]
     image_size = images.shape[1]
-    rows = int(math.sqrt(noise_input.shape[0]))
+    rows = int(math.sqrt(noise_class.shape[0]))
     for i in range(num_images):
         plt.subplot(rows, rows, i + 1)
         image = np.reshape(images[i], [image_size, image_size])
@@ -332,7 +330,7 @@ def plot_images(generator,
     else:
         plt.close('all')
 
-def train_encoder(model, data, batch_size=64):
+def train_encoder(model, data, model_name="gan", batch_size=64):
     (x_train, y_train), (x_test, y_test) = data
     model.compile(loss='categorical_crossentropy',
                   optimizer='adam',
@@ -340,13 +338,14 @@ def train_encoder(model, data, batch_size=64):
     model.fit(x_train,
               y_train,
               validation_data=(x_test, y_test),
-              epochs=1,
+              epochs=10,
               batch_size=batch_size)
 
+    model.save(model_name + "-encoder.h5")
     score = model.evaluate(x_test, y_test, batch_size=batch_size)
     print("\nTest accuracy: %.1f%%" % (100.0 * score[1]))
 
-def build_and_train_models():
+def build_and_train_models(encoder_saved_model):
     # MNIST dataset
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
@@ -407,9 +406,11 @@ def build_and_train_models():
     # Build encoder models
     input_shape = (image_size, image_size, 1)
     inputs = Input(shape=input_shape, name='encoder_input')
-    e0, e1 = build_encoder(inputs, num_labels)
-    e0.summary() # fc3 encoder
-    e1.summary() # image encoder (classifier)
+    e0, e1 = build_encoder((inputs, fc3), num_labels)
+    e0.summary() # image to fc3 encoder
+    e1.summary() # fc3 to labels encoder (classifier)
+    encoder = Model(inputs, e1(e0(inputs)))
+    encoder.summary() # image to labels encoder (classifier)
 
     # Build adversarial model = generator + discriminator
     optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
@@ -436,8 +437,10 @@ def build_and_train_models():
     a1.summary()
 
     data = (x_train, y_train), (x_test, y_test)
-    train_encoder(e1, data)
-    e1.trainable = False
+    if encoder_saved_model is not None:
+        encoder = load_model(encoder_saved_model)
+    else:
+        train_encoder(encoder, data, model_name=model_name)
     
     # Train discriminator and adversarial networks
     models = (e0, e1, g0, g1, d0, d1, a0, a1)
@@ -488,6 +491,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     help_ = "Load generator h5 model with trained weights"
     parser.add_argument("-g", "--generator", help=help_)
+    help_ = "Load encoder h5 model with trained weights"
+    parser.add_argument("-e", "--encoder", help=help_)
     help_ = "Specify a specific digit to generate"
     parser.add_argument("-d", "--digit", type=int, help=help_)
     help_ = "Specify latent code 1"
@@ -495,6 +500,10 @@ if __name__ == '__main__':
     help_ = "Specify latent code 2"
     parser.add_argument("-b", "--code2", type=float, help=help_)
     args = parser.parse_args()
+    if args.encoder:
+        encoder = args.encoder
+    else:
+        encoder = None
     if args.generator:
         generator = load_model(args.generator)
         class_label = None
@@ -509,4 +518,5 @@ if __name__ == '__main__':
         params = (class_label, latent_code1, latent_code2)
         test_generator(generator, params)
     else:
-        build_and_train_models()
+
+        build_and_train_models(encoder)
