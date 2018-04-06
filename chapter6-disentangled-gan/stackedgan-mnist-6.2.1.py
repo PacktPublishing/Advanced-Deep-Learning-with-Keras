@@ -39,7 +39,7 @@ import matplotlib.pyplot as plt
 import os
 import argparse
 
-def build_encoder(inputs, num_labels=10, z_dim=146):
+def build_encoder(inputs, num_labels=10, fc3_dim=256):
     kernel_size = 3
     filters = 64
 
@@ -53,7 +53,7 @@ def build_encoder(inputs, num_labels=10, z_dim=146):
                activation='relu')(y)
     y = MaxPooling2D()(y)
     y = Flatten()(y)
-    fc3_output = Dense(z_dim)(y)
+    fc3_output = Dense(fc3_dim, activation='relu')(y)
 
     y = Dense(num_labels)(fc3)
     labels = Activation('softmax')(y)
@@ -64,7 +64,7 @@ def build_encoder(inputs, num_labels=10, z_dim=146):
     return e0, e1
 
 
-def build_generator(latent_codes, image_size, fc3_dim=146):
+def build_generator(latent_codes, image_size, fc3_dim=256):
     """Build a Generator Model
 
     Inputs are concatenated before Dense layer.
@@ -87,13 +87,18 @@ def build_generator(latent_codes, image_size, fc3_dim=146):
 
     g1_inputs = [y_labels, z1] # 10 + 50
     x = keras.layers.concatenate(g1_inputs, axis=1)
-    fc3_outputs = Dense(146)(x)
-    # Build generator 0 model
+    x = Dense(512, activation='relu')(x)
+    x = BatchNormalization()(x)
+    x = Dense(512, activation='relu')(x)
+    x = BatchNormalization()(x)
+    fc3_outputs = Dense(fc3_dim, activation='relu')(x)
+    # Build generator 1 model
     g1 = Model(g1_inputs, fc3_outputs, name='g1')
 
-    g0_inputs = [fc3, z0] # 146 + 50
+    g0_inputs = [fc3, z0] # 256 + 50
     x = keras.layers.concatenate(g0_inputs, axis=1)
-    x = Reshape((image_resize, image_resize, 4))(x)
+    x = Dense(image_resize * image_resize * layer_filters[0])(x)
+    x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
 
     for filters in layer_filters:
         if filters > layer_filters[-2]:
@@ -107,7 +112,7 @@ def build_generator(latent_codes, image_size, fc3_dim=146):
                             strides=strides,
                             padding='same')(x)
     
-    x = Activation('tanh')(x)
+    x = Activation('sigmoid')(x)
     # Build generator 0 model
     g0 = Model(g0_inputs, x, name="g0")
     return g0, g1
@@ -148,7 +153,7 @@ def build_discriminator0(inputs, z_dim=50):
     y_source = Dense(1)(x)
     y_source = Activation('sigmoid', name='image_source')(y_source)
 
-    # z0 reonstruction (adjust noise to 0 to 1.0 in the inputs)
+    # z0 reonstruction (Q0 network)
     z0_recon = Dense(z_dim)(x) 
     z0_recon = Activation('sigmoid', name='z0')(z0_recon)
     
@@ -157,7 +162,7 @@ def build_discriminator0(inputs, z_dim=50):
     return d0
 
 
-def build_discriminator1(inputs, fc3_dim=146, z_dim=50):
+def build_discriminator1(inputs, z_dim=50):
     """Build a Discriminator 1 Model
 
     # Arguments
@@ -174,7 +179,7 @@ def build_discriminator1(inputs, fc3_dim=146, z_dim=50):
     y_source = Dense(1)(x)
     y_source = Activation('sigmoid', name='fc3_source')(y_source)
 
-    # z1 reonstruction (adjust noise to 0 to 1.0 in the inputs)
+    # z1 reonstruction (Q1 network)
     z1_recon = Dense(z_dim)(x) 
     z1_recon = Activation('sigmoid', name='z1')(z1_recon)
     
@@ -203,29 +208,30 @@ def train(models, data, params):
     batch_size, train_steps, num_labels, z_dim, model_name = params
     (x_train, y_train), (x_test, y_test) = data
     save_interval = 500
-    z0 = np.random.uniform(0.0, 1.0, size=[16, z_dim])
-    z1 = np.random.uniform(0.0, 1.0, size=[16, z_dim])
+    z0 = np.random.uniform(0, 1.0, size=[16, z_dim])
+    z1 = np.random.uniform(0, 1.0, size=[16, z_dim])
     noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
     noise_params = [noise_class, z0, z1]
     for i in range(train_steps):
-        # Random real images, labels 
+        # Stack 1
+        # Random real data
         rand_indexes = np.random.randint(0, x_train.shape[0], size=batch_size)
         real_images = x_train[rand_indexes]
         real_fc3 = e0.predict(real_images)
-        real_z1 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
+        real_z1 = np.random.uniform(0, 1.0, size=[batch_size, z_dim])
         real_labels = y_train[rand_indexes]
 
-        # Generate fake images, labels
-        fake_z1 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
+        # Generate fake data
+        fake_z1 = np.random.uniform(0, 1.0, size=[batch_size, z_dim])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
-        # should we use fake or real labels
-        fake_fc3 = g1.predict([real_labels, fake_z1])
+        fake_fc3 = g1.predict([fake_labels, fake_z1])
 
+        # real + fake data
         fc3 = np.concatenate((real_fc3, fake_fc3))
         z1 = np.concatenate((real_z1, fake_z1))
 
-        # Label real and fake fc3
+        # Label 1st half real and  2nd half fake
         y = np.ones([2 * batch_size, 1])
         y[batch_size:, :] = 0
 
@@ -234,12 +240,12 @@ def train(models, data, params):
         accuracy = metrics[1]
         log = "%d: [d1 loss: %f, acc: %f]" % (i, loss, accuracy)
 
-        # ----- 1 -----
-        # do we need real z0?
-        real_z0 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
-        fake_z0 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
+        # Stack 0
+        real_z0 = np.random.uniform(0, 1.0, size=[batch_size, z_dim])
+        fake_z0 = np.random.uniform(0, 1.0, size=[batch_size, z_dim])
         fake_images = g0.predict([fake_fc3, fake_z0])
-        
+       
+        # real + fake data
         x = np.concatenate((real_images, fake_images))
         z0 = np.concatenate((real_z0, fake_z0))
 
@@ -251,21 +257,24 @@ def train(models, data, params):
 
         # Adversarial training 
         # Generate fake z1, labels
-        fake_z1 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
+        fake_z1 = np.random.uniform(0, 1.0, size=[batch_size, z_dim])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
+        g1_inputs = [fake_labels, fake_z1]
+
         # Label fake fc3 as real
         y = np.ones([batch_size, 1])
 
-        metrics = a1.train_on_batch([fake_labels, fake_z1], [y, fake_z1])
+        metrics = a1.train_on_batch(g1_inputs, [y, fake_z1, fake_labels])
         loss = metrics[0]
         accuracy = metrics[1]
         log = "%s [a1 loss: %f, acc: %f]" % (log, loss, accuracy)
 
         fake_fc3 = g1.predict([fake_labels, fake_z1])
-        fake_z0 = np.random.uniform(0.0, 1.0, size=[batch_size, z_dim])
+        fake_z0 = np.random.uniform(0, 1.0, size=[batch_size, z_dim])
+        g0_inputs = [fake_fc3, fake_z0]
 
-        metrics = a0.train_on_batch([fake_fc3, fake_z0], [y, fake_z0])
+        metrics = a0.train_on_batch(g0_inputs, [y, fake_z0, fake_fc3])
         loss = metrics[0]
         accuracy = metrics[1]
         log = "%s [a0 loss: %f, acc: %f]" % (log, loss, accuracy)
@@ -310,7 +319,7 @@ def plot_images(generators,
     filename = os.path.join(model_name, "%05d.png" % step)
     fc3 = g1.predict([noise_class, z1])
     images = g0.predict([fc3, z0])
-    images = (images + 1.0) * 0.5 
+    # images = (images + 1.0) * 0.5 
     print(model_name,
           " labels for generated images: ",
           np.argmax(noise_class, axis=1))
@@ -351,10 +360,10 @@ def build_and_train_models(encoder_saved_model):
 
     image_size = x_train.shape[1]
     x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
-    x_train = (x_train.astype('float32') - 127.5) / 127.5
+    x_train = x_train.astype('float32') / 255.0
 
     x_test = np.reshape(x_test, [-1, image_size, image_size, 1])
-    x_test = (x_test.astype('float32') - 127.5) / 127.5
+    x_test = x_test.astype('float32') / 255.0
 
     num_labels = np.amax(y_train) + 1
     y_train = to_categorical(y_train)
@@ -370,7 +379,7 @@ def build_and_train_models(encoder_saved_model):
     label_shape = (num_labels, )
     z_dim = 50
     z_shape = (z_dim, )
-    fc3_dim = 146
+    fc3_dim = 256
     fc3_shape = (fc3_dim, )
 
     # Build discriminator zero model 
@@ -412,35 +421,43 @@ def build_and_train_models(encoder_saved_model):
     encoder = Model(inputs, e1(e0(inputs)))
     encoder.summary() # image to labels encoder (classifier)
 
-    # Build adversarial model = generator + discriminator
-    optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
-    d0.trainable = False
-    generator_inputs = [fc3, z0]
-    a0 = Model(generator_inputs,
-               d0(g0(generator_inputs)),
-               name=model_name)
-    a0.compile(loss=loss,
-               optimizer=optimizer,
-               metrics=['accuracy'])
-    a0.summary()
-
-    # g1 = Model(g1_inputs, fc3_outputs, name='g1')
-    # g0 = Model([y_labels, z0, z1], x, name="g0")
-    d1.trainable = False
-    generator_inputs = [y_labels, z1]
-    a1 = Model(generator_inputs,
-               d1(g1(generator_inputs)),
-               name=model_name)
-    a1.compile(loss=loss,
-               optimizer=optimizer,
-               metrics=['accuracy'])
-    a1.summary()
-
     data = (x_train, y_train), (x_test, y_test)
+    # Train or load encoder saved model
     if encoder_saved_model is not None:
         encoder = load_model(encoder_saved_model)
     else:
         train_encoder(encoder, data, model_name=model_name)
+
+
+    # Build adversarial model = generator + discriminator
+    optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
+    e0.trainable = False
+    d0.trainable = False
+    g0_inputs = [fc3, z0]
+    g0_outputs = g0(g0_inputs)
+    a0_outputs = d0(g0_outputs) + [e0(g0_outputs)]
+    a0 = Model(g0_inputs, a0_outputs, name="a0")
+    loss = ['binary_crossentropy', 'mse', 'mse']
+    loss_weights = [1.0, 1.0, 1.0]
+    a0.compile(loss=loss,
+               loss_weights=loss_weights,
+               optimizer=optimizer,
+               metrics=['accuracy'])
+    a0.summary()
+
+    e1.trainable = False
+    d1.trainable = False
+    g1_inputs = [y_labels, z1]
+    g1_outputs = g1(g1_inputs)
+    a1_outputs = d1(g1_outputs) + [e1(g1_outputs)]
+    a1 = Model(g1_inputs, a1_outputs, name="a1")
+    loss = ['binary_crossentropy', 'mse', 'categorical_crossentropy']
+    a1.compile(loss=loss,
+               loss_weights=loss_weights,
+               optimizer=optimizer,
+               metrics=['accuracy'])
+    a1.summary()
+
     
     # Train discriminator and adversarial networks
     models = (e0, e1, g0, g1, d0, d1, a0, a1)
