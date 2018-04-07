@@ -40,6 +40,19 @@ import os
 import argparse
 
 def build_encoder(inputs, num_labels=10, fc3_dim=256):
+    """ Build the Classifier (Encoder) Model sub networks
+
+    Two sub networks: 1) Image to fc3 (intermediate latent feature)
+    2) fc3 to classes
+
+    # Arguments
+        inputs (Layers): x - images, fc3 - fc3 layer output
+        num_labels (int): number of classes
+        fc3_dim (int): fc3 dimensionality
+
+    # Returns
+        e0, e1 (Models): Description below 
+    """
     kernel_size = 3
     filters = 64
 
@@ -59,43 +72,47 @@ def build_encoder(inputs, num_labels=10, fc3_dim=256):
     labels = Activation('softmax')(y)
 
     # Build encoder models 
+    # e0: image to fc3 
     e0 = Model(inputs=x, outputs=fc3_output, name="e0")
+    # e1: fc3 to classes
     e1 = Model(inputs=fc3, outputs=labels, name="e1")
     return e0, e1
 
 
 def build_generator(latent_codes, image_size, fc3_dim=256):
-    """Build a Generator Model
+    """Build Generator Model sub networks
 
-    Inputs are concatenated before Dense layer.
-    Stacks of BN-ReLU-Conv2DTranpose to generate fake images.
+    Two sub networks: 1) Class and noise to fc3 (intermediate feature)
+    2) fc3 to image
 
     # Arguments
-        inputs (Layer): Input layer of the generator (the z-vector)
-        latent_codes (tuple): dicrete code (labels), and continuous codes
-            the inputs
-        image_size: Target size of one side (assuming square image)
+        latent_codes (Layers): dicrete code (labels), noise and fc3 features
+        image_size (int): Target size of one side (assuming square image)
+        fc3_dim (int): fc3 dimensionality
 
     # Returns
-        Model: Generator Model
+        g0, g1 (Models): Description below
     """
 
+    # Latent codes and network parameters
     y_labels, z0, z1, fc3 = latent_codes
     image_resize = image_size // 4
     kernel_size = 5
     layer_filters = [128, 64, 32, 1]
 
-    g1_inputs = [y_labels, z1] # 10 + 50
+    # Inputs to g1
+    g1_inputs = [y_labels, z1]      # 10 + 50
     x = keras.layers.concatenate(g1_inputs, axis=1)
     x = Dense(512, activation='relu')(x)
     x = BatchNormalization()(x)
     x = Dense(512, activation='relu')(x)
     x = BatchNormalization()(x)
     fc3_outputs = Dense(fc3_dim, activation='relu')(x)
-    # Build generator 1 model
+    # g1: classes and noise to fc3
     g1 = Model(g1_inputs, fc3_outputs, name='g1')
 
-    g0_inputs = [fc3, z0] # 256 + 50
+    # Inputs to g0
+    g0_inputs = [fc3, z0]           # 256 + 50
     x = keras.layers.concatenate(g0_inputs, axis=1)
     x = Dense(image_resize * image_resize * layer_filters[0])(x)
     x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
@@ -113,25 +130,27 @@ def build_generator(latent_codes, image_size, fc3_dim=256):
                             padding='same')(x)
     
     x = Activation('sigmoid')(x)
-    # Build generator 0 model
+    # g0: fc3 features and noise to image
     g0 = Model(g0_inputs, x, name="g0")
+
     return g0, g1
 
 
 def build_discriminator0(inputs, z_dim=50):
     """Build a Discriminator 0 Model
 
-    Stacks of LeakyReLU-Conv2D to discriminate real from fake
-    The network does not converge with BN so it is not used here
-    unlike in DCGAN paper.
+    Classifies x (image) as real/fake image and recovers
+    the input noise or latent code (by minimizing entropy loss)
 
     # Arguments
-        inputs (Layer): Input layer of the discriminator (the image)
-        num_labels (int): Dimension of one-hot vector output
+        inputs (Layer): image
+        z_dim (int): noise dimensionality
 
     # Returns
-        Model: Discriminator Model
+        d0 (Model): image x as real/fake and recovered latent code
     """
+
+    # Network parameters
     kernel_size = 5
     layer_filters = [32, 64, 128, 256]
 
@@ -165,11 +184,15 @@ def build_discriminator0(inputs, z_dim=50):
 def build_discriminator1(inputs, z_dim=50):
     """Build a Discriminator 1 Model
 
+    Classifies fc3 (features) as real/fake image and recovers
+    the input noise or latent code (by minimizing entropy loss)
+
     # Arguments
-        fc3_dim (int): Dimension of one-hot vector output
+        inputs (Layer): fc3 features
+        z_dim (int): noise dimensionality
 
     # Returns
-        Model: Discriminator Model
+        d1 (Model): fc3 as real/fake and recovered latent code
     """
 
     x = Dense(256, activation='relu')(inputs)
@@ -193,25 +216,28 @@ def train(models, data, params):
 
     Alternately train discriminator and adversarial networks by batch.
     Discriminator is trained first with real and fake images,
-    corresponding one-hot labels and continuous codes
+    corresponding one-hot labels and latent codes.
     Adversarial is trained next with fake images pretending to be real,
-    corresponding one-hot labels and continous codes
+    corresponding one-hot labels and latent codes.
     Generate sample images per save_interval.
 
     # Arguments
-        models (tuple): Generator, Discriminator, Adversarial models
+        models (Models): Encoder, Generator, Discriminator, Adversarial models
         data (tuple): x_train, y_train data
         params (tuple): Network parameters
 
     """
     e0, e1, g0, g1, d0, d1, a0, a1 = models
     batch_size, train_steps, num_labels, z_dim, model_name = params
-    (x_train, y_train), (x_test, y_test) = data
+    (x_train, y_train), (_, _) = data
     save_interval = 500
+
+    # label and noise codes for generator testing
     z0 = np.random.uniform(0, 1.0, size=[16, z_dim])
     z1 = np.random.uniform(0, 1.0, size=[16, z_dim])
     noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
     noise_params = [noise_class, z0, z1]
+
     for i in range(train_steps):
         # Stack 1
         # Random real data
@@ -231,10 +257,12 @@ def train(models, data, params):
         fc3 = np.concatenate((real_fc3, fake_fc3))
         z1 = np.concatenate((real_z1, fake_z1))
 
-        # Label 1st half real and  2nd half fake
+        # Label 1st half as real and 2nd half as fake
         y = np.ones([2 * batch_size, 1])
         y[batch_size:, :] = 0
 
+        # Train discriminator 1 to classify fc3 as real/fake and recover
+        # latent code. real = from encoder, fake = from g1 
         metrics = d1.train_on_batch(fc3, [y, z1])
         loss = metrics[0]
         accuracy = metrics[1]
@@ -249,11 +277,12 @@ def train(models, data, params):
         x = np.concatenate((real_images, fake_images))
         z0 = np.concatenate((real_z0, fake_z0))
 
+        # Train discriminator 0 to classify image as real/fake and recover
+        # latent code
         metrics = d0.train_on_batch(x, [y, z0])
         loss = metrics[0]
         accuracy = metrics[1]
         log = "%s [d0 loss: %f, acc: %f]" % (log, loss, accuracy)
-
 
         # Adversarial training 
         # Generate fake z1, labels
@@ -264,16 +293,21 @@ def train(models, data, params):
 
         # Label fake fc3 as real
         y = np.ones([batch_size, 1])
-
+    
+        # Train generator 1 (thru adversarial) by fooling the discriminator
+        # and approximating encoder 1 fc3 features generator
         metrics = a1.train_on_batch(g1_inputs, [y, fake_z1, fake_labels])
         loss = metrics[0]
         accuracy = metrics[1]
         log = "%s [a1 loss: %f, acc: %f]" % (log, loss, accuracy)
 
+        # Generate fake fc3 and noise
         fake_fc3 = g1.predict([fake_labels, fake_z1])
         fake_z0 = np.random.uniform(0, 1.0, size=[batch_size, z_dim])
         g0_inputs = [fake_fc3, fake_z0]
 
+        # Train generator 0 (thru adversarial) by fooling the discriminator
+        # and approximating encoder 1 image source generator
         metrics = a0.train_on_batch(g0_inputs, [y, fake_z0, fake_fc3])
         loss = metrics[0]
         accuracy = metrics[1]
@@ -306,20 +340,19 @@ def plot_images(generators,
     then plot them in a square grid
 
     # Arguments
-        generator (Model): The Generator Model for fake images generation
-        noise_params (list): noise parameters (noise, label, codes)
+        generators (Models): g0 and g1 models for fake images generation
+        noise_params (list): noise parameters (label, z0 and z1 codes)
         show (bool): Whether to show plot or not
         step (int): Appended to filename of the save images
         model_name (string): Model name
-
     """
+
     g0, g1 = generators
     noise_class, z0, z1 = noise_params
     os.makedirs(model_name, exist_ok=True)
     filename = os.path.join(model_name, "%05d.png" % step)
     fc3 = g1.predict([noise_class, z1])
     images = g0.predict([fc3, z0])
-    # images = (images + 1.0) * 0.5 
     print(model_name,
           " labels for generated images: ",
           np.argmax(noise_class, axis=1))
@@ -339,7 +372,17 @@ def plot_images(generators,
     else:
         plt.close('all')
 
-def train_encoder(model, data, model_name="gan", batch_size=64):
+
+def train_encoder(model, data, model_name="stackedgan_mnist", batch_size=64):
+    """ Train the Encoder Model (e0 and e1)
+
+    # Arguments
+        model (Model): Encoder
+        data (tensor): Train and test data
+        model_name (string): model name
+        batch_size (int): Train batch size
+    """
+
     (x_train, y_train), (x_test, y_test) = data
     model.compile(loss='categorical_crossentropy',
                   optimizer='adam',
@@ -354,7 +397,14 @@ def train_encoder(model, data, model_name="gan", batch_size=64):
     score = model.evaluate(x_test, y_test, batch_size=batch_size)
     print("\nTest accuracy: %.1f%%" % (100.0 * score[1]))
 
+
 def build_and_train_models(encoder_saved_model):
+    """ Build and train Stacked GAN
+    
+    # Arguments
+        encoder_saved_model (h5): use trained model if available
+    """
+
     # MNIST dataset
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
@@ -390,7 +440,7 @@ def build_and_train_models(encoder_saved_model):
     # Loss fuctions: 1) Probability image is real 2) MSE z0 recon loss
     loss = ['binary_crossentropy', 'mse']
     d0.compile(loss=loss, optimizer=optimizer, metrics=['accuracy'])
-    d0.summary() # image discriminator, z0 discriminator
+    d0.summary() # image discriminator, z0 estimator 
 
     # Build discriminator one model
     input_shape = (fc3_dim, )
@@ -399,7 +449,7 @@ def build_and_train_models(encoder_saved_model):
     # Loss fuctions: 1) Probability fc3 is real 2) MSE z1 recon loss
     loss = ['binary_crossentropy', 'mse']
     d1.compile(loss=loss, optimizer=optimizer, metrics=['accuracy'])
-    d1.summary() # fc3 discriminator, z1 discriminator
+    d1.summary() # fc3 discriminator, z1 estimator
 
     # Build generator models
     fc3 = Input(shape=fc3_shape, name='fc3_input')
@@ -410,7 +460,6 @@ def build_and_train_models(encoder_saved_model):
     g0, g1 = build_generator(latent_codes, image_size)
     g0.summary() # image generator 
     g1.summary() # fc3 generator
-
 
     # Build encoder models
     input_shape = (image_size, image_size, 1)
@@ -428,8 +477,7 @@ def build_and_train_models(encoder_saved_model):
     else:
         train_encoder(encoder, data, model_name=model_name)
 
-
-    # Build adversarial model = generator + discriminator
+    # Build adversarial0 model = generator0 + discriminator0 + encoder0
     optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
     e0.trainable = False
     d0.trainable = False
@@ -438,13 +486,10 @@ def build_and_train_models(encoder_saved_model):
     a0_outputs = d0(g0_outputs) + [e0(g0_outputs)]
     a0 = Model(g0_inputs, a0_outputs, name="a0")
     loss = ['binary_crossentropy', 'mse', 'mse']
-    loss_weights = [1.0, 1.0, 1.0]
-    a0.compile(loss=loss,
-               loss_weights=loss_weights,
-               optimizer=optimizer,
-               metrics=['accuracy'])
+    a0.compile(loss=loss, optimizer=optimizer, metrics=['accuracy'])
     a0.summary()
 
+    # Build adversarial1 model = generator1 + discriminator1 + encoder1
     e1.trainable = False
     d1.trainable = False
     g1_inputs = [y_labels, z1]
@@ -452,22 +497,17 @@ def build_and_train_models(encoder_saved_model):
     a1_outputs = d1(g1_outputs) + [e1(g1_outputs)]
     a1 = Model(g1_inputs, a1_outputs, name="a1")
     loss = ['binary_crossentropy', 'mse', 'categorical_crossentropy']
-    a1.compile(loss=loss,
-               loss_weights=loss_weights,
-               optimizer=optimizer,
-               metrics=['accuracy'])
+    a1.compile(loss=loss, optimizer=optimizer, metrics=['accuracy'])
     a1.summary()
 
-    
     # Train discriminator and adversarial networks
     models = (e0, e1, g0, g1, d0, d1, a0, a1)
     params = (batch_size, train_steps, num_labels, z_dim, model_name)
     train(models, data, params)
 
 
-def test_generator(generator, params, latent_size=100):
-    class_label, latent_code1, latent_code2 = params
-    noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
+def test_generator(generators, params, z_dim=50):
+    class_label, z0, z1 = params
     step = 0
     if class_label is None:
         num_labels = 10
@@ -477,27 +517,27 @@ def test_generator(generator, params, latent_size=100):
         noise_class[:,class_label] = 1
         step = class_label
 
-    if latent_code1 is None:
-        noise_code1 = np.random.normal(scale=0.5, size=[16, 1])
+    if z0 is None:
+        z0 = np.random.uniform(0, 1.0, size=[16, z_dim])
     else:
-        noise_code1 = np.ones((16, 1)) * latent_code1
+        z0 = np.ones((16, z_dim)) * z0
         # a = np.linspace(-2, 2, 16)
         # a = np.reshape(a, [16, 1])
-        # noise_code1 = np.ones((16, 1)) * a
-        # print(noise_code1)
+        # z0 = np.ones((16, 1)) * a
+        print("z0: ", z0[0])
 
-    if latent_code2 is None:
-        noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
+    if z1 is None:
+        z1 = np.random.uniform(0, 1.0, size=[16, z_dim])
     else:
-        noise_code2 = np.ones((16, 1)) * latent_code2
+        z1 = np.ones((16, z_dim)) * z1
         # a = np.linspace(-2, 2, 16)
         # a = np.reshape(a, [16, 1])
-        # noise_code2 = np.ones((16, 1)) * a
-        # print(noise_code2)
+        # z0 = np.ones((16, 1)) * a
+        print("z1: ", z1[0])
 
-    noise_params = [noise_input, noise_class, noise_code1, noise_code2]
+    noise_params = [noise_class, z0, z1]
 
-    plot_images(generator,
+    plot_images(generators,
                 noise_params=noise_params,
                 show=True,
                 step=step,
@@ -506,34 +546,40 @@ def test_generator(generator, params, latent_size=100):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    help_ = "Load generator h5 model with trained weights"
-    parser.add_argument("-g", "--generator", help=help_)
+    help_ = "Load generator 0 h5 model with trained weights"
+    parser.add_argument("-g", "--generator0", help=help_)
+    help_ = "Load generator 1 h5 model with trained weights"
+    parser.add_argument("-k", "--generator1", help=help_)
     help_ = "Load encoder h5 model with trained weights"
     parser.add_argument("-e", "--encoder", help=help_)
     help_ = "Specify a specific digit to generate"
     parser.add_argument("-d", "--digit", type=int, help=help_)
-    help_ = "Specify latent code 1"
-    parser.add_argument("-a", "--code1", type=float, help=help_)
-    help_ = "Specify latent code 2"
-    parser.add_argument("-b", "--code2", type=float, help=help_)
+    help_ = "Specify z0 noise code (as a 50-dim with z0 constant)"
+    parser.add_argument("-z", "--z0", type=float, help=help_)
+    help_ = "Specify z1 noise code (as a 50-dim with z1 constant)"
+    parser.add_argument("-x", "--z1", type=float, help=help_)
     args = parser.parse_args()
     if args.encoder:
         encoder = args.encoder
     else:
         encoder = None
-    if args.generator:
-        generator = load_model(args.generator)
+    if args.generator0:
+        g0 = load_model(args.generator0)
+        if args.generator1:
+            g1 = load_model(args.generator1)
+        else:
+            print("Must specify both generators 0 and 1 models")
+            exit(0)
         class_label = None
-        latent_code1 = None
-        latent_code2 = None
+        z0 = None
+        z1 = None
         if args.digit is not None:
             class_label = args.digit
-        if args.code1 is not None:
-            latent_code1 = args.code1
-        if args.code2 is not None:
-            latent_code2 = args.code2
-        params = (class_label, latent_code1, latent_code2)
-        test_generator(generator, params)
+        if args.z0 is not None:
+            z0 = args.z0
+        if args.z1 is not None:
+            z1 = args.z1
+        params = (class_label, z0, z1)
+        test_generator((g0, g1), params)
     else:
-
         build_and_train_models(encoder)
