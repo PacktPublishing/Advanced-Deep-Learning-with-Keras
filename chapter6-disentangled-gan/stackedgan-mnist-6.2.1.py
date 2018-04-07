@@ -1,10 +1,14 @@
-'''Trains infoGAN on MNIST using Keras
+'''Trains StackedGAN on MNIST using Keras
 
-This version of infoGAN is similar to DCGAN. The difference mainly
-is that the z-vector of geneerator is conditioned by a one-hot label
-to produce specific fake images. The discriminator is trained to
-discriminate real from fake images and predict the corresponding
-one-hot labels.
+Stacked GAN uses Encoder, Generator and Discriminator.
+The encoder is a CNN MNIST classifier. The encoder provides latent
+features (fc3) and labels that the generator learns by inverting the 
+process. The generator uses conditioning labels and latent codes
+(z0 and z1) to synthesize images by fooling the discriminator.
+The labels, z0 and z1 are disentangled codes used to control 
+the attributes of synthesized images. The discriminator determines 
+if the image and fc3 features are real or fake. At the same time,
+it estimates the latent codes that generated the image and fc3 features.
 
 [1] Radford, Alec, Luke Metz, and Soumith Chintala.
 "Unsupervised representation learning with deep convolutional
@@ -129,7 +133,7 @@ def build_generator(latent_codes, image_size, fc3_dim=256):
                             strides=strides,
                             padding='same')(x)
     
-    x = Activation('sigmoid')(x)
+    x = Activation('tanh')(x)
     # g0: fc3 features and noise to image
     g0 = Model(g0_inputs, x, name="g0")
 
@@ -174,7 +178,7 @@ def build_discriminator0(inputs, z_dim=50):
 
     # z0 reonstruction (Q0 network)
     z0_recon = Dense(z_dim)(x) 
-    z0_recon = Activation('sigmoid', name='z0')(z0_recon)
+    z0_recon = Activation('tanh', name='z0')(z0_recon)
     
     discriminator_outputs = [y_source, z0_recon]
     d0 = Model(inputs, discriminator_outputs, name='d0')
@@ -204,7 +208,7 @@ def build_discriminator1(inputs, z_dim=50):
 
     # z1 reonstruction (Q1 network)
     z1_recon = Dense(z_dim)(x) 
-    z1_recon = Activation('sigmoid', name='z1')(z1_recon)
+    z1_recon = Activation('tanh', name='z1')(z1_recon)
     
     discriminator_outputs = [y_source, z1_recon]
     d1 = Model(inputs, discriminator_outputs, name='d1')
@@ -233,10 +237,13 @@ def train(models, data, params):
     save_interval = 500
 
     # label and noise codes for generator testing
-    z0 = np.random.uniform(0, 1.0, size=[16, z_dim])
-    z1 = np.random.uniform(0, 1.0, size=[16, z_dim])
-    noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
+    z0 = np.random.normal(scale=0.5, size=[16, z_dim])
+    z1 = np.random.normal(scale=0.5, size=[16, z_dim])
+    noise_class = np.eye(num_labels)[np.arange(0, 16) % num_labels]
     noise_params = [noise_class, z0, z1]
+    print(model_name,
+          "Labels for generated images: ",
+          np.argmax(noise_class, axis=1))
 
     for i in range(train_steps):
         # Stack 1
@@ -244,11 +251,11 @@ def train(models, data, params):
         rand_indexes = np.random.randint(0, x_train.shape[0], size=batch_size)
         real_images = x_train[rand_indexes]
         real_fc3 = e0.predict(real_images)
-        real_z1 = np.random.uniform(0, 1.0, size=[batch_size, z_dim])
+        real_z1 = np.random.normal(0.5, size=[batch_size, z_dim])
         real_labels = y_train[rand_indexes]
 
         # Generate fake data
-        fake_z1 = np.random.uniform(0, 1.0, size=[batch_size, z_dim])
+        fake_z1 = np.random.normal(0.5, size=[batch_size, z_dim])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
         fake_fc3 = g1.predict([fake_labels, fake_z1])
@@ -269,8 +276,8 @@ def train(models, data, params):
         log = "%d: [d1 loss: %f, acc: %f]" % (i, loss, accuracy)
 
         # Stack 0
-        real_z0 = np.random.uniform(0, 1.0, size=[batch_size, z_dim])
-        fake_z0 = np.random.uniform(0, 1.0, size=[batch_size, z_dim])
+        real_z0 = np.random.normal(0.5, size=[batch_size, z_dim])
+        fake_z0 = np.random.normal(0.5, size=[batch_size, z_dim])
         fake_images = g0.predict([fake_fc3, fake_z0])
        
         # real + fake data
@@ -286,7 +293,7 @@ def train(models, data, params):
 
         # Adversarial training 
         # Generate fake z1, labels
-        fake_z1 = np.random.uniform(0, 1.0, size=[batch_size, z_dim])
+        fake_z1 = np.random.normal(0.5, size=[batch_size, z_dim])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
         g1_inputs = [fake_labels, fake_z1]
@@ -303,7 +310,7 @@ def train(models, data, params):
 
         # Generate fake fc3 and noise
         fake_fc3 = g1.predict([fake_labels, fake_z1])
-        fake_z0 = np.random.uniform(0, 1.0, size=[batch_size, z_dim])
+        fake_z0 = np.random.normal(0.5, size=[batch_size, z_dim])
         g0_inputs = [fake_fc3, fake_z0]
 
         # Train generator 0 (thru adversarial) by fooling the discriminator
@@ -353,8 +360,9 @@ def plot_images(generators,
     filename = os.path.join(model_name, "%05d.png" % step)
     fc3 = g1.predict([noise_class, z1])
     images = g0.predict([fc3, z0])
+    images = (images + 1.0) * 0.5 
     print(model_name,
-          " labels for generated images: ",
+          "Labels for generated images: ",
           np.argmax(noise_class, axis=1))
 
     plt.figure(figsize=(2.2, 2.2))
@@ -410,10 +418,10 @@ def build_and_train_models(encoder_saved_model):
 
     image_size = x_train.shape[1]
     x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
-    x_train = x_train.astype('float32') / 255.0
+    x_train = (x_train.astype('float32') - 127.5) / 127.5
 
     x_test = np.reshape(x_test, [-1, image_size, image_size, 1])
-    x_test = x_test.astype('float32') / 255.0
+    x_test = (x_test.astype('float32') - 127.5) / 127.5
 
     num_labels = np.amax(y_train) + 1
     y_train = to_categorical(y_train)
@@ -518,21 +526,21 @@ def test_generator(generators, params, z_dim=50):
         step = class_label
 
     if z0 is None:
-        z0 = np.random.uniform(0, 1.0, size=[16, z_dim])
+        z0 = np.random.normal(0.5, size=[16, z_dim])
     else:
         z0 = np.ones((16, z_dim)) * z0
         # a = np.linspace(-2, 2, 16)
         # a = np.reshape(a, [16, 1])
-        # z0 = np.ones((16, 1)) * a
+        # z0 = np.ones((16, z_dim)) * a
         print("z0: ", z0[0])
 
     if z1 is None:
-        z1 = np.random.uniform(0, 1.0, size=[16, z_dim])
+        z1 = np.random.normal(0.5, size=[16, z_dim])
     else:
         z1 = np.ones((16, z_dim)) * z1
-        # a = np.linspace(-2, 2, 16)
+        # a = np.linspace(-1, 1, 16)
         # a = np.reshape(a, [16, 1])
-        # z0 = np.ones((16, 1)) * a
+        # z1 = np.ones((16, z_dim)) * a
         print("z1: ", z1[0])
 
     noise_params = [noise_class, z0, z1]
