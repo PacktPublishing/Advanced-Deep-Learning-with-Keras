@@ -172,8 +172,8 @@ def build_discriminator1(inputs, z_dim=50):
         Model: Discriminator Model
     """
 
-    x = Dense(256)(inputs)
-    x = Dense(256)(x)
+    x = Dense(256, activation='relu')(inputs)
+    x = Dense(256, activation='relu')(x)
 
     # First output is probability that fc3 is real
     y_source = Dense(1)(x)
