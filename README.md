@@ -15,6 +15,20 @@ Sample outputs for digits 0 to 9:
 
 ![Zero to Nine](chapter4-gan/images/cgan_mnist.gif)
 ## Chapter 5 - Improved GAN
+### [Wasserstein GAN (WGAN)](chapter5-improved-gan/wgan-mnist-5.1.1.py)
+
+[Arjovsky, Martin, Soumith Chintala, and Léon Bottou. "Wasserstein GAN." arXiv preprint arXiv:1701.07875 (2017).](https://arxiv.org/pdf/1701.07875)
+
+Sample outputs for random digits:
+
+![Random Digits](chapter5-improved-gan/images/wgan_mnist.gif)
+### [Least Squares GAN(LSGAN)](chapter5-improved-gan/lsgan-mnist-5.2.1.py)
+
+[Mao, Xudong, et al. "Least squares generative adversarial networks." 2017 IEEE International Conference on Computer Vision (ICCV). IEEE, 2017.](http://openaccess.thecvf.com/content_ICCV_2017/papers/Mao_Least_Squares_Generative_ICCV_2017_paper.pdf)
+
+Sample outputs for random digits:
+
+![Random Digits](chapter5-improved-gan/images/lsgan_mnist.gif)
 ### [Auxiliary Classfier GAN (ACGAN)](chapter5-improved-gan/acgan-mnist-5.3.1.py)
 
 [Odena, Augustus, Christopher Olah, and Jonathon Shlens. "Conditional image synthesis with auxiliary classifier GANs." (2017)](http://proceedings.mlr.press/v70/odena17a.html)
@@ -22,7 +36,7 @@ Sample outputs for digits 0 to 9:
 Sample outputs for digits 0 to 9:
 
 ![Zero to Nine](chapter5-improved-gan/images/acgan_mnist.gif)
-## Chapter 6 - GAN using Disentangled Latent Representations
+## Chapter 6 - GAN with Disentangled Latent Representations
 ### [Information Maximizing GAN (InfoGAN)](chapter6-disentangled-gan/infogan-mnist-6.1.1.py)
 
 [Chen, Xi, et al. "Infogan: Interpretable representation learning by information maximizing generative adversarial nets." 
