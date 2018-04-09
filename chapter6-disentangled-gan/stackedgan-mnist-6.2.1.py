@@ -538,7 +538,7 @@ def test_generator(generators, params, z_dim=50):
         z1 = np.random.normal(0.5, size=[16, z_dim])
     else:
         z1 = np.ones((16, z_dim)) * z1
-        # a = np.linspace(-1, 1, 16)
+        # a = np.linspace(-2, 2, 16)
         # a = np.reshape(a, [16, 1])
         # z1 = np.ones((16, z_dim)) * a
         print("z1: ", z1[0])

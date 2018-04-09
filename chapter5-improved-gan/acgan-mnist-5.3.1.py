@@ -146,7 +146,11 @@ def train(models, data, params):
     batch_size, latent_size, train_steps, num_labels, model_name = params
     save_interval = 500
     noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
-    noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
+    noise_class = np.eye(num_labels)[np.arange(0, 16) % num_labels]
+    print(model_name,
+          "Labels for generated images: ",
+          np.argmax(noise_class, axis=1))
+
     for i in range(train_steps):
         # Random real images and their labels
         rand_indexes = np.random.randint(0, x_train.shape[0], size=batch_size)

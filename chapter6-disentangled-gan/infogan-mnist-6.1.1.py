@@ -49,12 +49,12 @@ def build_generator(inputs, latent_codes, image_size):
 
     # Arguments
         inputs (Layer): Input layer of the generator (the z-vector)
-        latent_codes (tuple): dicrete code (labels), and continuous codes
+        latent_codes (tuple): Dicrete code (labels), and continuous codes
             the inputs
         image_size: Target size of one side (assuming square image)
 
     # Returns
-        Model: Generator Model
+        generator (Model): Generator model
     """
 
     y_labels, y_code1, y_code2 = latent_codes
@@ -97,7 +97,7 @@ def build_discriminator(inputs, num_labels, image_size):
         image_size (int): Target size of one side (assuming square image)
 
     # Returns
-        Model: Discriminator Model
+        discriminator (Model): Discriminator model
     """
     kernel_size = 5
     layer_filters = [32, 64, 128, 256]
@@ -139,7 +139,7 @@ def build_discriminator(inputs, num_labels, image_size):
 
 
 def train(models, data, params):
-    """Train the discriminator and adversarial Networks
+    """Train the Discriminator and Adversarial networks
 
     Alternately train discriminator and adversarial networks by batch.
     Discriminator is trained first with real and fake images,
@@ -149,20 +149,23 @@ def train(models, data, params):
     Generate sample images per save_interval.
 
     # Arguments
-        models (tuple): Generator, Discriminator, Adversarial models
+        models (Models): Generator, Discriminator, Adversarial models
         data (tuple): x_train, y_train data
         params (tuple): Network parameters
-
     """
     generator, discriminator, adversarial = models
     x_train, y_train = data
     batch_size, latent_size, train_steps, num_labels, model_name = params
     save_interval = 500
     noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
-    noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
+    noise_class = np.eye(num_labels)[np.arange(0, 16) % num_labels]
     noise_code1 = np.random.normal(scale=0.5, size=[16, 1])
     noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
     noise_params = [noise_input, noise_class, noise_code1, noise_code2]
+    print(model_name,
+          "Labels for generated images: ",
+          np.argmax(noise_class, axis=1))
+
     for i in range(train_steps):
         # Random real images, labels and codes
         rand_indexes = np.random.randint(0, x_train.shape[0], size=batch_size)
@@ -234,6 +237,7 @@ def mi_loss(c, q_of_c_given_x):
     conditional_entropy = K.mean(-K.sum(K.log(q_of_c_given_x + K.epsilon()) * c, axis=1))
     return conditional_entropy
 
+
 def plot_images(generator,
                 noise_params,
                 show=False,
@@ -250,7 +254,6 @@ def plot_images(generator,
         show (bool): Whether to show plot or not
         step (int): Appended to filename of the save images
         model_name (string): Model name
-
     """
     noise_input, noise_class, _, _ = noise_params
     os.makedirs(model_name, exist_ok=True)
@@ -277,6 +280,12 @@ def plot_images(generator,
 
 
 def build_and_train_models(latent_size=100):
+    """ Build and train InfoGAN
+    
+    # Arguments
+        latent size (int): noise dimensionality
+    """
+
     # MNIST dataset
     (x_train, y_train), (_, _) = mnist.load_data()
 
