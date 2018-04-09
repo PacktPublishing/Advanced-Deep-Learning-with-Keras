@@ -1,8 +1,15 @@
 # :construction_worker: This repo is under development :construction_worker:
 ## Chapter 4 - Generative Adversarial Network (GAN)
+### [Deep Convolutional GAN (DCGAN)](chapter4-gan/dcgan-mnist-4.2.1.py)
+
+[Radford, Alec, Luke Metz, and Soumith Chintala. "Unsupervised representation learning with deep convolutional generative adversarial networks." arXiv preprint arXiv:1511.06434 (2015).](https://arxiv.org/pdf/1511.06434.pdf%C3%AF%C2%BC%E2%80%B0)
+
+Sample outputs for random digits:
+
+![Random Digits](chapter4-gan/images/dcgan_mnist.gif)
 ### [Conditional (GAN)](chapter4-gan/cgan-mnist-4.3.1.py)
 
-[Mirza, Mehdi, and Simon Osindero. "Conditional generative adversarial nets." (2014).](https://arxiv.org/pdf/1411.1784)
+[Mirza, Mehdi, and Simon Osindero. "Conditional generative adversarial nets." arXiv preprint arXiv:1411.1784 (2014).](https://arxiv.org/pdf/1411.1784)
 
 Sample outputs for digits 0 to 9:
 
