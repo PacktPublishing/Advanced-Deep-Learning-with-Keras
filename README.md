@@ -22,7 +22,7 @@ Sample outputs for digits 0 to 9:
 Sample outputs for random digits:
 
 ![Random Digits](chapter5-improved-gan/images/wgan_mnist.gif)
-### [Least Squares GAN(LSGAN)](chapter5-improved-gan/lsgan-mnist-5.2.1.py)
+### [Least Squares GAN (LSGAN)](chapter5-improved-gan/lsgan-mnist-5.2.1.py)
 
 [Mao, Xudong, et al. "Least squares generative adversarial networks." 2017 IEEE International Conference on Computer Vision (ICCV). IEEE, 2017.](http://openaccess.thecvf.com/content_ICCV_2017/papers/Mao_Least_Squares_Generative_ICCV_2017_paper.pdf)
 
@@ -31,7 +31,7 @@ Sample outputs for random digits:
 ![Random Digits](chapter5-improved-gan/images/lsgan_mnist.gif)
 ### [Auxiliary Classfier GAN (ACGAN)](chapter5-improved-gan/acgan-mnist-5.3.1.py)
 
-[Odena, Augustus, Christopher Olah, and Jonathon Shlens. "Conditional image synthesis with auxiliary classifier GANs." (2017)](http://proceedings.mlr.press/v70/odena17a.html)
+[Odena, Augustus, Christopher Olah, and Jonathon Shlens. "Conditional image synthesis with auxiliary classifier GANs. Proceedings of the 34th International Conference on Machine Learning, Sydney, Australia, PMLR 70, 2017."](http://proceedings.mlr.press/v70/odena17a.html)
 
 Sample outputs for digits 0 to 9:
 
