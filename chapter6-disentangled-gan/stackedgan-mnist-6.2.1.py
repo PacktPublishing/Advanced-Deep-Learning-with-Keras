@@ -255,6 +255,7 @@ def train(models, data, params):
         real_labels = y_train[rand_indexes]
 
         # Generate fake data
+        # Joint
         fake_z1 = np.random.normal(0.5, size=[batch_size, z_dim])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
@@ -278,6 +279,7 @@ def train(models, data, params):
         # Stack 0
         real_z0 = np.random.normal(0.5, size=[batch_size, z_dim])
         fake_z0 = np.random.normal(0.5, size=[batch_size, z_dim])
+        # Joint 
         fake_images = g0.predict([fake_fc3, fake_z0])
        
         # real + fake data
@@ -532,7 +534,7 @@ def test_generator(generators, params, z_dim=50):
         # a = np.linspace(-2, 2, 16)
         # a = np.reshape(a, [16, 1])
         # z0 = np.ones((16, z_dim)) * a
-        print("z0: ", z0[0])
+        print("z0: ", z0[:,0])
 
     if z1 is None:
         z1 = np.random.normal(0.5, size=[16, z_dim])
@@ -541,7 +543,7 @@ def test_generator(generators, params, z_dim=50):
         # a = np.linspace(-2, 2, 16)
         # a = np.reshape(a, [16, 1])
         # z1 = np.ones((16, z_dim)) * a
-        print("z1: ", z1[0])
+        print("z1: ", z1[:,0])
 
     noise_params = [noise_class, z0, z1]
 

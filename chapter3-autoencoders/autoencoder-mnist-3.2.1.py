@@ -4,10 +4,6 @@ This autoencoder has modular design. The encoder, decoder and autoencoder
 are 3 models that share weights. For example, after training the
 autoencoder, the encoder can be used to  generate latent vectors
 of input data for low-dim visualization like PCA or TSNE.
-
-Project: https://github.com/roatienza/dl-keras
-Dependencies: keras with tensorflow backend
-Usage: python3 <this file>
 '''
 
 from __future__ import absolute_import
@@ -40,8 +36,8 @@ kernel_size = 3
 filters = 16
 latent_dim = 16
 
-# Build the Autoencoder Model
-# First build the Encoder Model
+# Build the autoencoder model
+# First build the encoder model
 inputs = Input(shape=input_shape, name='encoder_input')
 x = inputs
 # Stack of BN-ReLU-Conv2D-MaxPooling2D blocks
@@ -54,19 +50,19 @@ for i in range(2):
                padding='same')(x)
     x = MaxPooling2D()(x)
 
-# Shape info needed to build Decoder Model
+# Shape info needed to build decoder model
 shape = K.int_shape(x)
 
 # Generate a 16-dim latent vector
 x = Flatten()(x)
 latent = Dense(latent_dim, name='latent_vector')(x)
 
-# Instantiate Encoder Model
+# Instantiate encoder model
 encoder = Model(inputs, latent, name='encoder')
 encoder.summary()
 plot_model(encoder, to_file='encoder.png', show_shapes=True)
 
-# Build the Decoder Model
+# Build the decoder model
 latent_inputs = Input(shape=(latent_dim,), name='decoder_input')
 x = Dense(shape[1]*shape[2]*shape[3])(latent_inputs)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
@@ -87,13 +83,13 @@ x = Conv2DTranspose(filters=1,
 
 outputs = Activation('sigmoid', name='decoder_output')(x)
 
-# Instantiate Decoder Model
+# Instantiate decoder model
 decoder = Model(latent_inputs, outputs, name='decoder')
 decoder.summary()
 plot_model(decoder, to_file='decoder.png', show_shapes=True)
 
 # Autoencoder = Encoder + Decoder
-# Instantiate Autoencoder Model
+# Instantiate autoencoder model
 autoencoder = Model(inputs, decoder(encoder(inputs)), name='autoencoder')
 autoencoder.summary()
 plot_model(autoencoder, to_file='autoencoder.png', show_shapes=True)
@@ -108,7 +104,7 @@ autoencoder.fit(x_train,
                 epochs=1,
                 batch_size=batch_size)
 
-# Predict the Autoencoder output from test data
+# Predict the autoencoder output from test data
 x_decoded = autoencoder.predict(x_test)
 
 # Display the 1st 8 test input and decoded images

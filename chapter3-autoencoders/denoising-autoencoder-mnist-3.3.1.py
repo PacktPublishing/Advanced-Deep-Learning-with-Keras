@@ -124,14 +124,14 @@ autoencoder.compile(loss='mse', optimizer='adam')
 autoencoder.fit(x_train_noisy,
                 x_train,
                 validation_data=(x_test_noisy, x_test),
-                epochs=30,
+                epochs=20,
                 batch_size=batch_size)
 
 # Predict the Autoencoder output from corrupted test images
 x_decoded = autoencoder.predict(x_test_noisy)
 
 # Display the 1st 8 corrupted and denoised images
-rows, cols = 10, 30
+rows, cols = 3, 9
 num = rows * cols
 imgs = np.concatenate([x_test[:num], x_test_noisy[:num], x_decoded[:num]])
 imgs = imgs.reshape((rows * 3, cols, image_size, image_size))

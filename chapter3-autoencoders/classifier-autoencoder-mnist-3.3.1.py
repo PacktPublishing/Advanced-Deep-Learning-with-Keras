@@ -1,9 +1,9 @@
-'''
-Project: https://github.com/roatienza/dl-keras
-Dependencies: keras with tensorflow backend
-Usage: python3 <this file>
+''' Autoencoder with Classifier
 '''
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 import numpy as np
 import keras
 from keras.layers import Activation, Dense, Dropout, Input, BatchNormalization
@@ -41,8 +41,8 @@ dropout = 0.4
 filters = 16
 latent_dim = 16
 
-# Build the Autoencoder model
-# First build the Encoder model
+# Build the autoencoder model
+# First build the encoder model
 inputs = Input(shape=input_shape, name='encoder_input')
 x = inputs
 # Stack of BN-ReLU-Conv2D-MaxPooling blocks
@@ -61,10 +61,10 @@ shape = x.shape.as_list()
 x = Flatten()(x)
 latent = Dense(latent_dim, name='latent_vector')(x)
 
-# Instantiate Encoder model
+# Instantiate encoder model
 encoder = Model(inputs, latent, name='encoder')
 encoder.summary()
-plot_model(encoder, to_file='encoder.png', show_shapes=True)
+plot_model(encoder, to_file='classifier-encoder.png', show_shapes=True)
 
 # Build the Decoder model
 latent_inputs = Input(shape=(latent_dim,), name='decoder_input')
@@ -88,7 +88,7 @@ outputs = Activation('sigmoid', name='decoder_output')(x)
 # Instantiate Decoder model
 decoder = Model(latent_inputs, outputs, name='decoder')
 decoder.summary()
-plot_model(decoder, to_file='decoder.png', show_shapes=True)
+plot_model(decoder, to_file='classifier-decoder.png', show_shapes=True)
 
 # Classifier Model
 latent_inputs = Input(shape=(latent_dim,), name='classifier_input')
@@ -105,12 +105,12 @@ classifier.summary()
 plot_model(classifier, to_file='classifier.png', show_shapes=True)
 
 # Autoencoder = Encoder + Classifier/Decoder
-# Instantiate Autoencoder model
+# Instantiate autoencoder model
 autoencoder = Model(inputs,
                     [classifier(encoder(inputs)), decoder(encoder(inputs))],
                     name='autodecoder')
 autoencoder.summary()
-plot_model(autoencoder, to_file='classifier_autoencoder.png', show_shapes=True)
+plot_model(autoencoder, to_file='classifier-autoencoder.png', show_shapes=True)
 
 # Mean Square Error (MSE) loss function, Adam optimizer
 autoencoder.compile(loss=['categorical_crossentropy', 'mse'],
@@ -136,6 +136,7 @@ plt.axis('off')
 plt.title('Input: 1st 2 rows, Decoded: last 2 rows')
 plt.imshow(imgs, interpolation='none', cmap='gray')
 plt.savefig('input_and_decoded.png')
+plt.show()
 
-latent = encoder.predict(x_test)
-print("Variance:", K.var(latent))
+# latent = encoder.predict(x_test)
+# print("Variance:", K.var(latent))

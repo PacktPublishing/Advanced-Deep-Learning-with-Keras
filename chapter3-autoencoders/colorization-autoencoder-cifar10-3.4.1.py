@@ -1,13 +1,17 @@
 '''Colorization autoencoder
 
 The autoencoder is trained with grayscale images as input
-and colored images as output. 
+and colored images as output.
+Colorization autoencoder can be treated like the oppposite
+of denoising autoencoder. Instead of removing noise, colorization
+adds noise (color) to the grayscale image.
 
-Project: https://github.com/roatienza/dl-keras
-Dependencies: keras with tensorflow backend
-Usage: python3 <this file>
+Grayscale Images --> Colorization --> Color Images
 '''
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 import numpy as np
 import keras
 from keras.layers import Activation, Dense, Input
@@ -162,7 +166,7 @@ callbacks = [lr_reducer, checkpoint]
 autoencoder.fit(x_train_gray,
                 x_train,
                 validation_data=(x_test_gray, x_test),
-                epochs=50,
+                epochs=30,
                 batch_size=batch_size,
                 callbacks=callbacks)
 
