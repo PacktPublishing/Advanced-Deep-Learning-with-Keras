@@ -1,4 +1,17 @@
 # :construction_worker: This repo is under development :construction_worker:
+
+## Chapter 3 - AutoEncoders
+### [Denoising AutoEncoders](chapter3-autoencoders/denoising-autoencoder-mnist-3.3.1.py)
+
+Sample outputs for random digits:
+
+![Random Digits](chapter3-autoencoders/saved_images/corrupted_and_denoised.png)
+### [Colorization AutoEncoder](chapter3-autoencoders/colorization-autoencoder-cifar10-3.4.1.py)
+
+
+Sample outputs for random cifar10 images:
+
+![Random Digits](chapter3-autoencoders/saved_images/colorized_images.png)
 ## Chapter 4 - Generative Adversarial Network (GAN)
 ### [Deep Convolutional GAN (DCGAN)](chapter4-gan/dcgan-mnist-4.2.1.py)
 
