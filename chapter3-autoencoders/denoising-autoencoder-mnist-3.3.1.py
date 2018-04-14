@@ -59,8 +59,8 @@ latent_dim = 16
 # Encoder/Decoder number of CNN layers and filters per layer
 layer_filters = [32, 64]
 
-# Build the Autoencoder Model
-# First build the Encoder Model
+# Build the autoencoder model
+# First build the encoder model
 inputs = Input(shape=input_shape, name='encoder_input')
 x = inputs
 # Stack of Conv2D blocks
@@ -75,18 +75,18 @@ for filters in layer_filters:
                activation='relu',
                padding='same')(x)
 
-# Shape info needed to build Decoder Model
+# Shape info needed to build decoder model
 shape = K.int_shape(x)
 
 # Generate the latent vector
 x = Flatten()(x)
 latent = Dense(latent_dim, name='latent_vector')(x)
 
-# Instantiate Encoder Model
+# Instantiate encoder model
 encoder = Model(inputs, latent, name='encoder')
 encoder.summary()
 
-# Build the Decoder Model
+# Build the decoder model
 latent_inputs = Input(shape=(latent_dim,), name='decoder_input')
 x = Dense(shape[1] * shape[2] * shape[3])(latent_inputs)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
@@ -109,12 +109,12 @@ x = Conv2DTranspose(filters=1,
 
 outputs = Activation('sigmoid', name='decoder_output')(x)
 
-# Instantiate Decoder Model
+# Instantiate decoder model
 decoder = Model(latent_inputs, outputs, name='decoder')
 decoder.summary()
 
 # Autoencoder = Encoder + Decoder
-# Instantiate Autoencoder Model
+# Instantiate autoencoder model
 autoencoder = Model(inputs, decoder(encoder(inputs)), name='autoencoder')
 autoencoder.summary()
 
@@ -127,7 +127,7 @@ autoencoder.fit(x_train_noisy,
                 epochs=20,
                 batch_size=batch_size)
 
-# Predict the Autoencoder output from corrupted test images
+# Predict the autoencoder output from corrupted test images
 x_decoded = autoencoder.predict(x_test_noisy)
 
 # Display the 1st 8 corrupted and denoised images

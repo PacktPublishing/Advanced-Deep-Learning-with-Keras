@@ -2,7 +2,7 @@
 
 The autoencoder is trained with grayscale images as input
 and colored images as output.
-Colorization autoencoder can be treated like the oppposite
+Colorization autoencoder can be treated like the opposite
 of denoising autoencoder. Instead of removing noise, colorization
 adds noise (color) to the grayscale image.
 
@@ -87,8 +87,8 @@ kernel_size = 3
 filters = 32
 latent_dim = 256
 
-# Build the Autoencoder Model
-# First build the Encoder Model
+# Build the autoencoder model
+# First build the encoder model
 inputs = Input(shape=input_shape, name='encoder_input')
 x = inputs
 # Stack of Conv2D blocks
@@ -100,18 +100,18 @@ for i in range(3):
                activation='relu',
                padding='same')(x)
 
-# Shape info needed to build Decoder Model
+# Shape info needed to build decoder model
 shape = K.int_shape(x)
 
 # Generate a latent vector
 x = Flatten()(x)
 latent = Dense(latent_dim, name='latent_vector')(x)
 
-# Instantiate Encoder Model
+# Instantiate encoder model
 encoder = Model(inputs, latent, name='encoder')
 encoder.summary()
 
-# Build the Decoder Model
+# Build the decoder model
 latent_inputs = Input(shape=(latent_dim,), name='decoder_input')
 x = Dense(shape[1]*shape[2]*shape[3])(latent_inputs)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
@@ -131,16 +131,16 @@ x = Conv2DTranspose(filters=channels,
 
 outputs = Activation('sigmoid', name='decoder_output')(x)
 
-# Instantiate Decoder model
+# Instantiate decoder model
 decoder = Model(latent_inputs, outputs, name='decoder')
 decoder.summary()
 
 # Autoencoder = Encoder + Decoder
-# Instantiate Autoencoder Model
+# Instantiate autoencoder model
 autoencoder = Model(inputs, decoder(encoder(inputs)), name='autoencoder')
 autoencoder.summary()
 
-# Prepare model model saving directory.
+# Prepare model saving directory.
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 model_name = 'colorized_ae_model.{epoch:03d}.h5'
 if not os.path.isdir(save_dir):
@@ -170,7 +170,7 @@ autoencoder.fit(x_train_gray,
                 batch_size=batch_size,
                 callbacks=callbacks)
 
-# Predict the Autoencoder output from test data
+# Predict the autoencoder output from test data
 x_decoded = autoencoder.predict(x_test_gray)
 
 # Display the 1st 100 colorized images
