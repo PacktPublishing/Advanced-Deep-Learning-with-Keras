@@ -16,7 +16,7 @@ import keras
 from keras.layers import Activation, Dense, Input, BatchNormalization
 from keras.layers import Conv2D, MaxPooling2D, Flatten, Lambda
 from keras.layers import Reshape, Conv2DTranspose, UpSampling2D
-from keras.models import Model
+from keras.models import Model, load_model
 from keras.datasets import mnist
 from keras import losses
 from keras.utils import plot_model
@@ -24,6 +24,7 @@ from keras import backend as K
 
 import matplotlib.pyplot as plt
 from scipy.stats import norm
+import argparse
 
 
 # MNIST dataset
@@ -41,7 +42,7 @@ batch_size = 128
 kernel_size = 3
 filters = 16
 latent_dim = 2
-epochs = 50
+epochs = 10
 
 # reparameterization trick
 # instead of sampling from Q(z|X), sample eps = N(0,I)
@@ -61,7 +62,6 @@ inputs = Input(shape=input_shape, name='encoder_input')
 x = inputs
 for i in range(2):
     filters *= 2
-    x = BatchNormalization()(x)
     x = Activation('relu')(x)
     x = Conv2D(filters=filters,
                kernel_size=kernel_size,
@@ -92,7 +92,6 @@ x = Dense(shape[1]*shape[2]*shape[3], activation='relu')(latent_inputs)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
 
 for i in range(2):
-    x = BatchNormalization()(x)
     x = Activation('relu')(x)
     x = Conv2DTranspose(filters=filters,
                         kernel_size=kernel_size,
@@ -126,39 +125,55 @@ vae.compile(optimizer='rmsprop')
 vae.summary()
 plot_model(vae, to_file='vae.png', show_shapes=True)
 
-# Train the autoencoder
-vae.fit(x_train,
-        epochs=epochs,
-        batch_size=batch_size,
-        validation_data=(x_test, None))
+def plot_results(models, data):
+    encoder, decoder = models
+    x_test, y_test = data
+    # display a 2D plot of the digit classes in the latent space
+    x_test_encoded, _, _ = encoder.predict(x_test, batch_size=batch_size)
+    plt.figure(figsize=(6, 6))
+    plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=y_test)
+    plt.colorbar()
+    plt.show()
 
+    # display a 2D manifold of the digits
+    n = 20 # figure with 15x15 digits
+    digit_size = 28
+    figure = np.zeros((digit_size * n, digit_size * n))
+    # linearly spaced coordinates on the unit square were 
+    # transformed through the inverse CDF (ppf) of the Gaussian
+    # to produce values of the latent variables z, 
+    # since the prior of the latent space is Gaussian
+    grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
+    grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
 
-# display a 2D plot of the digit classes in the latent space
-x_test_encoded, _, _ = encoder.predict(x_test, batch_size=batch_size)
-plt.figure(figsize=(6, 6))
-plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=y_test)
-plt.colorbar()
-plt.show()
+    for i, yi in enumerate(grid_x):
+        for j, xi in enumerate(grid_y):
+            z_sample = np.array([[xi, yi]])
+            x_decoded = decoder.predict(z_sample)
+            digit = x_decoded[0].reshape(digit_size, digit_size)
+            figure[i * digit_size: (i + 1) * digit_size,
+                   j * digit_size: (j + 1) * digit_size] = digit
 
-# display a 2D manifold of the digits
-n = 20 # figure with 15x15 digits
-digit_size = 28
-figure = np.zeros((digit_size * n, digit_size * n))
-# linearly spaced coordinates on the unit square were 
-# transformed through the inverse CDF (ppf) of the Gaussian
-# to produce values of the latent variables z, 
-# since the prior of the latent space is Gaussian
-grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
-grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
+    plt.figure(figsize=(10, 10))
+    plt.imshow(figure, cmap='Greys_r')
+    plt.show()
+    
 
-for i, yi in enumerate(grid_x):
-    for j, xi in enumerate(grid_y):
-        z_sample = np.array([[xi, yi]])
-        x_decoded = decoder.predict(z_sample)
-        digit = x_decoded[0].reshape(digit_size, digit_size)
-        figure[i * digit_size: (i + 1) * digit_size,
-               j * digit_size: (j + 1) * digit_size] = digit
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    help_ = "Load h5 model trained weights"
+    parser.add_argument("-w", "--weights", help=help_)
+    args = parser.parse_args()
+    models = (encoder, decoder)
+    data = (x_test, y_test)
+    if args.weights:
+        vae = vae.load_weights(args.weights)
+    else:
+        # Train the autoencoder
+        vae.fit(x_train,
+                epochs=epochs,
+                batch_size=batch_size,
+                validation_data=(x_test, None))
+        vae.save_weights('vae-mnist.h5')
 
-plt.figure(figsize=(10, 10))
-plt.imshow(figure, cmap='Greys_r')
-plt.show()
+    plot_results(models, data)
