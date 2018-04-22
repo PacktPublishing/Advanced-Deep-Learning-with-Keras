@@ -52,7 +52,7 @@ def plot_results(models,
     x_test, y_test = data
     os.makedirs(model_name, exist_ok=True)
 
-    filename = os.path.join(model_name, "_mean_.png")
+    filename = os.path.join(model_name, "cvae_mean_.png")
     # display a 2D plot of the digit classes in the latent space
     z_mean, _, _ = encoder.predict([x_test, to_categorical(y_test)],
                                    batch_size=batch_size)
@@ -71,11 +71,11 @@ def plot_results(models,
     # transformed through the inverse CDF (ppf) of the Gaussian
     # to produce values of the latent variables z, 
     # since the prior of the latent space is Gaussian
-    grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
-    grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
+    # grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
+    grid = norm.ppf(np.linspace(0.05, 0.95, n))
 
-    for i, yi in enumerate(grid_x):
-        for j, xi in enumerate(grid_y):
+    for i, yi in enumerate(grid):
+        for j, xi in enumerate(grid):
             z_sample = np.array([[xi, yi]])
             x_decoded = decoder.predict([z_sample, y_label])
             digit = x_decoded[0].reshape(digit_size, digit_size)
@@ -83,6 +83,12 @@ def plot_results(models,
                    j * digit_size: (j + 1) * digit_size] = digit
 
     plt.figure(figsize=(10, 10))
+    start_range = digit_size // 2
+    end_range = n * digit_size + start_range + 1
+    plt.xticks(np.arange(start_range, end_range, digit_size), np.round(grid, 2))
+    plt.yticks(np.arange(start_range, end_range, digit_size), np.round(grid, 2))
+    plt.xlabel("z0 mean")
+    plt.ylabel("z1 mean")
     plt.imshow(figure, cmap='Greys_r')
     plt.savefig(filename)
     plt.show()
