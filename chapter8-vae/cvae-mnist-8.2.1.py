@@ -32,6 +32,16 @@ import os
 # instead of sampling from Q(z|X), sample eps = N(0,I)
 # z = z_mean + eps*sqrt(var) 
 def sampling(args):
+    """Implements reparameterization trick by sampling
+    from a gaussian with zero mean and std=1.
+
+    Arguments:
+        args (tensor): mean and log of variance of Q(z|X)
+
+    Returns:
+        sampled latent vector (tensor)
+    """
+
     z_mean, z_log_var = args
     batch = K.shape(z_mean)[0]
     dim = K.int_shape(z_mean)[1]
@@ -40,13 +50,21 @@ def sampling(args):
     return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
 
-# plot 2-dim mean values of Q(z|X) using labels as color gradient
-# then, plot MNIST digits as function of 2-dim latent vector
 def plot_results(models,
                  data,
                  y_label,
                  batch_size=128,
                  model_name="cvae_mnist"):
+    """Plots 2-dim mean values of Q(z|X) using labels as color gradient
+        then, plot MNIST digits as function of 2-dim latent vector
+
+    Arguments:
+        models (list): encoder and decoder models
+        data (list): test data and label
+        y_label (array): one-hot vector of which digit to plot
+        batch_size (int): prediction batch size
+        model_name (string): which model is using this function
+    """
 
     encoder, decoder = models
     x_test, y_test = data
@@ -71,7 +89,6 @@ def plot_results(models,
     # transformed through the inverse CDF (ppf) of the Gaussian
     # to produce values of the latent variables z, 
     # since the prior of the latent space is Gaussian
-    # grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
     grid = norm.ppf(np.linspace(0.05, 0.95, n))
 
     for i, yi in enumerate(grid):
@@ -85,10 +102,12 @@ def plot_results(models,
     plt.figure(figsize=(10, 10))
     start_range = digit_size // 2
     end_range = n * digit_size + start_range + 1
-    plt.xticks(np.arange(start_range, end_range, digit_size), np.round(grid, 2))
-    plt.yticks(np.arange(start_range, end_range, digit_size), np.round(grid, 2))
-    plt.xlabel("z0 mean")
-    plt.ylabel("z1 mean")
+    pixel_range = np.arange(start_range, end_range, digit_size)
+    sample_range = np.round(grid, 2)
+    plt.xticks(pixel_range, sample_range)
+    plt.yticks(pixel_range, sample_range)
+    plt.xlabel("z[0]")
+    plt.ylabel("z[1]")
     plt.imshow(figure, cmap='Greys_r')
     plt.savefig(filename)
     plt.show()
@@ -220,8 +239,6 @@ if __name__ == '__main__':
     else:
         digit = np.random.randint(0, 10, 1) 
 
-    print(digit)
+    print("CVAE for digit %d" % digit)
     y_label = np.eye(num_labels)[digit]
-    print(y_label)
-
     plot_results(models, data, y_label)
