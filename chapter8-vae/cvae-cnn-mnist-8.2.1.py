@@ -86,7 +86,7 @@ def plot_results(models,
     plt.savefig(filename)
     plt.show()
 
-    filename = os.path.join(model_name, "_%05d.png" % np.argmax(y_label))
+    filename = os.path.join(model_name, "%05d.png" % np.argmax(y_label))
     # display a 2D manifold of the digits
     n = 10  # figure with 10x10 digits
     digit_size = 28

@@ -81,7 +81,7 @@ def plot_results(models,
     plt.savefig(filename)
     plt.show()
 
-    filename = os.path.join(model_name, "_digits_over_latent.png")
+    filename = os.path.join(model_name, "digits_over_latent.png")
     # display a 2D manifold of the digits
     n = 20  # figure with 20x20 digits
     digit_size = 28

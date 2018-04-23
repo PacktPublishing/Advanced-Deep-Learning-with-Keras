@@ -82,7 +82,7 @@ def plot_results(models,
     plt.savefig(filename)
     plt.show()
 
-    filename = os.path.join(model_name, "_digits_over_latent.png")
+    filename = os.path.join(model_name, "digits_over_latent.png")
     # display a 2D manifold of the digits
     n = 20  # figure with 10x10 digits
     digit_size = 28
@@ -175,11 +175,13 @@ for i in range(2):
                         padding='same')(x)
     filters //= 2
 
-x = Conv2DTranspose(filters=1,
+outputs = Conv2DTranspose(filters=1,
                     kernel_size=kernel_size,
-                    padding='same')(x)
+                    activation='sigmoid',
+                    padding='same',
+                    name='decoder_output')(x)
 
-outputs = Activation('sigmoid', name='decoder_output')(x)
+# outputs = Activation('sigmoid', name='decoder_output')(x)
 
 # instantiate decoder model
 decoder = Model(latent_inputs, outputs, name='decoder')
