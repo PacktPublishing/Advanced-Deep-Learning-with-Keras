@@ -20,7 +20,7 @@ from keras.layers import Activation, Dense
 from keras.layers import Lambda, Input
 from keras.models import Model
 from keras.datasets import mnist
-from keras import losses
+from keras.losses import mse, binary_crossentropy
 from keras.utils import plot_model
 from keras import backend as K
 
@@ -166,25 +166,30 @@ if __name__ == '__main__':
     help_ = "Load h5 model trained weights"
     parser.add_argument("-w", "--weights", help=help_)
     help_ = "Use mse loss instead of binary cross entropy (default)"
-    parser.add_argument("-m", "--mse", help=help_, action='store_true')
+    parser.add_argument("-m",
+                        "--mse",
+                        help=help_, action='store_true')
     args = parser.parse_args()
     models = (encoder, decoder)
     data = (x_test, y_test)
     # VAE loss = mse_loss or xent_loss + kl_loss
     if args.mse:
-        reconstruction_loss = losses.mse(K.flatten(inputs), K.flatten(outputs))
+        reconstruction_loss = mse(K.flatten(inputs),
+                                  K.flatten(outputs))
     else:
-        reconstruction_loss = losses.binary_crossentropy(K.flatten(inputs),
-                                                         K.flatten(outputs))
+        reconstruction_loss = binary_crossentropy(K.flatten(inputs),
+                                                  K.flatten(outputs))
     reconstruction_loss *= original_dim
-    kl_loss = K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var),
-                    axis=-1)
+    kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
+    kl_loss = K.sum(kl_loss, axis=-1)
     kl_loss *= -0.5
     vae_loss = K.mean(reconstruction_loss + kl_loss)
     vae.add_loss(vae_loss)
     vae.compile(optimizer='adam')
     vae.summary()
-    plot_model(vae, to_file='vae_mlp.png', show_shapes=True)
+    plot_model(vae,
+               to_file='vae_mlp.png',
+               show_shapes=True)
 
     if args.weights:
         vae = vae.load_weights(args.weights)
@@ -196,4 +201,7 @@ if __name__ == '__main__':
                 validation_data=(x_test, None))
         vae.save_weights('vae_mlp_mnist.h5')
 
-    plot_results(models, data, batch_size=batch_size, model_name="vae_mlp")
+    plot_results(models,
+                 data,
+                 batch_size=batch_size,
+                 model_name="vae_mlp")
