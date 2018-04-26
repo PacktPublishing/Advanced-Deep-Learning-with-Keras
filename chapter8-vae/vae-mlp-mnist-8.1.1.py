@@ -85,7 +85,7 @@ def plot_results(models,
 
     filename = os.path.join(model_name, "digits_over_latent.png")
     # display a 30x30 2D manifold of the digits
-    n = 30 
+    n = 30
     digit_size = 28
     figure = np.zeros((digit_size * n, digit_size * n))
     # linearly spaced coordinates corresponding to the 2D plot

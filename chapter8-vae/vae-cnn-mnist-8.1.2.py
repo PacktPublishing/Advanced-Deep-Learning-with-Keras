@@ -21,7 +21,7 @@ from keras.layers import Conv2D, Flatten, Lambda
 from keras.layers import Reshape, Conv2DTranspose
 from keras.models import Model
 from keras.datasets import mnist
-from keras import losses
+from keras.losses import mse, binary_crossentropy
 from keras.utils import plot_model
 from keras import backend as K
 
@@ -76,25 +76,26 @@ def plot_results(models,
     # display a 2D plot of the digit classes in the latent space
     z_mean, _, _ = encoder.predict(x_test,
                                    batch_size=batch_size)
-    plt.figure(figsize=(6, 6))
+    plt.figure(figsize=(12, 10))
     plt.scatter(z_mean[:, 0], z_mean[:, 1], c=y_test)
     plt.colorbar()
+    plt.xlabel("z[0]")
+    plt.ylabel("z[1]")
     plt.savefig(filename)
     plt.show()
 
     filename = os.path.join(model_name, "digits_over_latent.png")
-    # display a 2D manifold of the digits
-    n = 20  # figure with 10x10 digits
+    # display a 30x30 2D manifold of the digits
+    n = 30
     digit_size = 28
     figure = np.zeros((digit_size * n, digit_size * n))
-    # linearly spaced coordinates on the unit square were
-    # transformed through the inverse CDF (ppf) of the Gaussian
-    # to produce values of the latent variables z,
-    # since the prior of the latent space is Gaussian
-    grid = norm.ppf(np.linspace(0.05, 0.95, n))
+    # linearly spaced coordinates corresponding to the 2D plot
+    # of digit classes in the latent space
+    grid_x = np.linspace(-4, 4, n)
+    grid_y = np.linspace(-4, 4, n)[::-1]
 
-    for i, yi in enumerate(grid):
-        for j, xi in enumerate(grid):
+    for i, yi in enumerate(grid_y):
+        for j, xi in enumerate(grid_x):
             z_sample = np.array([[xi, yi]])
             x_decoded = decoder.predict(z_sample)
             digit = x_decoded[0].reshape(digit_size, digit_size)
@@ -105,9 +106,10 @@ def plot_results(models,
     start_range = digit_size // 2
     end_range = n * digit_size + start_range + 1
     pixel_range = np.arange(start_range, end_range, digit_size)
-    sample_range = np.round(grid, 2)
-    plt.xticks(pixel_range, sample_range)
-    plt.yticks(pixel_range, sample_range)
+    sample_range_x = np.round(grid_x, 1)
+    sample_range_y = np.round(grid_y, 1)
+    plt.xticks(pixel_range, sample_range_x)
+    plt.yticks(pixel_range, sample_range_y)
     plt.xlabel("z[0]")
     plt.ylabel("z[1]")
     plt.imshow(figure, cmap='Greys_r')
@@ -203,13 +205,14 @@ if __name__ == '__main__':
     data = (x_test, y_test)
     # VAE loss = mse_loss or xent_loss + kl_loss
     if args.mse:
-        reconstruction_loss = losses.mse(K.flatten(inputs), K.flatten(outputs))
+        reconstruction_loss = mse(K.flatten(inputs), K.flatten(outputs))
     else:
-        reconstruction_loss = losses.binary_crossentropy(K.flatten(inputs),
+        reconstruction_loss = binary_crossentropy(K.flatten(inputs),
                                                   K.flatten(outputs))
+
     reconstruction_loss *= image_size * image_size
-    kl_loss = K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var),
-                    axis=-1)
+    kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
+    kl_loss = K.sum(kl_loss, axis=-1)
     kl_loss *= -0.5
     vae_loss = K.mean(reconstruction_loss + kl_loss)
     vae.add_loss(vae_loss)
