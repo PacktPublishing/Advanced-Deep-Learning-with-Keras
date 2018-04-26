@@ -174,11 +174,10 @@ if __name__ == '__main__':
     data = (x_test, y_test)
     # VAE loss = mse_loss or xent_loss + kl_loss
     if args.mse:
-        reconstruction_loss = mse(K.flatten(inputs),
-                                  K.flatten(outputs))
+        reconstruction_loss = mse(inputs, outputs)
     else:
-        reconstruction_loss = binary_crossentropy(K.flatten(inputs),
-                                                  K.flatten(outputs))
+        reconstruction_loss = binary_crossentropy(inputs,
+                                                  outputs)
     reconstruction_loss *= original_dim
     kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
     kl_loss = K.sum(kl_loss, axis=-1)
