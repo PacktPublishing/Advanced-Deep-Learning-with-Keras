@@ -157,7 +157,7 @@ z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
 # use reparameterization trick to push the sampling out as input
 # note that "output_shape" isn't necessary with the TensorFlow backend
-z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
+z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
 
 # instantiate encoder model
 encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
@@ -165,7 +165,7 @@ encoder.summary()
 plot_model(encoder, to_file='vae_cnn_encoder.png', show_shapes=True)
 
 # build decoder model
-latent_inputs = Input(shape=(latent_dim,), name='decoder_input')
+latent_inputs = Input(shape=(latent_dim,), name='z_sampling')
 x = Dense(shape[1]*shape[2]*shape[3], activation='relu')(latent_inputs)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
 
