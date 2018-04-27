@@ -22,7 +22,7 @@ from keras.layers import Conv2D, MaxPooling2D, Flatten, Lambda
 from keras.layers import Reshape, Conv2DTranspose, UpSampling2D
 from keras.models import Model
 from keras.datasets import mnist
-from keras import losses
+from keras.losses import mse, binary_crossentropy
 from keras.utils import plot_model
 from keras import backend as K
 from keras.utils import to_categorical
@@ -216,10 +216,10 @@ if __name__ == '__main__':
 
     # VAE loss = mse_loss or xent_loss + kl_loss
     if args.mse:
-        decoder_loss = losses.mse(K.flatten(inputs), K.flatten(outputs))
+        decoder_loss = mse(K.flatten(inputs), K.flatten(outputs))
     else:
-        decoder_loss = losses.binary_crossentropy(K.flatten(inputs),
-                                                  K.flatten(outputs))
+        decoder_loss = binary_crossentropy(K.flatten(inputs),
+                                           K.flatten(outputs))
 
     decoder_loss *= image_size * image_size
     kl_loss = K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var),
