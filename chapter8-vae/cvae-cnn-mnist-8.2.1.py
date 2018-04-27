@@ -80,25 +80,24 @@ def plot_results(models,
     # display a 2D plot of the digit classes in the latent space
     z_mean, _, _ = encoder.predict([x_test, to_categorical(y_test)],
                                    batch_size=batch_size)
-    plt.figure(figsize=(6, 6))
+    plt.figure(figsize=(12, 10))
     plt.scatter(z_mean[:, 0], z_mean[:, 1], c=y_test)
     plt.colorbar()
     plt.savefig(filename)
     plt.show()
 
     filename = os.path.join(model_name, "%05d.png" % np.argmax(y_label))
-    # display a 2D manifold of the digits
-    n = 10  # figure with 10x10 digits
+    # display a 10x10 2D manifold of the digit (y_label)
+    n = 10
     digit_size = 28
     figure = np.zeros((digit_size * n, digit_size * n))
-    # linearly spaced coordinates on the unit square were
-    # transformed through the inverse CDF (ppf) of the Gaussian
-    # to produce values of the latent variables z,
-    # since the prior of the latent space is Gaussian
-    grid = norm.ppf(np.linspace(0.05, 0.95, n))
+    # linearly spaced coordinates corresponding to the 2D plot
+    # of digit classes in the latent space
+    grid_x = np.linspace(-4, 4, n)
+    grid_y = np.linspace(-4, 4, n)[::-1]
 
-    for i, yi in enumerate(grid):
-        for j, xi in enumerate(grid):
+    for i, yi in enumerate(grid_y):
+        for j, xi in enumerate(grid_x):
             z_sample = np.array([[xi, yi]])
             x_decoded = decoder.predict([z_sample, y_label])
             digit = x_decoded[0].reshape(digit_size, digit_size)
@@ -109,9 +108,10 @@ def plot_results(models,
     start_range = digit_size // 2
     end_range = n * digit_size + start_range + 1
     pixel_range = np.arange(start_range, end_range, digit_size)
-    sample_range = np.round(grid, 2)
-    plt.xticks(pixel_range, sample_range)
-    plt.yticks(pixel_range, sample_range)
+    sample_range_x = np.round(grid_x, 1)
+    sample_range_y = np.round(grid_y, 1)
+    plt.xticks(pixel_range, sample_range_x)
+    plt.yticks(pixel_range, sample_range_y)
     plt.xlabel("z[0]")
     plt.ylabel("z[1]")
     plt.imshow(figure, cmap='Greys_r')
@@ -166,7 +166,7 @@ z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
 # use reparameterization trick to push the sampling out as input
 # note that "output_shape" isn't necessary with the TensorFlow backend
-z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
+z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
 
 # instantiate encoder model
 encoder = Model([inputs, y_labels], [z_mean, z_log_var, z], name='encoder')
@@ -174,7 +174,7 @@ encoder.summary()
 plot_model(encoder, to_file='cvae_cnn_encoder.png', show_shapes=True)
 
 # build decoder model
-latent_inputs = Input(shape=(latent_dim,), name='decoder_input')
+latent_inputs = Input(shape=(latent_dim,), name='z_sampling')
 x = keras.layers.concatenate([latent_inputs, y_labels])
 x = Dense(shape[1]*shape[2]*shape[3], activation='relu')(x)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
@@ -220,6 +220,7 @@ if __name__ == '__main__':
     else:
         decoder_loss = losses.binary_crossentropy(K.flatten(inputs),
                                                   K.flatten(outputs))
+
     decoder_loss *= image_size * image_size
     kl_loss = K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var),
                     axis=-1)
@@ -240,10 +241,10 @@ if __name__ == '__main__':
                  validation_data=([x_test, to_categorical(y_test)], None))
         cvae.save_weights('cvae_cnn_mnist.h5')
 
-    if args.digit:
+    if args.digit in range(0, num_labels):
         digit = np.array([args.digit])
     else:
-        digit = np.random.randint(0, num_labels + 1, 1)
+        digit = np.random.randint(0, num_labels, 1)
 
     print("CVAE for digit %d" % digit)
     y_label = np.eye(num_labels)[digit]
