@@ -216,16 +216,16 @@ if __name__ == '__main__':
 
     # VAE loss = mse_loss or xent_loss + kl_loss
     if args.mse:
-        decoder_loss = mse(K.flatten(inputs), K.flatten(outputs))
+        reconstruction_loss = mse(K.flatten(inputs), K.flatten(outputs))
     else:
-        decoder_loss = binary_crossentropy(K.flatten(inputs),
+        reconstruction_loss = binary_crossentropy(K.flatten(inputs),
                                            K.flatten(outputs))
 
-    decoder_loss *= image_size * image_size
-    kl_loss = K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var),
-                    axis=-1)
+    reconstruction_loss *= image_size * image_size
+    kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
+    kl_loss = K.sum(kl_loss, axis=-1)
     kl_loss *= -0.5
-    cvae_loss = K.mean(decoder_loss + kl_loss)
+    cvae_loss = K.mean(reconstruction_loss + kl_loss)
     cvae.add_loss(cvae_loss)
     cvae.compile(optimizer='rmsprop')
     cvae.summary()
