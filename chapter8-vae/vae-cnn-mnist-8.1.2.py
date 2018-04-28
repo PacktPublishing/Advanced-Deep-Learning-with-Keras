@@ -178,10 +178,10 @@ for i in range(2):
     filters //= 2
 
 outputs = Conv2DTranspose(filters=1,
-                    kernel_size=kernel_size,
-                    activation='sigmoid',
-                    padding='same',
-                    name='decoder_output')(x)
+                          kernel_size=kernel_size,
+                          activation='sigmoid',
+                          padding='same',
+                          name='decoder_output')(x)
 
 # instantiate decoder model
 decoder = Model(latent_inputs, outputs, name='decoder')
