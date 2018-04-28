@@ -83,6 +83,10 @@ def plot_results(models,
     plt.figure(figsize=(12, 10))
     plt.scatter(z_mean[:, 0], z_mean[:, 1], c=y_test)
     plt.colorbar()
+    plt.xlabel("z[0]")
+    plt.ylabel("z[1]")
+    plt.xlim(-4, 4)
+    plt.ylim(-4, 4)
     plt.savefig(filename)
     plt.show()
 
@@ -210,21 +214,32 @@ if __name__ == '__main__':
     parser.add_argument("-m", "--mse", help=help_, action='store_true')
     help_ = "Specify a specific digit to generate"
     parser.add_argument("-d", "--digit", type=int, help=help_)
+    help_ = "Beta in Beta-CVAE. Beta > 1. Default is 1.0 (CVAE)"
+    parser.add_argument("-b", "--beta", type=float, help=help_)
     args = parser.parse_args()
     models = (encoder, decoder)
     data = (x_test, y_test)
+
+    if args.beta is None or args.beta < 1.0:
+        beta = 1.0
+        print("CVAE")
+        model_name = "cvae_cnn_mnist"
+    else:
+        beta = args.beta
+        print("Beta-CVAE with beta=", beta)
+        model_name = "beta-cvae_cnn_mnist"
 
     # VAE loss = mse_loss or xent_loss + kl_loss
     if args.mse:
         reconstruction_loss = mse(K.flatten(inputs), K.flatten(outputs))
     else:
         reconstruction_loss = binary_crossentropy(K.flatten(inputs),
-                                           K.flatten(outputs))
+                                                  K.flatten(outputs))
 
     reconstruction_loss *= image_size * image_size
     kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
     kl_loss = K.sum(kl_loss, axis=-1)
-    kl_loss *= -0.5
+    kl_loss *= -0.5 * beta
     cvae_loss = K.mean(reconstruction_loss + kl_loss)
     cvae.add_loss(cvae_loss)
     cvae.compile(optimizer='rmsprop')
@@ -239,7 +254,7 @@ if __name__ == '__main__':
                  epochs=epochs,
                  batch_size=batch_size,
                  validation_data=([x_test, to_categorical(y_test)], None))
-        cvae.save_weights('cvae_cnn_mnist.h5')
+        cvae.save_weights(model_name + '.h5')
 
     if args.digit in range(0, num_labels):
         digit = np.array([args.digit])
@@ -252,4 +267,4 @@ if __name__ == '__main__':
                  data,
                  y_label=y_label,
                  batch_size=batch_size,
-                 model_name="cvae_cnn_mnist")
+                 model_name=model_name)
