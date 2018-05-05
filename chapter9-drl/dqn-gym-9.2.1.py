@@ -25,8 +25,9 @@ class DQNAgent(object):
         
     def build_model(self):
         inputs = Input(shape=(self.state_space.shape[0], ), name='q_input')
-        x = Dense(32, activation='relu')(inputs)
-        x = Dense(32, activation='relu')(x)
+        x = Dense(256, activation='relu')(inputs)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(64, activation='relu')(x)
         x = Dense(self.action_space.n, activation='linear')(x)
         self.model = Model(inputs, x)
         self.model.compile(loss='mse', optimizer=Adam())
@@ -47,14 +48,19 @@ class DQNAgent(object):
 
     def replay(self, batch_size):
         mini_batch = random.sample(self.memory, batch_size)
+        x_batch, y_batch = [], []
         for state, action, reward, next_state, done in mini_batch:
-            target = reward
-            if not done:
-                q_value = np.amax(self.model.predict(next_state)[0])
-                target += (self.gamma * q_value)
-            target_f = self.model.predict(state)
-            target_f[0][action] = target
-            self.model.fit(state, target_f, epochs=1, verbose=0)
+            y_target = self.model.predict(state)
+            q_value = self.gamma * np.amax(self.model.predict(next_state)[0])
+            y_target[0][action] = reward if done else reward + q_value
+            x_batch.append(state[0])
+            y_batch.append(y_target[0])
+
+        self.model.fit(np.array(x_batch),
+                       np.array(y_batch),
+                       batch_size=batch_size,
+                       epochs=1,
+                       verbose=0)
         self.update_epsilon()
 
     def update_epsilon(self):
@@ -70,12 +76,16 @@ if __name__ == '__main__':
                         help='Select the environment to run')
     args = parser.parse_args()
 
+    win_trials = 100
+    win_reward = { 'CartPole-v0' : 195.0 }
+    scores = deque(maxlen=100)
+
     # You can set the level to logging.DEBUG or logging.WARN if you
     # want to change the amount of output.
     logger.setLevel(logging.ERROR)
 
     env = gym.make(args.env_id)
-    env._max_episode_steps = 4000
+    # env._max_episode_steps = 4000
 
     # You provide the directory to write to (can be an existing
     # directory, including one with existing data -- all monitor files
@@ -89,38 +99,35 @@ if __name__ == '__main__':
     episode_count = 3000
     state_size = env.observation_space.shape[0]
     batch_size = 32
-    max_t = 0
 
     for i in range(episode_count):
         state = env.reset()
         state = np.reshape(state, [1, state_size])
         t = 0
-        while True:
+        done = False
+        while not done:
             # in CartPole, action=0 is left and action=1 is right
             action = agent.act(state)
             next_state, reward, done, _ = env.step(action)
-            reward = reward if not done else -1
             # in CartPole:
             # state = [pos, vel, theta, angular speed]
             next_state = np.reshape(next_state, [1, state_size])
             agent.remember(state, action, reward, next_state, done)
             state = next_state
             t += 1
-            if done:
-                # max_t = t if t > max_t else max_t
-                if t > max_t:
-                    max_t = t
-                    env.render()
-                print("episode: {}/{}, score: {}, max score: {}, exploration: {:.2}"
-                       .format(i, episode_count, t, max_t, agent.epsilon))
-                break
-            # Note there's no env.render() here. But the environment still can open window and
-            # render if asked by env.monitor: it calls env.render('rgb_array') to record video.
-            # Video is not recorded every episode, see capped_cubic_video_schedule for details.
+
+        scores.append(t)
+        mean_score = np.mean(scores)
+        if mean_score >= win_reward[args.env_id] and i >= win_trials:
+            print("Solved after %d episodes" % i)
+            exit(0)
+        if i % win_trials == 0:
+            print("Episode %d: Mean survival in the last %d episodes: %0.2lf" %
+                  (i, win_trials, mean_score))
+                  
         if len(agent.memory) >= batch_size:
             agent.replay(batch_size)
             
-
     # close the env and write monitor result info to disk
     env.close() 
     print("Max score: ", max_t)
