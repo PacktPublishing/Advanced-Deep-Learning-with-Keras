@@ -17,9 +17,9 @@ from __future__ import division
 from __future__ import print_function
 
 import keras
-from keras.layers import Activation, Dense, Input
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Lambda
-from keras.layers import Reshape, Conv2DTranspose, UpSampling2D
+from keras.layers import Dense, Input
+from keras.layers import Conv2D, Flatten, Lambda
+from keras.layers import Reshape, Conv2DTranspose
 from keras.models import Model
 from keras.datasets import mnist
 from keras.losses import mse, binary_crossentropy
@@ -29,7 +29,6 @@ from keras.utils import to_categorical
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import norm
 import argparse
 import os
 
