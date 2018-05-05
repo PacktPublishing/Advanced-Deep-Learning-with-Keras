@@ -24,11 +24,10 @@ class DQNAgent(object):
         self.epsilon_decay = 0.999
         
     def build_model(self):
-        inputs = Input(shape=(self.state_space.shape[0], ), name='q_input')
-        x = Dense(256, activation='relu')(inputs)
+        inputs = Input(shape=(self.state_space.shape[0], ), name='state')
+        x = Dense(128, activation='relu')(inputs)
         x = Dense(128, activation='relu')(x)
-        x = Dense(64, activation='relu')(x)
-        x = Dense(self.action_space.n, activation='linear')(x)
+        x = Dense(self.action_space.n, activation='linear', name='action')(x)
         self.model = Model(inputs, x)
         self.model.compile(loss='mse', optimizer=Adam())
 
@@ -78,27 +77,22 @@ if __name__ == '__main__':
 
     win_trials = 100
     win_reward = { 'CartPole-v0' : 195.0 }
-    scores = deque(maxlen=100)
+    scores = deque(maxlen=win_trials)
 
     # You can set the level to logging.DEBUG or logging.WARN if you
     # want to change the amount of output.
     logger.setLevel(logging.ERROR)
 
     env = gym.make(args.env_id)
-    # env._max_episode_steps = 4000
 
-    # You provide the directory to write to (can be an existing
-    # directory, including one with existing data -- all monitor files
-    # will be namespaced). You can also dump to a tempdir if you'd
-    # like: tempfile.mkdtemp().
-    outdir = "/tmp/dqn-gym-%s" % args.env_id
+    outdir = "/tmp/dqn-%s" % args.env_id
     env = wrappers.Monitor(env, directory=outdir, force=True)
     env.seed(0)
     agent = DQNAgent(env.observation_space, env.action_space)
 
     episode_count = 3000
     state_size = env.observation_space.shape[0]
-    batch_size = 32
+    batch_size = 4
 
     for i in range(episode_count):
         state = env.reset()
@@ -130,4 +124,3 @@ if __name__ == '__main__':
             
     # close the env and write monitor result info to disk
     env.close() 
-    print("Max score: ", max_t)
