@@ -5,7 +5,7 @@
 
 from keras.layers import Dense, Input
 from keras.models import Model
-from keras.optimizers import Adam
+from keras.optimizers import Adam, RMSprop
 from collections import deque
 import numpy as np
 import random
@@ -29,12 +29,13 @@ class DQNAgent(object):
         
     def build_model(self):
         inputs = Input(shape=(self.state_space.shape[0], ), name='state')
-        x = Dense(512, activation='relu')(inputs)
+        x = Dense(256, activation='relu')(inputs)
         x = Dense(256, activation='relu')(x)
         x = Dense(256, activation='relu')(x)
         x = Dense(self.action_space.n, activation='linear', name='action')(x)
         self.q_network_model = Model(inputs, x)
         self.q_network_model.summary()
+        # optimizer = Adam(lr=0.005)
         optimizer = Adam(lr=0.001, decay=1e-5)
         self.q_network_model.compile(loss='mse', optimizer=optimizer)
 
@@ -80,6 +81,7 @@ class DQNAgent(object):
         # train the Q-network
         self.q_network_model.fit(np.array(state_batch),
                                  np.array(q_values_batch),
+                                 batch_size=batch_size,
                                  epochs=1,
                                  verbose=0)
 
@@ -116,7 +118,7 @@ if __name__ == '__main__':
 
     episode_count = 3000
     state_size = env.observation_space.shape[0]
-    batch_size = 128
+    batch_size = 64
 
     for i in range(episode_count):
         state = env.reset()
@@ -138,7 +140,7 @@ if __name__ == '__main__':
         mean_score = np.mean(scores)
         if mean_score >= win_reward[args.env_id] and i >= win_trials:
             print("Solved after %d episodes" % i)
-            exit(0)
+            break
         if i % win_trials == 0:
             print("Episode %d: Mean survival in the last %d episodes: %0.2lf" %
                   (i, win_trials, mean_score))
