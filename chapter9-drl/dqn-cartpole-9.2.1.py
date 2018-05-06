@@ -99,12 +99,13 @@ class DQNAgent(object):
                          verbose=0)
 
         # update exploration-exploitation probability
-        if self.replay_counter % 2 == 0:
+        if self.replay_counter % 4 == 0:
             self.update_epsilon()
 
-        # copy new params on old target after every 2 training updates
+        # copy new params on old target after every x training updates
         if self.replay_counter % 2 == 0:
             self.update_weights()
+
         self.replay_counter += 1
 
     def update_epsilon(self):
