@@ -1,3 +1,7 @@
+"""Trains a DQN to solve CartPole-v0 problem
+
+
+"""
 
 from keras.layers import Dense, Input
 from keras.models import Model
@@ -17,7 +21,7 @@ class DQNAgent(object):
         self.action_space = action_space
         self.state_space = state_space
         self.build_model()
-        self.memory = deque()
+        self.memory = deque(maxlen=128000)
         self.gamma = 0.9    # discount rate
         self.epsilon = 1.0  # exploration rate
         self.epsilon_min = 0.1
@@ -25,41 +29,61 @@ class DQNAgent(object):
         
     def build_model(self):
         inputs = Input(shape=(self.state_space.shape[0], ), name='state')
-        x = Dense(128, activation='relu')(inputs)
-        x = Dense(128, activation='relu')(x)
+        x = Dense(512, activation='relu')(inputs)
+        x = Dense(256, activation='relu')(x)
+        x = Dense(256, activation='relu')(x)
         x = Dense(self.action_space.n, activation='linear', name='action')(x)
-        self.model = Model(inputs, x)
-        self.model.compile(loss='mse', optimizer=Adam())
+        self.q_network_model = Model(inputs, x)
+        self.q_network_model.summary()
+        optimizer = Adam(lr=0.001, decay=1e-5)
+        self.q_network_model.compile(loss='mse', optimizer=optimizer)
 
     def act(self, state):
         if np.random.rand() <= self.epsilon:
-            # explore
-            act = self.action_space.sample()
-            return act
+            # explore - do random action
+            return self.action_space.sample()
 
         # exploit
-        act = self.model.predict(state)
-        act = np.argmax(act[0])
-        return act
+        q_values = self.q_network_model.predict(state)
+        # select the action with max acc reward (Q-value)
+        return np.argmax(q_values[0])
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append([state, action, reward, next_state, done])
 
     def replay(self, batch_size):
-        mini_batch = random.sample(self.memory, batch_size)
-        x_batch, y_batch = [], []
-        for state, action, reward, next_state, done in mini_batch:
-            y_target = self.model.predict(state)
-            q_value = self.gamma * np.amax(self.model.predict(next_state)[0])
-            y_target[0][action] = reward if done else reward + q_value
-            x_batch.append(state[0])
-            y_batch.append(y_target[0])
+        """Experience replay removes correlation between samples that
+        is causing the neural network to diverge
+        
+        """
+        # get a random batch of sars from replay memory
+        # sars = state, action, reward, state' (next_state)
+        sars_batch = random.sample(self.memory, batch_size)
+        state_batch, q_values_batch = [], []
+        for state, action, reward, next_state, done in sars_batch:
+            # policy prediction for a given state
+            q_values = self.q_network_model.predict(state)
+            
+            # TD(1) Q-value using Bellman equation
+            # to deal with non-stationarity, model weights are fixed ???
+            q_value = np.amax(self.q_network_model.predict(next_state)[0])
+            q_value *= self.gamma
+            q_value += reward
 
-        self.model.fit(np.array(x_batch),
-                       np.array(y_batch),
-                       batch_size=batch_size,
-                       epochs=1,
-                       verbose=0)
+            # correction on the Q-value for the given action
+            q_values[0][action] = reward if done else q_value
+
+            # collect batch state-q_value mapping
+            state_batch.append(state[0])
+            q_values_batch.append(q_values[0])
+
+        # train the Q-network
+        self.q_network_model.fit(np.array(state_batch),
+                                 np.array(q_values_batch),
+                                 epochs=1,
+                                 verbose=0)
+
+        # update exploration-exploitation probability
         self.update_epsilon()
 
     def update_epsilon(self):
@@ -92,7 +116,7 @@ if __name__ == '__main__':
 
     episode_count = 3000
     state_size = env.observation_space.shape[0]
-    batch_size = 4
+    batch_size = 128
 
     for i in range(episode_count):
         state = env.reset()
