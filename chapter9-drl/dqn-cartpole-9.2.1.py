@@ -25,19 +25,32 @@ class DQNAgent(object):
         self.gamma = 0.9    # discount rate
         self.epsilon = 1.0  # exploration rate
         self.epsilon_min = 0.1
-        self.epsilon_decay = 0.999
-        
+        self.epsilon_decay = 0.99
+        self.q_model = self.build_model()
+        optimizer = Adam()
+        self.weights_file = 'dqn_cartpole.h5'
+        self.q_model = self.build_model()
+        self.q_model.compile(loss='mse', optimizer=optimizer)
+        self.target_q_model = self.build_model()
+        self.update_weights()
+        self.replay_counter = 0
+       
+
     def build_model(self):
         inputs = Input(shape=(self.state_space.shape[0], ), name='state')
         x = Dense(256, activation='relu')(inputs)
         x = Dense(256, activation='relu')(x)
         x = Dense(256, activation='relu')(x)
         x = Dense(self.action_space.n, activation='linear', name='action')(x)
-        self.q_network_model = Model(inputs, x)
-        self.q_network_model.summary()
-        # optimizer = Adam(lr=0.005)
-        optimizer = Adam(lr=0.001, decay=1e-5)
-        self.q_network_model.compile(loss='mse', optimizer=optimizer)
+        q_model = Model(inputs, x)
+        q_model.summary()
+        return q_model
+
+
+    def update_weights(self):
+        self.q_model.save_weights(self.weights_file)
+        self.target_q_model.load_weights(self.weights_file)
+
 
     def act(self, state):
         if np.random.rand() <= self.epsilon:
@@ -45,7 +58,7 @@ class DQNAgent(object):
             return self.action_space.sample()
 
         # exploit
-        q_values = self.q_network_model.predict(state)
+        q_values = self.q_model.predict(state)
         # select the action with max acc reward (Q-value)
         return np.argmax(q_values[0])
 
@@ -63,11 +76,11 @@ class DQNAgent(object):
         state_batch, q_values_batch = [], []
         for state, action, reward, next_state, done in sars_batch:
             # policy prediction for a given state
-            q_values = self.q_network_model.predict(state)
+            q_values = self.q_model.predict(state)
             
-            # TD(1) Q-value using Bellman equation
-            # to deal with non-stationarity, model weights are fixed ???
-            q_value = np.amax(self.q_network_model.predict(next_state)[0])
+            # TD(0) Q-value using Bellman equation
+            # to deal with non-stationarity, model weights are fixed
+            q_value = np.amax(self.target_q_model.predict(next_state)[0])
             q_value *= self.gamma
             q_value += reward
 
@@ -79,14 +92,20 @@ class DQNAgent(object):
             q_values_batch.append(q_values[0])
 
         # train the Q-network
-        self.q_network_model.fit(np.array(state_batch),
-                                 np.array(q_values_batch),
-                                 batch_size=batch_size,
-                                 epochs=1,
-                                 verbose=0)
+        self.q_model.fit(np.array(state_batch),
+                         np.array(q_values_batch),
+                         batch_size=batch_size,
+                         epochs=1,
+                         verbose=0)
 
         # update exploration-exploitation probability
-        self.update_epsilon()
+        if self.replay_counter % 2 == 0:
+            self.update_epsilon()
+
+        # copy new params on old target after every 2 training updates
+        if self.replay_counter % 2 == 0:
+            self.update_weights()
+        self.replay_counter += 1
 
     def update_epsilon(self):
         if self.epsilon > self.epsilon_min:
@@ -136,17 +155,19 @@ if __name__ == '__main__':
             state = next_state
             t += 1
 
+        if len(agent.memory) >= batch_size:
+            agent.replay(batch_size)
+
         scores.append(t)
         mean_score = np.mean(scores)
         if mean_score >= win_reward[args.env_id] and i >= win_trials:
-            print("Solved after %d episodes" % i)
+            print("Solved in episode %d: Mean survival = %0.2lf in %d episodes"
+                  % (i, mean_score, win_trials))
+            print("Epsilon: ", agent.epsilon)
             break
         if i % win_trials == 0:
-            print("Episode %d: Mean survival in the last %d episodes: %0.2lf" %
-                  (i, win_trials, mean_score))
-                  
-        if len(agent.memory) >= batch_size:
-            agent.replay(batch_size)
-            
+            print("Episode %d: Mean survival = %0.2lf in %d episodes" %
+                  (i, mean_score, win_trials))
+
     # close the env and write monitor result info to disk
     env.close() 
