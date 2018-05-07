@@ -17,7 +17,7 @@ from gym import wrappers, logger
 
 
 class DQNAgent(object):
-    def __init__(self, state_space, action_space):
+    def __init__(self, state_space, action_space, args):
         self.action_space = action_space
         self.state_space = state_space
         self.build_model()
@@ -34,6 +34,11 @@ class DQNAgent(object):
         self.target_q_model = self.build_model()
         self.update_weights()
         self.replay_counter = 0
+        self.enable_ddqn = True if args.enable_ddqn else False
+        if self.enable_ddqn:
+            print("DDQN---------------------------------------------------")
+        else:
+            print("----------------------------------------------------DQN")
        
 
     def build_model(self):
@@ -47,9 +52,12 @@ class DQNAgent(object):
         return q_model
 
 
-    def update_weights(self):
+    def save_weights(self):
         self.q_model.save_weights(self.weights_file)
-        self.target_q_model.load_weights(self.weights_file)
+
+
+    def update_weights(self):
+        self.target_q_model.set_weights(self.q_model.get_weights())
 
 
     def act(self, state):
@@ -65,6 +73,25 @@ class DQNAgent(object):
     def remember(self, state, action, reward, next_state, done):
         self.memory.append([state, action, reward, next_state, done])
 
+
+    def get_target_q_value(self, next_state):
+       # TD(0) Q-value using Bellman equation
+       # to deal with non-stationarity, model weights are fixed
+        if self.enable_ddqn:
+            # DDQN
+            # current q network selects the action
+            action = np.argmax(self.q_model.predict(next_state))
+            # target q network evaluate the action
+            q_value = self.target_q_model.predict(next_state)[0][action]
+        else:
+            # DQN chooses the q value of the action with max value
+            q_value = np.amax(self.target_q_model.predict(next_state)[0])
+
+        q_value *= self.gamma
+        q_value += reward
+        return q_value
+
+
     def replay(self, batch_size):
         """Experience replay removes correlation between samples that
         is causing the neural network to diverge
@@ -78,11 +105,7 @@ class DQNAgent(object):
             # policy prediction for a given state
             q_values = self.q_model.predict(state)
             
-            # TD(0) Q-value using Bellman equation
-            # to deal with non-stationarity, model weights are fixed
-            q_value = np.amax(self.target_q_model.predict(next_state)[0])
-            q_value *= self.gamma
-            q_value += reward
+            q_value = self.get_target_q_value(next_state)
 
             # correction on the Q-value for the given action
             q_values[0][action] = reward if done else q_value
@@ -119,7 +142,17 @@ if __name__ == '__main__':
                         nargs='?',
                         default='CartPole-v0',
                         help='Select the environment to run')
+    parser.add_argument("-d",
+                        "--enable-ddqn",
+                        action='store_true',
+                        help="Enable double DQN")
     args = parser.parse_args()
+
+    if args.enable_ddqn:
+        print("Using DDQN")
+    else:
+        print("Using default DQN")
+
 
     win_trials = 100
     win_reward = { 'CartPole-v0' : 195.0 }
@@ -134,7 +167,7 @@ if __name__ == '__main__':
     outdir = "/tmp/dqn-%s" % args.env_id
     env = wrappers.Monitor(env, directory=outdir, force=True)
     env.seed(0)
-    agent = DQNAgent(env.observation_space, env.action_space)
+    agent = DQNAgent(env.observation_space, env.action_space, args)
 
     episode_count = 3000
     state_size = env.observation_space.shape[0]
@@ -165,6 +198,7 @@ if __name__ == '__main__':
             print("Solved in episode %d: Mean survival = %0.2lf in %d episodes"
                   % (i, mean_score, win_trials))
             print("Epsilon: ", agent.epsilon)
+            agent.save_weights()
             break
         if i % win_trials == 0:
             print("Episode %d: Mean survival = %0.2lf in %d episodes" %
