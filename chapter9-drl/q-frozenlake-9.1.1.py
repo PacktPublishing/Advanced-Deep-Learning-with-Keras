@@ -29,10 +29,12 @@ class QAgent(object):
             # explore - do random action
             return self.action_space.sample()
 
+        # exploit - choose action with max Q-value
         return np.argmax(self.q_table[state])
 
 
     def update_q_table(self, state, action, reward, next_state):
+        # Q(s, a) = reward + gamma * max_a' Q(s', a')
         q_value = self.gamma * np.amax(self.q_table[next_state])
         q_value += reward
         self.q_table[state, action] = q_value
@@ -68,17 +70,16 @@ if __name__ == '__main__':
 
     episode_count = 3000
     wins = 0
-    maxwins = 50
+    maxwins = 20
     scores = deque(maxlen=maxwins)
 
+    t = 0
     for i in range(episode_count):
         state = env.reset()
-        t = 0
         done = False
         while not done:
             action = agent.act(state)
             next_state, reward, done, _ = env.step(action)
-            t += 1
             os.system('clear')
             env.render()
             agent.update_q_table(state, action, reward, next_state)
@@ -87,14 +88,14 @@ if __name__ == '__main__':
                 wins += 1
                 agent.update_epsilon()
                 scores.append(t)
+                t = 0
                 if wins > maxwins:
                     print(scores)
                     agent.print_q_table()
                     env.close()
-                    print(scores.pop())
                     exit(0)
-            # time.sleep(1)
-
+        t += 1
+        # time.sleep(1)
 
     print(scores)
     agent.print_q_table()

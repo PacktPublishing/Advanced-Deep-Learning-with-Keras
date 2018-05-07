@@ -7,10 +7,10 @@ from keras.layers import Dense, Input
 from keras.models import Model
 from keras.optimizers import Adam, RMSprop
 from collections import deque
+import heapq
 import numpy as np
 import random
 import argparse
-import logging
 import sys
 import gym
 from gym import wrappers, logger
@@ -21,7 +21,7 @@ class DQNAgent(object):
         self.action_space = action_space
         self.state_space = state_space
         self.build_model()
-        self.memory = deque(maxlen=128000)
+        self.memory = []
         self.gamma = 0.9    # discount rate
         self.epsilon = 1.0  # exploration rate
         self.epsilon_min = 0.1
@@ -35,11 +35,15 @@ class DQNAgent(object):
         self.update_weights()
         self.replay_counter = 0
         self.enable_ddqn = True if args.enable_ddqn else False
+        self.prioritized_replay = True if args.prioritized_replay else False
         if self.enable_ddqn:
             print("DDQN---------------------------------------------------")
         else:
             print("----------------------------------------------------DQN")
-       
+
+        if self.prioritized_replay:
+            print("PRIORITIZED REPLAY-------------------------------------")
+        self.priority = 0 
 
     def build_model(self):
         inputs = Input(shape=(self.state_space.shape[0], ), name='state')
@@ -70,8 +74,22 @@ class DQNAgent(object):
         # select the action with max acc reward (Q-value)
         return np.argmax(q_values[0])
 
+
+    def get_td_error(self, next_state):
+        eps = random.uniform(1e-4, 1e-3)
+        q_value = self.get_target_q_value(next_state)
+        q_value -= self.q_model.predict(state)[0][action]
+        return abs(q_value) + eps
+
+
     def remember(self, state, action, reward, next_state, done):
-        self.memory.append([state, action, reward, next_state, done])
+        # self.memory.append([state, action, reward, next_state, done])
+        self.priority += 1
+        if self.prioritized_replay:
+            self.priority = self.get_td_error(next_state)
+
+        item = (self.priority, state, action, reward, next_state, done)
+        heapq.heappush(self.memory, item)
 
 
     def get_target_q_value(self, next_state):
@@ -80,7 +98,7 @@ class DQNAgent(object):
         if self.enable_ddqn:
             # DDQN
             # current q network selects the action
-            action = np.argmax(self.q_model.predict(next_state))
+            action = np.argmax(self.q_model.predict(next_state)[0])
             # target q network evaluate the action
             q_value = self.target_q_model.predict(next_state)[0][action]
         else:
@@ -99,9 +117,18 @@ class DQNAgent(object):
         """
         # get a random batch of sars from replay memory
         # sars = state, action, reward, state' (next_state)
-        sars_batch = random.sample(self.memory, batch_size)
+        if self.prioritized_replay:
+            self.memory = heapq.nlargest(len(self.memory), self.memory, key=lambda m:m[0])
+            indexes = np.random.choice(min(len(self.memory), 16*batch_size), batch_size, replace=False)
+            sars_batch = []
+            for index in indexes:
+                sars_batch.append(self.memory[index])
+        else:
+            sars_batch = random.sample(self.memory, batch_size)
+
         state_batch, q_values_batch = [], []
-        for state, action, reward, next_state, done in sars_batch:
+        index = 0
+        for _, state, action, reward, next_state, done in sars_batch:
             # policy prediction for a given state
             q_values = self.q_model.predict(state)
             
@@ -114,6 +141,12 @@ class DQNAgent(object):
             state_batch.append(state[0])
             q_values_batch.append(q_values[0])
 
+            if self.prioritized_replay:
+                priority = self.get_td_error(next_state)
+                i = indexes[index]
+                self.memory[i] = (priority, state, action, reward, next_state, done)
+                index += 1
+            
         # train the Q-network
         self.q_model.fit(np.array(state_batch),
                          np.array(q_values_batch),
@@ -146,6 +179,10 @@ if __name__ == '__main__':
                         "--enable-ddqn",
                         action='store_true',
                         help="Enable double DQN")
+    parser.add_argument("-p",
+                        "--prioritized-replay",
+                        action='store_true',
+                        help="Enable prioritized experience replay")
     args = parser.parse_args()
 
     if args.enable_ddqn:
@@ -160,7 +197,7 @@ if __name__ == '__main__':
 
     # You can set the level to logging.DEBUG or logging.WARN if you
     # want to change the amount of output.
-    logger.setLevel(logging.ERROR)
+    logger.setLevel(logger.ERROR)
 
     env = gym.make(args.env_id)
 
