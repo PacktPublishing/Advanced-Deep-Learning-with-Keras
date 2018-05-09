@@ -33,16 +33,20 @@ class QWorld(object):
 
         self.gamma = 0.9
         self.epsilon = 0.9
-        self.epsilon_decay = 0.98
+        self.epsilon_decay = 0.9
         self.epsilon_min = 0.1
         self.init_transition_table()
         self.init_reward_table()
         self.reset()
+        self.is_explore = True
 
 
     def reset(self):
         self.state = 0
         return self.state
+
+    def is_in_win_state(self):
+        return self.state == 2
 
 
     def init_reward_table(self):
@@ -115,9 +119,11 @@ class QWorld(object):
         # 0 - Left, 1 - Down, 2 - Right, 3 - Up
         if np.random.rand() <= self.epsilon:
             # explore - do random action
+            self.is_explore = True
             return np.random.choice(4,1)[0]
 
         # exploit - choose action with max Q-value
+        self.is_explore = False
         return np.argmax(self.q_table[self.state])
 
 
@@ -129,8 +135,8 @@ class QWorld(object):
 
 
     def print_q_table(self):
+        print("Q-Table (Epsilon: %0.2f)" % self.epsilon)
         print(self.q_table)
-        print("Epsilon : ", self.epsilon)
 
 
     def update_epsilon(self):
@@ -154,16 +160,8 @@ class QWorld(object):
                     color = 'red' if color else 'blue'
                     print(colored(marker, color), end='')
                 elif self.state in [0, 1, 3, 4]:
-                    if self.state == 0 and row == 0 and j == 0:
-                        marker = '_'
-                    elif self.state == 1 and row == 0 and j == 4:
-                        marker = '_'
-                    elif self.state == 3 and row == 1 and j == 0:
-                        marker = '_'
-                    elif self.state == 4 and row == 1 and j == 4:
-                        marker = '_'
-                    else:
-                        marker = ' '
+                    cell = [(0, 0, 0), (1, 0, 4), (3, 1, 0), (4, 1, 4)]
+                    marker = '_' if (self.state, row, j) in cell else ' '
                     print(colored(marker, 'red'), end='')
                 else:
                     print(' ', end='')
@@ -174,9 +172,10 @@ class QWorld(object):
         print("")
 
 
-    def print_world(self, action):
+    def print_world(self, action, step):
         actions = { 0: "(Left)", 1: "(Down)", 2: "(Right)", 3: "(Up)" }
-        print(actions[action])
+        explore = "Explore" if self.is_explore else "Exploit"
+        print("Step", step, ":", explore, actions[action])
         for _ in range(13):
             print('-', end='')
         self.print_cell()
@@ -188,38 +187,57 @@ class QWorld(object):
         print("")
 
 
+def print_episode(episode, delay=1):
+    os.system('clear')
+    for _ in range(13):
+        print('=', end='')
+    print("")
+    print("Episode ", episode)
+    for _ in range(13):
+        print('=', end='')
+    print("")
+    time.sleep(delay)
+
+
+def print_status(q_world, done, step, delay=1):
+    os.system('clear')
+    q_world.print_world(action, step)
+    q_world.print_q_table()
+    if done:
+        print("-------EPISODE DONE--------")
+        delay *= 2
+    time.sleep(delay)
+
 if __name__ == '__main__':
-    episode_count = 3000
+    episode_count = 100
     wins = 0
-    maxwins = 20
+    maxwins = 10
     scores = deque(maxlen=maxwins)
     q_world = QWorld()
+    delay = 1
+    step = 1
 
-    t = 0
     for i in range(episode_count):
         state = q_world.reset()
         done = False
+        print_episode(i, delay=delay)
         while not done:
             action = q_world.act()
             next_state, reward, done = q_world.step(action)
-            print(state, action, reward, next_state)
-            os.system('clear')
-            q_world.print_world(action)
-            q_world.print_q_table()
             q_world.update_q_table(state, action, reward, next_state)
+            print_status(q_world, done, step, delay=delay)
             state = next_state
-            if reward > 0:
-                wins += 1
+            if done:
+                if q_world.is_in_win_state():
+                    wins += 1
+                    scores.append(step)
+                    if wins > maxwins:
+                        print(scores)
+                        exit(0)
                 q_world.update_epsilon()
-                scores.append(t)
-                t = 0
-                if wins > maxwins:
-                    print(scores)
-                    q_world.print_world(action)
-                    q_world.print_q_table()
-                    exit(0)
-            time.sleep(1)
-        t += 1
+                step = 1
+            else:
+                step += 1
 
     print(scores)
     q_world.print_q_table()
