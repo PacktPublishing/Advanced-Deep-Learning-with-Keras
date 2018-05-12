@@ -232,13 +232,13 @@ def print_status(q_world, done, step, delay=1):
 
 # main loop of Q-Learning
 if __name__ == '__main__':
-    episode_count = 100
     wins = 0
     maxwins = 10
+    episode_count = 10 * maxwins
+    delay = 1
     # scores (max number of steps bef goal) - good indicator of learning
     scores = deque(maxlen=maxwins)
     q_world = QWorld()
-    delay = 1
     step = 1
 
     # state, action, reward, next state iteration
