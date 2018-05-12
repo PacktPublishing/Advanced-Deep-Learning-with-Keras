@@ -192,6 +192,7 @@ if __name__ == '__main__':
 
 
     win_trials = 100
+    # win_reward = { 'CartPole-v0' : 4000 }
     win_reward = { 'CartPole-v0' : 195.0 }
     scores = deque(maxlen=win_trials)
 
@@ -209,6 +210,10 @@ if __name__ == '__main__':
     episode_count = 3000
     state_size = env.observation_space.shape[0]
     batch_size = 64
+
+    # by default, CartPole-v0 has max episode count = 200
+    # you can use this to experiment beyond 200
+    # env._max_episode_steps = 4000
 
     for i in range(episode_count):
         state = env.reset()

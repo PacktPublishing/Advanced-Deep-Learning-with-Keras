@@ -1,6 +1,6 @@
-"""Q-learning to solve a simple world model
+"""Q Learning to solve a simple world model
 
-Simple world model is made of 6 grids (states)
+Simple deterministic MDP is made of 6 grids (states)
 ---------------------------------
 |         |          |          |
 |  Start  |          |  Goal    |
@@ -19,6 +19,7 @@ import argparse
 import os
 import time
 from termcolor import colored
+
 
 class QWorld(object):
     def __init__(self):
@@ -44,6 +45,7 @@ class QWorld(object):
     def reset(self):
         self.state = 0
         return self.state
+
 
     def is_in_win_state(self):
         return self.state == 2
@@ -106,7 +108,8 @@ class QWorld(object):
         self.transition_table[5, 2] = 5
         self.transition_table[5, 3] = 5
         
-
+    
+    # execute the action on the environment
     def step(self, action):
         next_state = self.transition_table[self.state, action]
         done = True if (next_state == 2 or next_state == 5) else False
@@ -142,6 +145,7 @@ class QWorld(object):
     def update_epsilon(self):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+
 
     def print_cell(self, row=0):
         print("")
@@ -207,6 +211,7 @@ def print_status(q_world, done, step, delay=1):
         print("-------EPISODE DONE--------")
         delay *= 2
     time.sleep(delay)
+
 
 if __name__ == '__main__':
     episode_count = 100
