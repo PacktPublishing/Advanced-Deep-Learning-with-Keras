@@ -30,23 +30,32 @@ class QWorld(object):
         # 6 states
         self.row = 6
 
+        # setup the environment
         self.q_table = np.zeros([self.row, self.col])
-
-        self.gamma = 0.9
-        self.epsilon = 0.9
-        self.epsilon_decay = 0.9
-        self.epsilon_min = 0.1
         self.init_transition_table()
         self.init_reward_table()
+
+        # discount factor
+        self.gamma = 0.9
+
+        # 90% exploration, 10% exploitation
+        self.epsilon = 0.9
+        # exploration decays by this factor every episode
+        self.epsilon_decay = 0.9
+        # in the long run, 10% exploration, 90% exploitation
+        self.epsilon_min = 0.1
+
+        # reset the environment
         self.reset()
         self.is_explore = True
 
 
+    # start of episode
     def reset(self):
         self.state = 0
         return self.state
 
-
+    # agent wins when the goal is reached
     def is_in_win_state(self):
         return self.state == 2
 
@@ -86,7 +95,7 @@ class QWorld(object):
         self.transition_table[1, 2] = 2
         self.transition_table[1, 3] = 1
 
-        # self-absorbing state (terminal goal state)
+        # terminal Goal state
         self.transition_table[2, 0] = 2
         self.transition_table[2, 1] = 2
         self.transition_table[2, 2] = 2
@@ -102,7 +111,7 @@ class QWorld(object):
         self.transition_table[4, 2] = 5
         self.transition_table[4, 3] = 1
 
-        # self-absorbing state (terminal hole state)
+        # terminal Hole state
         self.transition_table[5, 0] = 5
         self.transition_table[5, 1] = 5
         self.transition_table[5, 2] = 5
@@ -117,7 +126,8 @@ class QWorld(object):
         self.state = next_state
         return next_state, reward, done
 
-
+    
+    # determine the next action
     def act(self):
         # 0 - Left, 1 - Down, 2 - Right, 3 - Up
         if np.random.rand() <= self.epsilon:
@@ -130,6 +140,7 @@ class QWorld(object):
         return np.argmax(self.q_table[self.state])
 
 
+    # Q-Learning - update the table
     def update_q_table(self, state, action, reward, next_state):
         # Q(s, a) = reward + gamma * max_a' Q(s', a')
         q_value = self.gamma * np.amax(self.q_table[next_state])
@@ -137,16 +148,19 @@ class QWorld(object):
         self.q_table[state, action] = q_value
 
 
+    # UI to dump Q Table contents
     def print_q_table(self):
         print("Q-Table (Epsilon: %0.2f)" % self.epsilon)
         print(self.q_table)
 
 
+    # update Exploration-Exploitation mix
     def update_epsilon(self):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
 
+    # UI to display agent moving on the grid
     def print_cell(self, row=0):
         print("")
         for i in range(13):
@@ -176,6 +190,7 @@ class QWorld(object):
         print("")
 
 
+    # UI to display mode and action of agent
     def print_world(self, action, step):
         actions = { 0: "(Left)", 1: "(Down)", 2: "(Right)", 3: "(Up)" }
         explore = "Explore" if self.is_explore else "Exploit"
@@ -191,6 +206,7 @@ class QWorld(object):
         print("")
 
 
+# UI to display episode count
 def print_episode(episode, delay=1):
     os.system('clear')
     for _ in range(13):
@@ -203,6 +219,7 @@ def print_episode(episode, delay=1):
     time.sleep(delay)
 
 
+# UI to display the world, delay of 1 sec for ease of understanding
 def print_status(q_world, done, step, delay=1):
     os.system('clear')
     q_world.print_world(action, step)
@@ -213,15 +230,18 @@ def print_status(q_world, done, step, delay=1):
     time.sleep(delay)
 
 
+# main loop of Q-Learning
 if __name__ == '__main__':
     episode_count = 100
     wins = 0
     maxwins = 10
+    # scores (max number of steps bef goal) - good indicator of learning
     scores = deque(maxlen=maxwins)
     q_world = QWorld()
     delay = 1
     step = 1
 
+    # state, action, reward, next state iteration
     for i in range(episode_count):
         state = q_world.reset()
         done = False
@@ -232,6 +252,7 @@ if __name__ == '__main__':
             q_world.update_q_table(state, action, reward, next_state)
             print_status(q_world, done, step, delay=delay)
             state = next_state
+            # if episoe is done, perform housekeeping
             if done:
                 if q_world.is_in_win_state():
                     wins += 1
@@ -239,6 +260,7 @@ if __name__ == '__main__':
                     if wins > maxwins:
                         print(scores)
                         exit(0)
+                # Exploration-Exploitation is updated every episode
                 q_world.update_epsilon()
                 step = 1
             else:
