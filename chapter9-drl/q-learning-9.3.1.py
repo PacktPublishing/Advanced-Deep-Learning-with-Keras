@@ -232,10 +232,23 @@ def print_status(q_world, done, step, delay=1):
 
 # main loop of Q-Learning
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    help_ = "Trains and show final Q Table"
+    parser.add_argument("-t",
+                        "--train",
+                        help=help_,
+                        action='store_true')
+    args = parser.parse_args()
+
+    if args.train:
+        maxwins = 2000
+        delay = 0
+    else:
+        maxwins = 10
+        delay = 1
+
     wins = 0
-    maxwins = 10
     episode_count = 10 * maxwins
-    delay = 1
     # scores (max number of steps bef goal) - good indicator of learning
     scores = deque(maxlen=maxwins)
     q_world = QWorld()
