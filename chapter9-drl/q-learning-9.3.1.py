@@ -255,10 +255,10 @@ if __name__ == '__main__':
     step = 1
 
     # state, action, reward, next state iteration
-    for i in range(episode_count):
+    for episode in range(episode_count):
         state = q_world.reset()
         done = False
-        print_episode(i, delay=delay)
+        print_episode(episode, delay=delay)
         while not done:
             action = q_world.act()
             next_state, reward, done = q_world.step(action)
