@@ -1,4 +1,4 @@
-"""Trains a DQN to solve CartPole-v0 problem
+"""Trains a DQN/DDQN to solve CartPole-v0 problem
 
 
 """
@@ -65,7 +65,7 @@ class DQNAgent(object):
 
 
     def act(self, state):
-        if np.random.rand() <= self.epsilon:
+        if np.random.rand() < self.epsilon:
             # explore - do random action
             return self.action_space.sample()
 
@@ -176,23 +176,18 @@ if __name__ == '__main__':
                         default='CartPole-v0',
                         help='Select the environment to run')
     parser.add_argument("-d",
-                        "--enable-ddqn",
+                        "--ddqn",
                         action='store_true',
-                        help="Enable double DQN")
-    parser.add_argument("-p",
-                        "--prioritized-replay",
-                        action='store_true',
-                        help="Enable prioritized experience replay")
+                        help="Use Double DQN")
     args = parser.parse_args()
 
-    if args.enable_ddqn:
+    if args.ddqn:
         print("Using DDQN")
     else:
         print("Using default DQN")
 
 
     win_trials = 100
-    # win_reward = { 'CartPole-v0' : 4000 }
     win_reward = { 'CartPole-v0' : 195.0 }
     scores = deque(maxlen=win_trials)
 
@@ -203,6 +198,9 @@ if __name__ == '__main__':
     env = gym.make(args.env_id)
 
     outdir = "/tmp/dqn-%s" % args.env_id
+    if args.ddqn:
+        outdir = "/tmp/ddqn-%s" % args.env_id
+
     env = wrappers.Monitor(env, directory=outdir, force=True)
     env.seed(0)
     agent = DQNAgent(env.observation_space, env.action_space, args)
@@ -215,10 +213,10 @@ if __name__ == '__main__':
     # you can use this to experiment beyond 200
     # env._max_episode_steps = 4000
 
-    for i in range(episode_count):
+    for episode in range(episode_count):
         state = env.reset()
         state = np.reshape(state, [1, state_size])
-        t = 0
+        episode = 0
         done = False
         while not done:
             # in CartPole, action=0 is left and action=1 is right
