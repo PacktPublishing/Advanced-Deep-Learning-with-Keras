@@ -17,7 +17,7 @@ class QAgent(object):
                  action_space,
                  demo=False,
                  slippery=False,
-                 decay=0.99):
+                 episodes=40000):
         
         self.action_space = action_space
         # number of columns is equal to number of actions
@@ -33,8 +33,9 @@ class QAgent(object):
         # initially 90% exploration, 10% exploitation
         self.epsilon = 0.9
         # iteratively applying decay til 10% exploration/90% exploitation
-        self.epsilon_decay = decay
         self.epsilon_min = 0.1
+        self.epsilon_decay = self.epsilon_min / self.epsilon
+        self.epsilon_decay = self.epsilon_decay ** (1. / float(episodes))
 
         # learning rate of Q-Learning
         self.learning_rate = 0.1
@@ -145,23 +146,20 @@ if __name__ == '__main__':
     # number of times the Goal state is reached
     wins = 0
     # number of episodes to train
-    episode_count = 40000
-
-    # exploration-exploitation decay rate
-    decay = 0.1 ** (1 / float(episode_count))
+    episodes = 40000
 
     # instantiate a Q Learning agent
     agent = QAgent(env.observation_space,
                    env.action_space,
                    demo=args.demo,
                    slippery=args.slippery,
-                   decay=decay)
+                   episodes=episodes)
 
     if args.demo:
         agent.load_q_table()
 
     # loop for the specified number of episode
-    for episode in range(episode_count):
+    for episode in range(episodes):
         state = env.reset()
         done = False
         while not done:
