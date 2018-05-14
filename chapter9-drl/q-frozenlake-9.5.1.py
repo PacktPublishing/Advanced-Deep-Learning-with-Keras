@@ -118,6 +118,11 @@ if __name__ == '__main__':
                         "--explore",
                         help=help_,
                         action='store_true')
+    help_ = "Sec of time delay in UI. Useful for viz in demo mode."
+    parser.add_argument("-t",
+                        "--delay",
+                        help=help_,
+                        type=int)
     args = parser.parse_args()
 
     logger.setLevel(logger.INFO)
@@ -132,10 +137,9 @@ if __name__ == '__main__':
     if not args.slippery:
         env.is_slippery = False
 
-    # demo or train mode
-    if args.demo:
-        delay = 0
-    else:
+    if args.delay is not None:
+        delay = args.delay 
+    else: 
         delay = 0
 
     # number of times the Goal state is reached
@@ -169,7 +173,6 @@ if __name__ == '__main__':
             os.system('clear')
             # render the environment for human debugging
             env.render()
-            time.sleep(delay)
             # training of Q Table
             if done:
                 # update exploration-exploitation ratio
@@ -177,8 +180,6 @@ if __name__ == '__main__':
                 # otherwise, it is a Hole
                 if reward > 0:
                     wins += 1
-
-                time.sleep(5 * delay)
 
             if not args.demo:
                 agent.update_q_table(state, action, reward, next_state)
@@ -188,6 +189,10 @@ if __name__ == '__main__':
             percent_wins = 100.0 * wins / (episode + 1)
             print("-------%0.2f%% Goals in %d Episodes---------"
                   % (percent_wins, episode))
+            if done:
+                time.sleep(5 * delay)
+            else:
+                time.sleep(delay)
 
 
     print("Episodes: ", episode)
