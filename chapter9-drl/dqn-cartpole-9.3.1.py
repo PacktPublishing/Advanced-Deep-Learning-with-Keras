@@ -5,7 +5,7 @@
 
 from keras.layers import Dense, Input
 from keras.models import Model
-from keras.optimizers import Adam, RMSprop
+from keras.optimizers import Adam
 from collections import deque
 import heapq
 import numpy as np
@@ -20,31 +20,34 @@ class DQNAgent(object):
     def __init__(self, state_space, action_space, args):
         self.action_space = action_space
         self.state_space = state_space
-        self.build_model()
         self.memory = []
-        self.gamma = 0.9    # discount rate
-        self.epsilon = 1.0  # exploration rate
+
+        # discount rate
+        self.gamma = 0.9
+
+        self.epsilon = 1.0
         self.epsilon_min = 0.1
         self.epsilon_decay = 0.99
-        self.q_model = self.build_model()
-        optimizer = Adam()
+
+        # Q Network weights filename
         self.weights_file = 'dqn_cartpole.h5'
+        # Q Network for training
         self.q_model = self.build_model()
-        self.q_model.compile(loss='mse', optimizer=optimizer)
+        self.q_model.compile(loss='mse', optimizer=Adam())
+        # Target Q Network
         self.target_q_model = self.build_model()
+        # copy Q Network params to target Q Network
         self.update_weights()
+
         self.replay_counter = 0
-        self.enable_ddqn = True if args.enable_ddqn else False
-        self.prioritized_replay = True if args.prioritized_replay else False
-        if self.enable_ddqn:
+        self.ddqn = True if args.ddqn else False
+        if self.ddqn:
             print("DDQN---------------------------------------------------")
         else:
             print("----------------------------------------------------DQN")
 
-        if self.prioritized_replay:
-            print("PRIORITIZED REPLAY-------------------------------------")
-        self.priority = 0 
-
+    
+    # Q Network is 256-256-256 MLP
     def build_model(self):
         inputs = Input(shape=(self.state_space.shape[0], ), name='state')
         x = Dense(256, activation='relu')(inputs)
@@ -56,14 +59,17 @@ class DQNAgent(object):
         return q_model
 
 
+    # save Q Network params to a file
     def save_weights(self):
         self.q_model.save_weights(self.weights_file)
 
 
+    # copy Q Network params to target Q Network
     def update_weights(self):
         self.target_q_model.set_weights(self.q_model.get_weights())
 
 
+    # eps-greedy policy
     def act(self, state):
         if np.random.rand() < self.epsilon:
             # explore - do random action
@@ -71,38 +77,28 @@ class DQNAgent(object):
 
         # exploit
         q_values = self.q_model.predict(state)
-        # select the action with max acc reward (Q-value)
+        # select the action with max Q-value
         return np.argmax(q_values[0])
 
 
-    def get_td_error(self, next_state):
-        eps = random.uniform(1e-4, 1e-3)
-        q_value = self.get_target_q_value(next_state)
-        q_value -= self.q_model.predict(state)[0][action]
-        return abs(q_value) + eps
-
-
+    # store experiences in the replay buffer
     def remember(self, state, action, reward, next_state, done):
-        # self.memory.append([state, action, reward, next_state, done])
-        self.priority += 1
-        if self.prioritized_replay:
-            self.priority = self.get_td_error(next_state)
-
-        item = (self.priority, state, action, reward, next_state, done)
-        heapq.heappush(self.memory, item)
+        item = (state, action, reward, next_state, done)
+        self.memory.append(item)
 
 
+    # compute Qmax
     def get_target_q_value(self, next_state):
        # TD(0) Q-value using Bellman equation
        # to deal with non-stationarity, model weights are fixed
-        if self.enable_ddqn:
+        if self.ddqn:
             # DDQN
-            # current q network selects the action
+            # current Q Network selects the action
             action = np.argmax(self.q_model.predict(next_state)[0])
-            # target q network evaluate the action
+            # target Q Network evaluates the action
             q_value = self.target_q_model.predict(next_state)[0][action]
         else:
-            # DQN chooses the q value of the action with max value
+            # DQN chooses the Q value of the action with max value
             q_value = np.amax(self.target_q_model.predict(next_state)[0])
 
         q_value *= self.gamma
@@ -110,25 +106,14 @@ class DQNAgent(object):
         return q_value
 
 
+    # experience replay addresses the correlation issue between samples
     def replay(self, batch_size):
-        """Experience replay removes correlation between samples that
-        is causing the neural network to diverge
-        
-        """
-        # get a random batch of sars from replay memory
         # sars = state, action, reward, state' (next_state)
-        if self.prioritized_replay:
-            self.memory = heapq.nlargest(len(self.memory), self.memory, key=lambda m:m[0])
-            indexes = np.random.choice(min(len(self.memory), 16*batch_size), batch_size, replace=False)
-            sars_batch = []
-            for index in indexes:
-                sars_batch.append(self.memory[index])
-        else:
-            sars_batch = random.sample(self.memory, batch_size)
-
+        sars_batch = random.sample(self.memory, batch_size)
         state_batch, q_values_batch = [], []
         index = 0
-        for _, state, action, reward, next_state, done in sars_batch:
+
+        for state, action, reward, next_state, done in sars_batch:
             # policy prediction for a given state
             q_values = self.q_model.predict(state)
             
@@ -141,12 +126,6 @@ class DQNAgent(object):
             state_batch.append(state[0])
             q_values_batch.append(q_values[0])
 
-            if self.prioritized_replay:
-                priority = self.get_td_error(next_state)
-                i = indexes[index]
-                self.memory[i] = (priority, state, action, reward, next_state, done)
-                index += 1
-            
         # train the Q-network
         self.q_model.fit(np.array(state_batch),
                          np.array(q_values_batch),
@@ -187,14 +166,19 @@ if __name__ == '__main__':
         print("Using default DQN")
 
 
+    # the number of trials without falling over
     win_trials = 100
+
+    # the CartPole-v0 is considered solved if for 100 consecutive trials,
+    # the cart pole has not fallen over and it has achieved an average 
+    # reward of 195.0
+    # a reward of +1 is provided for every timestep the pole remains
+    # upright
     win_reward = { 'CartPole-v0' : 195.0 }
+    # stores the reward per episode
     scores = deque(maxlen=win_trials)
 
-    # You can set the level to logging.DEBUG or logging.WARN if you
-    # want to change the amount of output.
     logger.setLevel(logger.ERROR)
-
     env = gym.make(args.env_id)
 
     outdir = "/tmp/dqn-%s" % args.env_id
@@ -209,40 +193,40 @@ if __name__ == '__main__':
     state_size = env.observation_space.shape[0]
     batch_size = 64
 
-    # by default, CartPole-v0 has max episode count = 200
+    # by default, CartPole-v0 has max episode steps = 200
     # you can use this to experiment beyond 200
     # env._max_episode_steps = 4000
 
     for episode in range(episode_count):
         state = env.reset()
         state = np.reshape(state, [1, state_size])
-        episode = 0
         done = False
+        total_reward = 0
         while not done:
-            # in CartPole, action=0 is left and action=1 is right
+            # in CartPole-v0, action=0 is left and action=1 is right
             action = agent.act(state)
             next_state, reward, done, _ = env.step(action)
-            # in CartPole:
+            # in CartPole-v0:
             # state = [pos, vel, theta, angular speed]
             next_state = np.reshape(next_state, [1, state_size])
             agent.remember(state, action, reward, next_state, done)
             state = next_state
-            t += 1
+            total_reward += reward
 
         if len(agent.memory) >= batch_size:
             agent.replay(batch_size)
 
-        scores.append(t)
+        scores.append(total_reward)
         mean_score = np.mean(scores)
-        if mean_score >= win_reward[args.env_id] and i >= win_trials:
+        if mean_score >= win_reward[args.env_id] and episode >= win_trials:
             print("Solved in episode %d: Mean survival = %0.2lf in %d episodes"
-                  % (i, mean_score, win_trials))
+                  % (episode, mean_score, win_trials))
             print("Epsilon: ", agent.epsilon)
             agent.save_weights()
             break
-        if i % win_trials == 0:
+        if episode % win_trials == 0:
             print("Episode %d: Mean survival = %0.2lf in %d episodes" %
-                  (i, mean_score, win_trials))
+                  (episode, mean_score, win_trials))
 
     # close the env and write monitor result info to disk
     env.close() 
