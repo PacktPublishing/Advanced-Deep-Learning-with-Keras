@@ -15,7 +15,7 @@ from gym import wrappers, logger
 
 
 class DQNAgent(object):
-    def __init__(self, state_space, action_space, args, episodes=1000):
+    def __init__(self, state_space, action_space, args, episodes=500):
 
         self.action_space = action_space
 
@@ -26,7 +26,7 @@ class DQNAgent(object):
         self.gamma = 0.9
 
         # initially 90% exploration, 10% exploitation
-        self.epsilon = 0.9
+        self.epsilon = 1.0
         # iteratively applying decay til 10% exploration/90% exploitation
         self.epsilon_min = 0.1
         self.epsilon_decay = self.epsilon_min / self.epsilon
