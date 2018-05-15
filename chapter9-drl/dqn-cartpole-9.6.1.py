@@ -7,53 +7,58 @@ from keras.layers import Dense, Input
 from keras.models import Model
 from keras.optimizers import Adam
 from collections import deque
-import heapq
 import numpy as np
 import random
 import argparse
-import sys
 import gym
 from gym import wrappers, logger
 
 
 class DQNAgent(object):
-    def __init__(self, state_space, action_space, args):
+    def __init__(self, state_space, action_space, args, episodes=1000):
+
         self.action_space = action_space
-        self.state_space = state_space
+
+        # experience buffer
         self.memory = []
 
         # discount rate
         self.gamma = 0.9
 
-        self.epsilon = 1.0
+        # initially 90% exploration, 10% exploitation
+        self.epsilon = 0.9
+        # iteratively applying decay til 10% exploration/90% exploitation
         self.epsilon_min = 0.1
-        self.epsilon_decay = 0.99
+        self.epsilon_decay = self.epsilon_min / self.epsilon
+        self.epsilon_decay = self.epsilon_decay ** (1. / float(episodes))
 
         # Q Network weights filename
         self.weights_file = 'dqn_cartpole.h5'
         # Q Network for training
-        self.q_model = self.build_model()
+        n_inputs = state_space.shape[0]
+        n_outputs = action_space.n
+        self.q_model = self.build_model(n_inputs, n_outputs)
         self.q_model.compile(loss='mse', optimizer=Adam())
-        # Target Q Network
-        self.target_q_model = self.build_model()
+        # target Q Network
+        self.target_q_model = self.build_model(n_inputs, n_outputs)
         # copy Q Network params to target Q Network
         self.update_weights()
 
         self.replay_counter = 0
         self.ddqn = True if args.ddqn else False
         if self.ddqn:
-            print("DDQN---------------------------------------------------")
+            print("----------Double DQN--------")
         else:
-            print("----------------------------------------------------DQN")
+            print("-------------DQN------------")
 
     
     # Q Network is 256-256-256 MLP
-    def build_model(self):
-        inputs = Input(shape=(self.state_space.shape[0], ), name='state')
+    def build_model(self, n_inputs, n_outputs):
+        inputs = Input(shape=(n_inputs, ), name='state')
         x = Dense(256, activation='relu')(inputs)
         x = Dense(256, activation='relu')(x)
         x = Dense(256, activation='relu')(x)
-        x = Dense(self.action_space.n, activation='linear', name='action')(x)
+        x = Dense(n_outputs, activation='linear', name='action')(x)
         q_model = Model(inputs, x)
         q_model.summary()
         return q_model
@@ -64,7 +69,7 @@ class DQNAgent(object):
         self.q_model.save_weights(self.weights_file)
 
 
-    # copy Q Network params to target Q Network
+    # copy trained Q Network params to target Q Network
     def update_weights(self):
         self.target_q_model.set_weights(self.q_model.get_weights())
 
@@ -87,20 +92,25 @@ class DQNAgent(object):
         self.memory.append(item)
 
 
-    # compute Qmax
+    # compute Q_max
+    # use of target Q Network solves the non-stationarity problem
     def get_target_q_value(self, next_state):
-       # TD(0) Q-value using Bellman equation
-       # to deal with non-stationarity, model weights are fixed
+        # max Q value among next state's actions
         if self.ddqn:
             # DDQN
             # current Q Network selects the action
+            # a'_max = argmax_a' Q(s', a')
             action = np.argmax(self.q_model.predict(next_state)[0])
             # target Q Network evaluates the action
+            # Q_max = Q_target(s', a'_max)
             q_value = self.target_q_model.predict(next_state)[0][action]
         else:
-            # DQN chooses the Q value of the action with max value
+            # DQN chooses the max Q value among next actions
+            # selection and evaluation of action is on the target Q Network
+            # Q_max = max_a' Q_target(s', a')
             q_value = np.amax(self.target_q_model.predict(next_state)[0])
 
+        # Q_max = reward + gamma * Q_max
         q_value *= self.gamma
         q_value += reward
         return q_value
@@ -111,15 +121,17 @@ class DQNAgent(object):
         # sars = state, action, reward, state' (next_state)
         sars_batch = random.sample(self.memory, batch_size)
         state_batch, q_values_batch = [], []
-        index = 0
 
+        # fixme: for speedup, this could be done on the tensor level
+        # but easier to understand using a loop
         for state, action, reward, next_state, done in sars_batch:
             # policy prediction for a given state
             q_values = self.q_model.predict(state)
-            
+
+            # get Q_max
             q_value = self.get_target_q_value(next_state)
 
-            # correction on the Q-value for the given action
+            # correction on the Q value for the action used
             q_values[0][action] = reward if done else q_value
 
             # collect batch state-q_value mapping
@@ -134,15 +146,16 @@ class DQNAgent(object):
                          verbose=0)
 
         # update exploration-exploitation probability
-        if self.replay_counter % 4 == 0:
-            self.update_epsilon()
+        self.update_epsilon()
 
-        # copy new params on old target after every x training updates
-        if self.replay_counter % 2 == 0:
+        # copy new params on old target after every 10 training updates
+        if self.replay_counter % 10 == 0:
             self.update_weights()
 
         self.replay_counter += 1
 
+    
+    # decrease the exploration, increase exploitation
     def update_epsilon(self):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
@@ -160,12 +173,6 @@ if __name__ == '__main__':
                         help="Use Double DQN")
     args = parser.parse_args()
 
-    if args.ddqn:
-        print("Using DDQN")
-    else:
-        print("Using default DQN")
-
-
     # the number of trials without falling over
     win_trials = 100
 
@@ -175,6 +182,7 @@ if __name__ == '__main__':
     # a reward of +1 is provided for every timestep the pole remains
     # upright
     win_reward = { 'CartPole-v0' : 195.0 }
+
     # stores the reward per episode
     scores = deque(maxlen=win_trials)
 
@@ -187,8 +195,11 @@ if __name__ == '__main__':
 
     env = wrappers.Monitor(env, directory=outdir, force=True)
     env.seed(0)
+
+    # instantiate the DQN/DDQN agent
     agent = DQNAgent(env.observation_space, env.action_space, args)
 
+    # should be solved in this number of episodes
     episode_count = 3000
     state_size = env.observation_space.shape[0]
     batch_size = 64
@@ -197,6 +208,7 @@ if __name__ == '__main__':
     # you can use this to experiment beyond 200
     # env._max_episode_steps = 4000
 
+    # Q-Learning sampling and fitting
     for episode in range(episode_count):
         state = env.reset()
         state = np.reshape(state, [1, state_size])
@@ -209,13 +221,16 @@ if __name__ == '__main__':
             # in CartPole-v0:
             # state = [pos, vel, theta, angular speed]
             next_state = np.reshape(next_state, [1, state_size])
+            # store every experience unit in replay buffer
             agent.remember(state, action, reward, next_state, done)
             state = next_state
             total_reward += reward
 
+
+        # call experience relay
         if len(agent.memory) >= batch_size:
             agent.replay(batch_size)
-
+    
         scores.append(total_reward)
         mean_score = np.mean(scores)
         if mean_score >= win_reward[args.env_id] and episode >= win_trials:
