@@ -1,12 +1,12 @@
 '''Example of VAE on MNIST dataset using MLP
 
-VAE has a modular design. The encoder, decoder and VAE
+The VAE has a modular design. The encoder, decoder and VAE
 are 3 models that share weights. After training the VAE model,
 the encoder can be used to  generate latent vectors.
 The decoder can be used to generate MNIST digits by sampling the
 latent vector from a Gaussian distribution with mean=0 and std=1.
 
-#Reference
+# Reference
 
 [1] Kingma, Diederik P., and Max Welling.
 "Auto-encoding variational bayes."
@@ -36,10 +36,10 @@ import os
 def sampling(args):
     """Reparameterization trick by sampling fr an isotropic unit Gaussian.
 
-    Arguments:
+    # Arguments:
         args (tensor): mean and log of variance of Q(z|X)
 
-    Returns:
+    # Returns:
         z (tensor): sampled latent vector
     """
 
@@ -57,14 +57,11 @@ def plot_results(models,
                  model_name="vae_mnist"):
     """Plots labels and MNIST digits as function of 2-dim latent vector
 
-    Arguments:
-        models (list): encoder and decoder models
-        data (list): test data and label
+    # Arguments:
+        models (tuple): encoder and decoder models
+        data (tuple): test data and label
         batch_size (int): prediction batch size
         model_name (string): which model is using this function
-    
-    Returns:
-        none
     """
 
     encoder, decoder = models
@@ -84,7 +81,7 @@ def plot_results(models,
     plt.show()
 
     filename = os.path.join(model_name, "digits_over_latent.png")
-    # display a 30x30 2D manifold of the digits
+    # display a 30x30 2D manifold of digits
     n = 30
     digit_size = 28
     figure = np.zeros((digit_size * n, digit_size * n))
@@ -159,7 +156,7 @@ decoder = Model(latent_inputs, outputs, name='decoder')
 decoder.summary()
 plot_model(decoder, to_file='vae_mlp_decoder.png', show_shapes=True)
 
-# instantiate vae model
+# instantiate VAE model
 outputs = decoder(encoder(inputs)[2])
 vae = Model(inputs, outputs, name='vae_mlp')
 
@@ -174,12 +171,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
     models = (encoder, decoder)
     data = (x_test, y_test)
+
     # VAE loss = mse_loss or xent_loss + kl_loss
     if args.mse:
         reconstruction_loss = mse(inputs, outputs)
     else:
         reconstruction_loss = binary_crossentropy(inputs,
                                                   outputs)
+
     reconstruction_loss *= original_dim
     kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
     kl_loss = K.sum(kl_loss, axis=-1)
