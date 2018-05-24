@@ -19,8 +19,8 @@ of input data for low-dim visualization like PCA or TSNE.
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-import keras
-from keras.layers import Activation, Dense, Input
+
+from keras.layers import Dense, Input
 from keras.layers import Conv2D, Flatten
 from keras.layers import Reshape, Conv2DTranspose
 from keras.models import Model
@@ -41,7 +41,7 @@ x_test = np.reshape(x_test, [-1, image_size, image_size, 1])
 x_train = x_train.astype('float32') / 255
 x_test = x_test.astype('float32') / 255
 
-# Generate corrupted MNIST images by adding noise with normal dist
+# generate corrupted MNIST images by adding noise with normal dist
 # centered at 0.5 and std=0.5
 noise = np.random.normal(loc=0.5, scale=0.5, size=x_train.shape)
 x_train_noisy = x_train + noise
@@ -51,20 +51,20 @@ x_test_noisy = x_test + noise
 x_train_noisy = np.clip(x_train_noisy, 0., 1.)
 x_test_noisy = np.clip(x_test_noisy, 0., 1.)
 
-# Network parameters
+# network parameters
 input_shape = (image_size, image_size, 1)
 batch_size = 128
 kernel_size = 3
 latent_dim = 16
-# Encoder/Decoder number of CNN layers and filters per layer
+# encoder/decoder number of CNN layers and filters per layer
 layer_filters = [32, 64]
 
-# Build the autoencoder model
-# First build the encoder model
+# build the autoencoder model
+# first build the encoder model
 inputs = Input(shape=input_shape, name='encoder_input')
 x = inputs
-# Stack of Conv2D blocks
-# Notes:
+# stack of Conv2D blocks
+# notes:
 # 1) Use Batch Normalization before ReLU on deep networks
 # 2) Use MaxPooling2D as alternative to strides>1
 # - faster but not as good as strides>1
@@ -75,24 +75,24 @@ for filters in layer_filters:
                activation='relu',
                padding='same')(x)
 
-# Shape info needed to build decoder model
+# shape info needed to build decoder model
 shape = K.int_shape(x)
 
-# Generate the latent vector
+# generate the latent vector
 x = Flatten()(x)
 latent = Dense(latent_dim, name='latent_vector')(x)
 
-# Instantiate encoder model
+# instantiate encoder model
 encoder = Model(inputs, latent, name='encoder')
 encoder.summary()
 
-# Build the decoder model
+# build the decoder model
 latent_inputs = Input(shape=(latent_dim,), name='decoder_input')
 x = Dense(shape[1] * shape[2] * shape[3])(latent_inputs)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
 
-# Stack of Transposed Conv2D blocks
-# Notes:
+# stack of Transposed Conv2D blocks
+# notes:
 # 1) Use Batch Normalization before ReLU on deep networks
 # 2) Use UpSampling2D as alternative to strides>1
 # - faster but not as good as strides>1
@@ -103,34 +103,34 @@ for filters in layer_filters[::-1]:
                         activation='relu',
                         padding='same')(x)
 
-x = Conv2DTranspose(filters=1,
-                    kernel_size=kernel_size,
-                    padding='same')(x)
+outputs = Conv2DTranspose(filters=1,
+                          kernel_size=kernel_size,
+                          padding='same',
+                          activation='sigmoid',
+                          name='decoder_output')(x)
 
-outputs = Activation('sigmoid', name='decoder_output')(x)
-
-# Instantiate decoder model
+# instantiate decoder model
 decoder = Model(latent_inputs, outputs, name='decoder')
 decoder.summary()
 
-# Autoencoder = Encoder + Decoder
-# Instantiate autoencoder model
+# autoencoder = encoder + decoder
+# instantiate autoencoder model
 autoencoder = Model(inputs, decoder(encoder(inputs)), name='autoencoder')
 autoencoder.summary()
 
 autoencoder.compile(loss='mse', optimizer='adam')
 
-# Train the autoencoder
+# train the autoencoder
 autoencoder.fit(x_train_noisy,
                 x_train,
                 validation_data=(x_test_noisy, x_test),
                 epochs=20,
                 batch_size=batch_size)
 
-# Predict the autoencoder output from corrupted test images
+# predict the autoencoder output from corrupted test images
 x_decoded = autoencoder.predict(x_test_noisy)
 
-# Display the 1st 8 corrupted and denoised images
+# display the 1st 8 corrupted and denoised images
 rows, cols = 3, 9
 num = rows * cols
 imgs = np.concatenate([x_test[:num], x_test_noisy[:num], x_decoded[:num]])
