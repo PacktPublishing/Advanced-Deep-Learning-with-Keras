@@ -9,10 +9,13 @@ ResNet v2
 https://arxiv.org/pdf/1603.05027.pdf
 """
 
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
-import keras
+
 from keras.layers import Dense, Conv2D, BatchNormalization, Activation
 from keras.layers import AveragePooling2D, Input, Flatten
+from keras.layers.merge import add
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras.callbacks import ReduceLROnPlateau
@@ -21,16 +24,17 @@ from keras.regularizers import l2
 from keras.models import Model
 from keras.datasets import cifar10
 from keras.utils import plot_model
+from keras.utils import to_categorical
 import numpy as np
 import os
 
-# Training parameters
+# training parameters
 batch_size = 32  # orig paper trained all networks with batch_size=128
 epochs = 200
 data_augmentation = True
 num_classes = 10
 
-# Subtracting pixel mean improves accuracy
+# subtracting pixel mean improves accuracy
 subtract_pixel_mean = True
 
 # Model parameter
@@ -49,30 +53,30 @@ subtract_pixel_mean = True
 # ---------------------------------------------------------------------------
 n = 3
 
-# Model version
-# Orig paper: version = 1 (ResNet v1), Improved ResNet: version = 2 (ResNet v2)
+# model version
+# orig paper: version = 1 (ResNet v1), Improved ResNet: version = 2 (ResNet v2)
 version = 1
 
-# Computed depth from supplied model parameter n
+# computed depth from supplied model parameter n
 if version == 1:
     depth = n * 6 + 2
 elif version == 2:
     depth = n * 9 + 2
 
-# Model name, depth and version
+# model name, depth and version
 model_type = 'ResNet%dv%d' % (depth, version)
 
-# Load the CIFAR10 data.
+# load the CIFAR10 data.
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
-# Input image dimensions.
+# input image dimensions.
 input_shape = x_train.shape[1:]
 
-# Normalize data.
+# normalize data.
 x_train = x_train.astype('float32') / 255
 x_test = x_test.astype('float32') / 255
 
-# If subtract pixel mean is enabled
+# if subtract pixel mean is enabled
 if subtract_pixel_mean:
     x_train_mean = np.mean(x_train, axis=0)
     x_train -= x_train_mean
@@ -83,9 +87,9 @@ print(x_train.shape[0], 'train samples')
 print(x_test.shape[0], 'test samples')
 print('y_train shape:', y_train.shape)
 
-# Convert class vectors to binary class matrices.
-y_train = keras.utils.to_categorical(y_train, num_classes)
-y_test = keras.utils.to_categorical(y_test, num_classes)
+# convert class vectors to binary class matrices.
+y_train = to_categorical(y_train, num_classes)
+y_test = to_categorical(y_test, num_classes)
 
 
 def lr_schedule(epoch):
@@ -215,7 +219,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
                                  strides=strides,
                                  activation=None,
                                  batch_normalization=False)
-            x = keras.layers.add([x, y])
+            x = add([x, y])
             x = Activation('relu')(x)
         num_filters *= 2
 
@@ -309,11 +313,11 @@ def resnet_v2(input_shape, depth, num_classes=10):
                                  strides=strides,
                                  activation=None,
                                  batch_normalization=False)
-            x = keras.layers.add([x, y])
+            x = add([x, y])
 
         num_filters_in = num_filters_out
 
-    # Add classifier on top.
+    # add classifier on top.
     # v2 has BN-ReLU before Pooling
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
@@ -323,7 +327,7 @@ def resnet_v2(input_shape, depth, num_classes=10):
                     activation='softmax',
                     kernel_initializer='he_normal')(y)
 
-    # Instantiate model.
+    # instantiate model.
     model = Model(inputs=inputs, outputs=outputs)
     return model
 
@@ -340,14 +344,14 @@ model.summary()
 plot_model(model, to_file="%s.png" % model_type, show_shapes=True)
 print(model_type)
 
-# Prepare model model saving directory.
+# prepare model model saving directory.
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
 filepath = os.path.join(save_dir, model_name)
 
-# Prepare callbacks for model saving and for learning rate adjustment.
+# prepare callbacks for model saving and for learning rate adjustment.
 checkpoint = ModelCheckpoint(filepath=filepath,
                              monitor='val_acc',
                              verbose=1,
@@ -362,7 +366,7 @@ lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
 
 callbacks = [checkpoint, lr_reducer, lr_scheduler]
 
-# Run training, with or without data augmentation.
+# run training, with or without data augmentation.
 if not data_augmentation:
     print('Not using data augmentation.')
     model.fit(x_train, y_train,
@@ -373,7 +377,7 @@ if not data_augmentation:
               callbacks=callbacks)
 else:
     print('Using real-time data augmentation.')
-    # This will do preprocessing and realtime data augmentation:
+    # this will do preprocessing and realtime data augmentation:
     datagen = ImageDataGenerator(
         # set input mean to 0 over the dataset
         featurewise_center=False,
@@ -396,17 +400,17 @@ else:
         # randomly flip images
         vertical_flip=False)
 
-    # Compute quantities required for featurewise normalization
+    # compute quantities required for featurewise normalization
     # (std, mean, and principal components if ZCA whitening is applied).
     datagen.fit(x_train)
 
-    # Fit the model on the batches generated by datagen.flow().
+    # fit the model on the batches generated by datagen.flow().
     model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),
                         validation_data=(x_test, y_test),
                         epochs=epochs, verbose=1, workers=4,
                         callbacks=callbacks)
 
-# Score trained model.
+# score trained model
 scores = model.evaluate(x_test, y_test, verbose=1)
 print('Test loss:', scores[0])
 print('Test accuracy:', scores[1])
