@@ -32,7 +32,7 @@ x_test = x_test.astype('float32') / 255
 
 # network parameters
 input_shape = (image_size, image_size, 1)
-batch_size = 32
+batch_size = 128
 kernel_size = 3
 filters = 64
 dropout = 0.3
