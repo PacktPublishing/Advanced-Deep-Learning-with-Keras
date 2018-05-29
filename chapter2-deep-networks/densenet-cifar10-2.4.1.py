@@ -38,9 +38,17 @@ data_augmentation = True
 # network parameters
 num_classes = 10
 num_dense_blocks = 3
-num_bottleneck_layers = 16
 use_max_pool = False
+
+# DenseNet-BC with dataset augmentation
+# Growth rate   | Depth |  Accuracy (paper)| Accuracy (this)      |
+# 12            | 100   |  95.49%          | 93.74%               |
+# 24            | 250   |  96.38%          | requires big mem GPU |
+# 40            | 190   |  96.54%          | requires big mem GPU |
 growth_rate = 12
+depth = 100
+num_bottleneck_layers = (depth - 4) // (2 * num_dense_blocks)
+
 num_filters_bef_dense_block = 2 * growth_rate
 compression_factor = 0.5
 
