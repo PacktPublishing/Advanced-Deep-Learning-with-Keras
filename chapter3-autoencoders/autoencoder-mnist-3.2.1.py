@@ -11,8 +11,8 @@ from __future__ import division
 from __future__ import print_function
 
 from keras.layers import Dense, Input
-from keras.layers import Conv2D, MaxPooling2D, Flatten
-from keras.layers import Reshape, Conv2DTranspose, UpSampling2D
+from keras.layers import Conv2D, Flatten
+from keras.layers import Reshape, Conv2DTranspose
 from keras.models import Model
 from keras.datasets import mnist
 from keras.utils import plot_model
@@ -21,9 +21,10 @@ from keras import backend as K
 import numpy as np
 import matplotlib.pyplot as plt
 
-# MNIST dataset
+# load MNIST dataset
 (x_train, _), (x_test, _) = mnist.load_data()
 
+# reshape to (28, 28, 1) and normalize input images
 image_size = x_train.shape[1]
 x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
 x_test = np.reshape(x_test, [-1, image_size, image_size, 1])
@@ -32,7 +33,7 @@ x_test = x_test.astype('float32') / 255
 
 # network parameters
 input_shape = (image_size, image_size, 1)
-batch_size = 128
+batch_size = 32
 kernel_size = 3
 filters = 16
 latent_dim = 16
@@ -41,16 +42,18 @@ latent_dim = 16
 # first build the encoder model
 inputs = Input(shape=input_shape, name='encoder_input')
 x = inputs
-# stack of Conv2D-MaxPooling2D blocks
+# stack of Conv2D(32)-Conv2D(64)
 for i in range(2):
     filters *= 2
     x = Conv2D(filters=filters,
                kernel_size=kernel_size,
-               activation = 'relu',
+               activation='relu',
+               strides=2,
                padding='same')(x)
-    x = MaxPooling2D()(x)
 
-# shape info needed to build decoder model
+# shape info needed to build decoder model so we don't do hand computation
+# the input to the decoder's first Conv2DTranspose will have this shape
+# shape is (7, 7, 64) which be processed by the decoder back to (28, 28, 1)
 shape = K.int_shape(x)
 
 # generate latent vector
@@ -64,18 +67,21 @@ plot_model(encoder, to_file='encoder.png', show_shapes=True)
 
 # build the decoder model
 latent_inputs = Input(shape=(latent_dim,), name='decoder_input')
-x = Dense(shape[1]*shape[2]*shape[3])(latent_inputs)
+# use the shape (7, 7, 64) that was earlier saved
+x = Dense(shape[1] * shape[2] * shape[3])(latent_inputs)
+# from vector to suitable shape for transposed conv
 x = Reshape((shape[1], shape[2], shape[3]))(x)
 
-# stack of Conv2DTranspose-UpSampling2D blocks
+# stack of Conv2DTranspose(64)-Conv2DTranspose(32)
 for i in range(2):
     x = Conv2DTranspose(filters=filters,
                         kernel_size=kernel_size,
-                        activation = 'relu',
+                        activation='relu',
+                        strides=2,
                         padding='same')(x)
-    x = UpSampling2D()(x)
     filters //= 2
 
+# reconstruct the input
 outputs = Conv2DTranspose(filters=1,
                           kernel_size=kernel_size,
                           activation='sigmoid',
@@ -87,7 +93,7 @@ decoder = Model(latent_inputs, outputs, name='decoder')
 decoder.summary()
 plot_model(decoder, to_file='decoder.png', show_shapes=True)
 
-# autoencoder = Encoder + Decoder
+# autoencoder = encoder + decoder
 # instantiate autoencoder model
 autoencoder = Model(inputs, decoder(encoder(inputs)), name='autoencoder')
 autoencoder.summary()
