@@ -35,16 +35,16 @@ x_test = x_test.astype('float32') / 255
 input_shape = (image_size, image_size, 1)
 batch_size = 32
 kernel_size = 3
-filters = 16
 latent_dim = 16
+# encoder/decoder number of CNN layers and filters per layer
+layer_filters = [32, 64]
 
 # build the autoencoder model
 # first build the encoder model
 inputs = Input(shape=input_shape, name='encoder_input')
 x = inputs
 # stack of Conv2D(32)-Conv2D(64)
-for i in range(2):
-    filters *= 2
+for filters in layer_filters:
     x = Conv2D(filters=filters,
                kernel_size=kernel_size,
                activation='relu',
@@ -73,13 +73,12 @@ x = Dense(shape[1] * shape[2] * shape[3])(latent_inputs)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
 
 # stack of Conv2DTranspose(64)-Conv2DTranspose(32)
-for i in range(2):
+for filters in layer_filters[::-1]:
     x = Conv2DTranspose(filters=filters,
                         kernel_size=kernel_size,
                         activation='relu',
                         strides=2,
                         padding='same')(x)
-    filters //= 2
 
 # reconstruct the input
 outputs = Conv2DTranspose(filters=1,
