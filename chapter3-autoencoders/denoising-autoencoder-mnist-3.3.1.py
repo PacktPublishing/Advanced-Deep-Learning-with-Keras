@@ -131,7 +131,10 @@ autoencoder.fit(x_train_noisy,
 # predict the autoencoder output from corrupted test images
 x_decoded = autoencoder.predict(x_test_noisy)
 
-# display the 1st 8 corrupted and denoised images
+# 3 sets of images with 9 MNIST digits
+# 1st rows - original images
+# 2nd rows - images corrupted by noise
+# 3rd rows - denoised images
 rows, cols = 3, 9
 num = rows * cols
 imgs = np.concatenate([x_test[:num], x_test_noisy[:num], x_decoded[:num]])
