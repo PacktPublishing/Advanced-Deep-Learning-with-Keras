@@ -119,6 +119,7 @@ decoder.summary()
 autoencoder = Model(inputs, decoder(encoder(inputs)), name='autoencoder')
 autoencoder.summary()
 
+# Mean Square Error (MSE) loss function, Adam optimizer
 autoencoder.compile(loss='mse', optimizer='adam')
 
 # train the autoencoder
