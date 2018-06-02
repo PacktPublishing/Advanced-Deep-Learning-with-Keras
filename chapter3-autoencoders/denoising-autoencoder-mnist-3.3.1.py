@@ -126,7 +126,7 @@ autoencoder.compile(loss='mse', optimizer='adam')
 autoencoder.fit(x_train_noisy,
                 x_train,
                 validation_data=(x_test_noisy, x_test),
-                epochs=20,
+                epochs=10,
                 batch_size=batch_size)
 
 # predict the autoencoder output from corrupted test images
