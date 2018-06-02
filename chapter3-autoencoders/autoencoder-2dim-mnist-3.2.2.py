@@ -1,5 +1,11 @@
 '''Example of autoencoder model on MNIST dataset using 2dim latent
 
+The autoencoder forces the encoder to discover 2-dim latent vector
+that the decoder can recover the original input. The 2-dim latent
+vector is projected on 2D space to analyze the distribution of codes
+in the latent space. The latent space can be navigated by varying the
+values of latent vector to produce new MNIST digits.
+
 This autoencoder has modular design. The encoder, decoder and autoencoder
 are 3 models that share weights. For example, after training the
 autoencoder, the encoder can be used to  generate latent vectors
@@ -86,9 +92,10 @@ def plot_results(models,
     plt.show()
 
 
-# MNIST dataset
+# load MNIST dataset
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
+# reshape to (28, 28, 1) and normalize input images
 image_size = x_train.shape[1]
 x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
 x_test = np.reshape(x_test, [-1, image_size, image_size, 1])
@@ -99,25 +106,28 @@ x_test = x_test.astype('float32') / 255
 input_shape = (image_size, image_size, 1)
 batch_size = 32
 kernel_size = 3
-filters = 16
 latent_dim = 2
+# encoder/decoder number of CNN layers and filters per layer
+layer_filters = [32, 64]
 
 # build the autoencoder model
 # first build the encoder model
 inputs = Input(shape=input_shape, name='encoder_input')
 x = inputs
-for i in range(2):
-    filters *= 2
+# stack of Conv2D(32)-Conv2D(64)
+for filters in layer_filters:
     x = Conv2D(filters=filters,
                kernel_size=kernel_size,
-               strides=2,
                activation='relu',
+               strides=2,
                padding='same')(x)
 
-# shape info needed to build decoder model
+# shape info needed to build decoder model so we don't do hand computation
+# the input to the decoder's first Conv2DTranspose will have this shape
+# shape is (7, 7, 64) which is processed by the decoder back to (28, 28, 1)
 shape = K.int_shape(x)
 
-# generate a 2-dim latent vector
+# generate latent vector
 x = Flatten()(x)
 latent = Dense(latent_dim, name='latent_vector')(x)
 
@@ -128,30 +138,32 @@ plot_model(encoder, to_file='encoder.png', show_shapes=True)
 
 # build the decoder model
 latent_inputs = Input(shape=(latent_dim,), name='decoder_input')
-x = Dense(shape[1]*shape[2]*shape[3])(latent_inputs)
+# use the shape (7, 7, 64) that was earlier saved
+x = Dense(shape[1] * shape[2] * shape[3])(latent_inputs)
+# from vector to suitable shape for transposed conv
 x = Reshape((shape[1], shape[2], shape[3]))(x)
 
-for i in range(2):
+# stack of Conv2DTranspose(64)-Conv2DTranspose(32)
+for filters in layer_filters[::-1]:
     x = Conv2DTranspose(filters=filters,
                         kernel_size=kernel_size,
-                        strides=2,
                         activation='relu',
+                        strides=2,
                         padding='same')(x)
-    filters //= 2
 
+# reconstruct the input
 outputs = Conv2DTranspose(filters=1,
                           kernel_size=kernel_size,
                           activation='sigmoid',
-                          name='decoder_output',
-                          padding='same')(x)
-
+                          padding='same',
+                          name='decoder_output')(x)
 
 # instantiate decoder model
 decoder = Model(latent_inputs, outputs, name='decoder')
 decoder.summary()
 plot_model(decoder, to_file='decoder.png', show_shapes=True)
 
-# autoencoder = encoder + Decoder
+# autoencoder = encoder + decoder
 # instantiate autoencoder model
 autoencoder = Model(inputs, decoder(encoder(inputs)), name='autoencoder')
 autoencoder.summary()
@@ -164,7 +176,7 @@ autoencoder.compile(loss='mse', optimizer='adam')
 autoencoder.fit(x_train,
                 x_train,
                 validation_data=(x_test, x_test),
-                epochs=30,
+                epochs=20,
                 batch_size=batch_size)
 
 # predict the autoencoder output from test data
@@ -181,6 +193,7 @@ plt.imshow(imgs, interpolation='none', cmap='gray')
 plt.savefig('input_and_decoded.png')
 plt.show()
 
+# project the 2-dim latent on 2D space
 models = (encoder, decoder)
 data = (x_test, y_test)
 plot_results(models, data,

@@ -53,7 +53,7 @@ for filters in layer_filters:
 
 # shape info needed to build decoder model so we don't do hand computation
 # the input to the decoder's first Conv2DTranspose will have this shape
-# shape is (7, 7, 64) which be processed by the decoder back to (28, 28, 1)
+# shape is (7, 7, 64) which is processed by the decoder back to (28, 28, 1)
 shape = K.int_shape(x)
 
 # generate latent vector
