@@ -39,7 +39,7 @@ import argparse
 def build_generator(inputs, image_size):
     """Build a Generator Model
 
-    Stacks of BN-ReLU-Conv2DTranpose to generate fake images
+    Stack of BN-ReLU-Conv2DTranpose to generate fake images
     Output activation is sigmoid instead of tanh in [1].
     Sigmoid converges easily.
 
@@ -50,7 +50,9 @@ def build_generator(inputs, image_size):
     # Returns
         Model: Generator Model
     """
+
     image_resize = image_size // 4
+    # network parameters 
     kernel_size = 5
     layer_filters = [128, 64, 32, 1]
 
@@ -58,6 +60,8 @@ def build_generator(inputs, image_size):
     x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
 
     for filters in layer_filters:
+        # first two convolution layers use strides = 2
+        # the last two use strides = 1
         if filters > layer_filters[-2]:
             strides = 2
         else:
@@ -77,9 +81,9 @@ def build_generator(inputs, image_size):
 def build_discriminator(inputs):
     """Build a Discriminator Model
 
-    Stacks of LeakyReLU-Conv2D to discriminate real from fake
+    Stack of LeakyReLU-Conv2D to discriminate real from fake.
     The network does not converge with BN so it is not used here
-    unlike in [1]
+    unlike in [1] or original paper.
 
     # Arguments
         inputs (Layer): Input layer of the discriminator (the image)
@@ -92,6 +96,8 @@ def build_discriminator(inputs):
 
     x = inputs
     for filters in layer_filters:
+        # first 3 convolution layers use strides = 2
+        # last one uses strides = 1
         if filters == layer_filters[-1]:
             strides = 1
         else:
@@ -112,10 +118,10 @@ def build_discriminator(inputs):
 def train(models, x_train, params):
     """Train the Discriminator and Adversarial Networks
 
-    Alternately train Discriminator and Adversarial networks by batch
-    Discriminator is trained first with properly real and fake images
+    Alternately train Discriminator and Adversarial networks by batch.
+    Discriminator is trained first with properly real and fake images.
     Adversarial is trained next with fake images pretending to be real
-    Generate sample images per save_interval
+    Generate sample images per save_interval.
 
     # Arguments
         models (list): Generator, Discriminator, Adversarial models
@@ -123,35 +129,53 @@ def train(models, x_train, params):
         params (list) : Networks parameters
 
     """
+    # the GAN models
     generator, discriminator, adversarial = models
+    # network parameters
     batch_size, latent_size, train_steps, model_name = params
+    # the generator image is saved every 500 steps
     save_interval = 500
+    # noise vector to see how the generator output evolves during training
     noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
+    # number of elements in train dataset
+    train_size = x_train.shape[0]
     for i in range(train_steps):
-        # Random real images
-        rand_indexes = np.random.randint(0, x_train.shape[0], size=batch_size)
+        # train the discriminator for 1 batch
+        # 1 batch of real and fake images
+        # randomly pick real images from dataset
+        rand_indexes = np.random.randint(0, train_size, size=batch_size)
         real_images = x_train[rand_indexes]
-        # Generate fake images
+        # generate fake images from noise using generator 
+        # generate noise using uniform distribution
         noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
+        # generate fake images
         fake_images = generator.predict(noise)
+        # real + fake images = 1 batch of train data
         x = np.concatenate((real_images, fake_images))
-        # Label real and fake images
+        # label real and fake images
+        # real images label is 1.0
         y = np.ones([2 * batch_size, 1])
-        y[batch_size:, :] = 0
-        # Train the Discriminator network
-        metrics = discriminator.train_on_batch(x, y)
-        loss = metrics[0]
-        acc = metrics[1]
+        # fake images label is 0.0
+        y[batch_size:, :] = 0.0
+        # train discriminator network, log the loss and accuracy
+        loss, acc = discriminator.train_on_batch(x, y)
         log = "%d: [discriminator loss: %f, acc: %f]" % (i, loss, acc)
 
-        # Generate random noise
+        # train the adversarial network 
+        # since the discriminator weights are frozen in adversarial network
+        # only the generator is trained
+        # generate noise using uniform distribution
         noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
-        # Label fake images as real
+        # label fake images as real or 1.0
         y = np.ones([batch_size, 1])
-        # Train the Adversarial network
-        metrics = adversarial.train_on_batch(noise, y)
-        loss = metrics[0]
-        acc = metrics[1]
+        # train the adversarial network 
+        # discriminator weights are frozen in adversarial network
+        # note that unlike in disriminator training, 
+        # we do not save the fake images in variable
+        # the fake images go to the discriminator input of the adversarial
+        # for classification
+        # log the loss and accuracy
+        loss, acc = adversarial.train_on_batch(noise, y)
         log = "%s [adversarial loss: %f, acc: %f]" % (log, loss, acc)
         print(log)
         if (i + 1) % save_interval == 0:
@@ -159,12 +183,16 @@ def train(models, x_train, params):
                 show = True
             else:
                 show = False
+
+            # plot generator images on a periodic basis
             plot_images(generator,
                         noise_input=noise_input,
                         show=show,
                         step=(i + 1),
                         model_name=model_name)
-    
+   
+    # save the model after training the generator
+    # the trained generator can be reloaded for future MNIST digit generation
     generator.save(model_name + ".h5")
 
 
@@ -206,16 +234,17 @@ def plot_images(generator,
 
 
 def build_and_train_models():
-    # MNIST dataset
+    # load MNIST dataset
     (x_train, _), (_, _) = mnist.load_data()
 
+    # reshape data for CNN as (28, 28, 1) and normalize
     image_size = x_train.shape[1]
     x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
     x_train = x_train.astype('float32') / 255
 
     model_name = "dcgan_mnist"
-    # Network parameters
-    # The latent or z vector is 100-dim
+    # network parameters
+    # the latent or z vector is 100-dim
     latent_size = 100
     batch_size = 64
     train_steps = 40000
@@ -223,25 +252,28 @@ def build_and_train_models():
     decay = 6e-8
     input_shape = (image_size, image_size, 1)
 
-    # Build discriminator model
+    # build discriminator model
     inputs = Input(shape=input_shape, name='discriminator_input')
     discriminator = build_discriminator(inputs)
-    # [1] uses Adam, but discriminator converges easily with RMSprop
+    # [1] or original paper uses Adam, 
+    # but discriminator converges easily with RMSprop
     optimizer = RMSprop(lr=lr, decay=decay)
     discriminator.compile(loss='binary_crossentropy',
                           optimizer=optimizer,
                           metrics=['accuracy'])
     discriminator.summary()
 
-    # Build generator model
+    # build generator model
     input_shape = (latent_size, )
     inputs = Input(shape=input_shape, name='z_input')
     generator = build_generator(inputs, image_size)
     generator.summary()
 
-    # Build adversarial model = generator + discriminator
-    optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
+    # build adversarial model
+    optimizer = RMSprop(lr=lr * 0.5, decay=decay * 0.5)
+    # freeze the weights of discriminator during adversarial training
     discriminator.trainable = False
+    # adversarial = generator + discriminator
     adversarial = Model(inputs, 
                         discriminator(generator(inputs)),
                         name=model_name)
@@ -250,7 +282,7 @@ def build_and_train_models():
                         metrics=['accuracy'])
     adversarial.summary()
 
-    # Train Discriminator and Adversarial Networks
+    # train discriminator and adversarial networks
     models = (generator, discriminator, adversarial)
     params = (batch_size, latent_size, train_steps, model_name)
     train(models, x_train, params)
