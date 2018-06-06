@@ -248,7 +248,7 @@ def build_and_train_models():
     latent_size = 100
     batch_size = 64
     train_steps = 40000
-    lr = 0.0002
+    lr = 2e-4
     decay = 6e-8
     input_shape = (image_size, image_size, 1)
 
