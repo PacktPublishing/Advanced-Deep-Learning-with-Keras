@@ -141,7 +141,7 @@ def train(models, x_train, params):
     train_size = x_train.shape[0]
     for i in range(train_steps):
         # train the discriminator for 1 batch
-        # 1 batch of real and fake images
+        # 1 batch of real (label=1.0) and fake images (label=0.0)
         # randomly pick real images from dataset
         rand_indexes = np.random.randint(0, train_size, size=batch_size)
         real_images = x_train[rand_indexes]
@@ -161,7 +161,8 @@ def train(models, x_train, params):
         loss, acc = discriminator.train_on_batch(x, y)
         log = "%d: [discriminator loss: %f, acc: %f]" % (i, loss, acc)
 
-        # train the adversarial network 
+        # train the adversarial network for 1 batch
+        # 1 batch of fake images with label=1.0
         # since the discriminator weights are frozen in adversarial network
         # only the generator is trained
         # generate noise using uniform distribution
@@ -169,9 +170,8 @@ def train(models, x_train, params):
         # label fake images as real or 1.0
         y = np.ones([batch_size, 1])
         # train the adversarial network 
-        # discriminator weights are frozen in adversarial network
-        # note that unlike in disriminator training, 
-        # we do not save the fake images in variable
+        # note that unlike in discriminator training, 
+        # we do not save the fake images in a variable
         # the fake images go to the discriminator input of the adversarial
         # for classification
         # log the loss and accuracy

@@ -19,12 +19,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import keras
 from keras.layers import Activation, Dense, Input
 from keras.layers import Conv2D, Flatten
 from keras.layers import Reshape, Conv2DTranspose
 from keras.layers import LeakyReLU
 from keras.layers import BatchNormalization
+from keras.layers.merge import concatenate
 from keras.optimizers import RMSprop
 from keras.models import Model
 from keras.datasets import mnist
@@ -42,7 +42,7 @@ def build_generator(inputs, y_labels, image_size):
     """Build a Generator Model
 
     Inputs are concatenated before Dense layer.
-    Stacks of BN-ReLU-Conv2DTranpose to generate fake images
+    Stack of BN-ReLU-Conv2DTranpose to generate fake images.
     Output activation is sigmoid instead of tanh in orig DCGAN.
     Sigmoid converges easily.
 
@@ -56,14 +56,17 @@ def build_generator(inputs, y_labels, image_size):
         Model: Generator Model
     """
     image_resize = image_size // 4
+    # network parameters
     kernel_size = 5
     layer_filters = [128, 64, 32, 1]
 
-    x = keras.layers.concatenate([inputs, y_labels], axis=1)
+    x = concatenate([inputs, y_labels], axis=1)
     x = Dense(image_resize * image_resize * layer_filters[0])(x)
     x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
 
     for filters in layer_filters:
+        # first two convolution layers use strides = 2
+        # the last two use strides = 1
         if filters > layer_filters[-2]:
             strides = 2
         else:
@@ -76,6 +79,7 @@ def build_generator(inputs, y_labels, image_size):
                             padding='same')(x)
 
     x = Activation('sigmoid')(x)
+    # input is conditioned by y_labels
     generator = Model([inputs, y_labels], x, name='generator')
     return generator
 
@@ -84,7 +88,7 @@ def build_discriminator(inputs, y_labels, image_size):
     """Build a Discriminator Model
 
     Inputs are concatenated after Dense layer.
-    Stacks of LeakyReLU-Conv2D to discriminate real from fake
+    Stack of LeakyReLU-Conv2D to discriminate real from fake.
     The network does not converge with BN so it is not used here
     unlike in DCGAN paper.
 
@@ -104,9 +108,11 @@ def build_discriminator(inputs, y_labels, image_size):
 
     y = Dense(image_size * image_size)(y_labels)
     y = Reshape((image_size, image_size, 1))(y)
-    x = keras.layers.concatenate([x, y])
+    x = concatenate([x, y])
 
     for filters in layer_filters:
+        # first 3 convolution layers use strides = 2
+        # last one uses strides = 1
         if filters == layer_filters[-1]:
             strides = 1
         else:
@@ -120,6 +126,7 @@ def build_discriminator(inputs, y_labels, image_size):
     x = Flatten()(x)
     x = Dense(1)(x)
     x = Activation('sigmoid')(x)
+    # input is conditioned by y_labels
     discriminator = Model([inputs, y_labels], x, name='discriminator')
     return discriminator
 
@@ -127,13 +134,13 @@ def build_discriminator(inputs, y_labels, image_size):
 def train(models, data, params):
     """Train the Discriminator and Adversarial Networks
 
-    Alternately train Discriminator and Adversarial networks by batch
-    Discriminator is trained first with properly labelled real and fake images
-    Adversarial is trained next with fake images pretending to be real
+    Alternately train Discriminator and Adversarial networks by batch.
+    Discriminator is trained first with properly labelled real and fake images.
+    Adversarial is trained next with fake images pretending to be real.
     Discriminator inputs are conditioned by train labels for real images,
-    and random labels for fake images
-    Adversarial inputs are conditioned by random labels
-    Generate sample images per save_interval
+    and random labels for fake images.
+    Adversarial inputs are conditioned by random labels.
+    Generate sample images per save_interval.
 
     # Arguments
         models (list): Generator, Discriminator, Adversarial models
@@ -141,50 +148,74 @@ def train(models, data, params):
         params (list): Network parameters
 
     """
+    # the GAN models
     generator, discriminator, adversarial = models
+    # images and labels
     x_train, y_train = data
+    # network parameters
     batch_size, latent_size, train_steps, num_labels, model_name = params
+    # the generator image is saved every 500 steps
     save_interval = 500
+    # noise vector to see how the generator output evolves during training
     noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
+    # one-hot label the noise will be conditioned to
     noise_class = np.eye(num_labels)[np.arange(0, 16) % num_labels]
+    # number of elements in train dataset
+    train_size = x_train.shape[0]
+
     print(model_name,
           "Labels for generated images: ",
           np.argmax(noise_class, axis=1))
 
     for i in range(train_steps):
-        # Random real images and their labels
-        rand_indexes = np.random.randint(0, x_train.shape[0], size=batch_size)
+        # train the discriminator for 1 batch
+        # 1 batch of real (label=1.0) and fake images (label=0.0)
+        # randomly pick real images from dataset
+        rand_indexes = np.random.randint(0, train_size, size=batch_size)
         real_images = x_train[rand_indexes]
+        # corresponding one-hot labels of real images
         real_labels = y_train[rand_indexes]
-        # Generate fake images and their labels
+        # generate fake images from noise using generator
+        # generate noise using uniform distribution
         noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
+        # assign random one-hot labels
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
-                                                           batch_size)]
+                                                          batch_size)]
 
+        # generate fake images conditioned on fake labels
         fake_images = generator.predict([noise, fake_labels])
+        # real + fake images = 1 batch of train data
         x = np.concatenate((real_images, fake_images))
-
+        # real + fake one-hot labels = 1 batch of train one-hot labels
         y_labels = np.concatenate((real_labels, fake_labels))
 
-        # Label real and fake images
+        # label real and fake images
+        # real images label is 1.0
         y = np.ones([2 * batch_size, 1])
-        y[batch_size:, :] = 0
-        # Train the discriminator network
-        metrics = discriminator.train_on_batch([x, y_labels], y)
-        loss = metrics[0]
-        acc = metrics[1]
+        # fake images label is 0.0
+        y[batch_size:, :] = 0.0
+        # train discriminator network, log the loss and accuracy
+        loss, acc = discriminator.train_on_batch([x, y_labels], y)
         log = "%d: [discriminator loss: %f, acc: %f]" % (i, loss, acc)
 
-        # Generate random noise and fake labels
+        # train the adversarial network for 1 batch
+        # 1 batch of fake images conditioned on fake 1-hot labels w/ label=1.0
+        # since the discriminator weights are frozen in adversarial network
+        # only the generator is trained
+        # generate noise using uniform distribution        
         noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
+        # assign random one-hot labels
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                            batch_size)]
-        # Label fake images as real
+        # label fake images as real or 1.0
         y = np.ones([batch_size, 1])
-        # Train the adversarial network
-        metrics = adversarial.train_on_batch([noise, fake_labels], y)
-        loss = metrics[0]
-        acc = metrics[1]
+        # train the adversarial network 
+        # note that unlike in disriminator training, 
+        # we do not save the fake images in a variable
+        # the fake images go to the discriminator input of the adversarial
+        # for classification
+        # log the loss and accuracy
+        loss, acc = adversarial.train_on_batch([noise, fake_labels], y)
         log = "%s [adversarial loss: %f, acc: %f]" % (log, loss, acc)
         print(log)
         if (i + 1) % save_interval == 0:
@@ -192,6 +223,8 @@ def train(models, data, params):
                 show = True
             else:
                 show = False
+
+            # plot generator images on a periodic basis
             plot_images(generator,
                         noise_input=noise_input,
                         noise_class=noise_class,
@@ -199,6 +232,8 @@ def train(models, data, params):
                         step=(i + 1),
                         model_name=model_name)
     
+    # save the model after training the generator
+    # the trained generator can be reloaded for future MNIST digit generation
     generator.save(model_name + ".h5")
 
 
