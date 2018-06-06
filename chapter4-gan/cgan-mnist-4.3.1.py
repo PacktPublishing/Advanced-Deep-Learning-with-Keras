@@ -210,7 +210,7 @@ def train(models, data, params):
         # label fake images as real or 1.0
         y = np.ones([batch_size, 1])
         # train the adversarial network 
-        # note that unlike in disriminator training, 
+        # note that unlike in discriminator training, 
         # we do not save the fake images in a variable
         # the fake images go to the discriminator input of the adversarial
         # for classification
@@ -277,9 +277,10 @@ def plot_images(generator,
 
 
 def build_and_train_models():
-    # MNIST dataset
+    # load MNIST dataset
     (x_train, y_train), (_, _) = mnist.load_data()
 
+    # reshape data for CNN as (28, 28, 1) and normalize
     image_size = x_train.shape[1]
     x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
     x_train = x_train.astype('float32') / 255
@@ -287,36 +288,39 @@ def build_and_train_models():
     num_labels = np.amax(y_train) + 1
     y_train = to_categorical(y_train)
 
-    # Network parameters
     model_name = "cgan_mnist"
+    # network parameters
+    # the latent or z vector is 100-dim
     latent_size = 100
     batch_size = 64
     train_steps = 40000
-    lr = 0.0002
+    lr = 2e-4
     decay = 6e-8
     input_shape = (image_size, image_size, 1)
     label_shape = (num_labels, )
 
-    # Build discriminator model
+    # build discriminator model
     inputs = Input(shape=input_shape, name='discriminator_input')
     y_labels = Input(shape=label_shape, name='class_labels')
 
     discriminator = build_discriminator(inputs, y_labels, image_size)
-    # [1] uses Adam, but discriminator converges easily with RMSprop
+    # [1] or original paper uses Adam, 
+    # but discriminator converges easily with RMSprop
     optimizer = RMSprop(lr=lr, decay=decay)
     discriminator.compile(loss='binary_crossentropy',
                           optimizer=optimizer,
                           metrics=['accuracy'])
     discriminator.summary()
 
-    # Build generator model
+    # build generator model
     input_shape = (latent_size, )
     inputs = Input(shape=input_shape, name='z_input')
     generator = build_generator(inputs, y_labels, image_size)
     generator.summary()
 
-    # Build adversarial model = generator + discriminator
+    # build adversarial model = generator + discriminator
     optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
+    # freeze the weights of discriminator during adversarial training
     discriminator.trainable = False
     outputs = discriminator([generator([inputs, y_labels]), y_labels])
     adversarial = Model([inputs, y_labels],
@@ -327,7 +331,7 @@ def build_and_train_models():
                         metrics=['accuracy'])
     adversarial.summary()
 
-    # Train discriminator and adversarial networks
+    # train discriminator and adversarial networks
     models = (generator, discriminator, adversarial)
     data = (x_train, y_train)
     params = (batch_size, latent_size, train_steps, num_labels, model_name)
