@@ -28,7 +28,7 @@ Sample outputs for digits 0 to 9:
 
 ![Zero to Nine](chapter4-gan/images/cgan_mnist.gif)
 ## Chapter 5 - Improved GAN
-### [Wasserstein GAN (WGAN)](chapter5-improved-gan/wgan-mnist-5.1.1.py)
+### [Wasserstein GAN (WGAN)](chapter5-improved-gan/wgan-mnist-5.1.2.py)
 
 [Arjovsky, Martin, Soumith Chintala, and Léon Bottou. "Wasserstein GAN." arXiv preprint arXiv:1701.07875 (2017).](https://arxiv.org/pdf/1701.07875)
 
