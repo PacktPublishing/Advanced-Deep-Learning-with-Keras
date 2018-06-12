@@ -95,6 +95,7 @@ def train(models, x_train, params):
                                                                real_labels)
             fake_loss, fake_acc = discriminator.train_on_batch(fake_images,
                                                                -real_labels)
+            # accumulate average loss and accuracy
             loss += 0.5 * (real_loss + fake_loss)
             acc += 0.5 * (real_acc + fake_acc)
 
@@ -106,7 +107,7 @@ def train(models, x_train, params):
                                    clip_value) for weight in weights]
                 layer.set_weights(weights)
 
-        # average loss and accuracy per n_critic
+        # average loss and accuracy per n_critic training iterations
         loss /= n_critic
         acc /= n_critic
         log = "%d: [discriminator loss: %f, acc: %f]" % (i, loss, acc)
