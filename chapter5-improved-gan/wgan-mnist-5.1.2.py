@@ -64,6 +64,8 @@ def train(models, x_train, params):
     noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
     # number of elements in train dataset
     train_size = x_train.shape[0]
+    # labels for real data
+    real_labels = np.ones((batch_size, 1))
     for i in range(train_steps):
         # train discriminator n_critic times
         loss = 0
@@ -82,7 +84,13 @@ def train(models, x_train, params):
             fake_images = generator.predict(noise)
 
             # train the discriminator network
-            real_labels = np.ones((batch_size, 1))
+            # real data label=1, fake data label=-1
+            # instead of 1 combined batch of real and fake images,
+            # train with 1 batch of real data first, then 1 batch
+            # of fake images.
+            # this tweak prevents the gradient from vanishing due to opposite
+            # signs of real and fake data labels (i.e. +1 and -1) and 
+            # small magnitude of weights due to clipping.
             real_loss, real_acc = discriminator.train_on_batch(real_images,
                                                                real_labels)
             fake_loss, fake_acc = discriminator.train_on_batch(fake_images,
@@ -90,7 +98,7 @@ def train(models, x_train, params):
             loss += 0.5 * (real_loss + fake_loss)
             acc += 0.5 * (real_acc + fake_acc)
 
-            # clip discriminator weights
+            # clip discriminator weights to satisfy Lipschitz constraint
             for layer in discriminator.layers:
                 weights = layer.get_weights()
                 weights = [np.clip(weight,
@@ -109,15 +117,14 @@ def train(models, x_train, params):
         # only the generator is trained
         # generate noise using uniform distribution
         noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
-        # label fake images as real
-        y = np.ones([batch_size, 1])
         # train the adversarial network
         # note that unlike in discriminator training,
         # we do not save the fake images in a variable
         # the fake images go to the discriminator input of the adversarial
         # for classification
+        # fake images are labelled as real
         # log the loss and accuracy
-        loss, acc = adversarial.train_on_batch(noise, y)
+        loss, acc = adversarial.train_on_batch(noise, real_labels)
         log = "%s [adversarial loss: %f, acc: %f]" % (log, loss, acc)
         print(log)
         if (i + 1) % save_interval == 0:
@@ -192,7 +199,7 @@ def build_and_train_models():
     # network parameters
     # the latent or z vector is 100-dim
     latent_size = 100
-    # network parameters from WGAN paper [2]
+    # hyper parameters from WGAN paper [2]
     n_critic = 5
     clip_value = 0.01
     batch_size = 64
