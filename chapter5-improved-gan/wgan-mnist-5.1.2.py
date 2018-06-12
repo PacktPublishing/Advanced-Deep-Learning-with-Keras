@@ -2,14 +2,14 @@
 
 Trains a GAN using Wassertein loss. Similar to DCGAN except for
 linear activation in output and use of n_critic training per
-adversarial training. Discriminator weights are clipped as a 
+adversarial training. Discriminator weights are clipped as a
 requirement of Lipschitz constraint.
 
 [1] Radford, Alec, Luke Metz, and Soumith Chintala.
 "Unsupervised representation learning with deep convolutional
 generative adversarial networks." arXiv preprint arXiv:1511.06434 (2015).
 
-[2] Arjovsky, Martin, Soumith Chintala, and Léon Bottou. 
+[2] Arjovsky, Martin, Soumith Chintala, and Léon Bottou.
 "Wasserstein GAN." arXiv preprint arXiv:1701.07875 (2017).
 '''
 
@@ -43,7 +43,7 @@ def train(models, x_train, params):
     Discriminator is trained first with properly labelled real and fake images
     for n_critic times.
     Discriminator weights are clipped as a requirement of Lipschitz constraint.
-    Generator is trained next (via Adversarial) with fake images 
+    Generator is trained next (via Adversarial) with fake images
     pretending to be real.
     Generate sample images per save_interval
 
@@ -56,7 +56,8 @@ def train(models, x_train, params):
     # the GAN models
     generator, discriminator, adversarial = models
     # network parameters
-    batch_size, latent_size, n_critic, clip_value, train_steps, model_name = params
+    (batch_size, latent_size, n_critic, 
+            clip_value, train_steps, model_name) = params
     # the generator image is saved every 500 steps
     save_interval = 500
     # noise vector to see how the generator output evolves during training
@@ -75,20 +76,26 @@ def train(models, x_train, params):
             real_images = x_train[rand_indexes]
             # generate fake images from noise using generator
             # generate noise using uniform distribution
-            noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
+            noise = np.random.uniform(-1.0,
+                                      1.0,
+                                      size=[batch_size, latent_size])
             fake_images = generator.predict(noise)
 
             # train the discriminator network
-            real_labels =  np.ones((batch_size, 1))
-            real_loss, real_acc = discriminator.train_on_batch(real_images, real_labels)
-            fake_loss, fake_acc = discriminator.train_on_batch(fake_images, -real_labels)
+            real_labels = np.ones((batch_size, 1))
+            real_loss, real_acc = discriminator.train_on_batch(real_images,
+                                                               real_labels)
+            fake_loss, fake_acc = discriminator.train_on_batch(fake_images,
+                                                               -real_labels)
             loss += 0.5 * (real_loss + fake_loss)
             acc += 0.5 * (real_acc + fake_acc)
 
             # clip discriminator weights
             for layer in discriminator.layers:
                 weights = layer.get_weights()
-                weights = [np.clip(weight, -clip_value, clip_value) for weight in weights]
+                weights = [np.clip(weight,
+                                   -clip_value,
+                                   clip_value) for weight in weights]
                 layer.set_weights(weights)
 
         # average loss and accuracy per n_critic
@@ -104,8 +111,8 @@ def train(models, x_train, params):
         noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
         # label fake images as real
         y = np.ones([batch_size, 1])
-        # train the adversarial network 
-        # note that unlike in discriminator training, 
+        # train the adversarial network
+        # note that unlike in discriminator training,
         # we do not save the fake images in a variable
         # the fake images go to the discriminator input of the adversarial
         # for classification
@@ -125,14 +132,14 @@ def train(models, x_train, params):
                         show=show,
                         step=(i + 1),
                         model_name=model_name)
-    
+
     # save the model after training the generator
     # the trained generator can be reloaded for future MNIST digit generation
     generator.save(model_name + ".h5")
 
 
 def wasserstein_loss(y_label, y_pred):
-    return -y_label * K.mean(y_pred, axis=1)
+    return K.mean(-y_label * y_pred)
 
 
 def plot_images(generator,
@@ -176,6 +183,7 @@ def build_and_train_models():
     # load MNIST dataset
     (x_train, _), (_, _) = mnist.load_data()
 
+    # reshape data for CNN as (28, 28, 1) and normalize
     image_size = x_train.shape[1]
     x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
     x_train = x_train.astype('float32') / 255
@@ -188,7 +196,7 @@ def build_and_train_models():
     n_critic = 5
     clip_value = 0.01
     batch_size = 64
-    lr = 0.00005
+    lr = 5e-5
     train_steps = 40000
     input_shape = (image_size, image_size, 1)
 
@@ -222,7 +230,12 @@ def build_and_train_models():
 
     # train discriminator and adversarial networks
     models = (generator, discriminator, adversarial)
-    params = (batch_size, latent_size, n_critic, clip_value, train_steps, model_name)
+    params = (batch_size,
+              latent_size,
+              n_critic,
+              clip_value,
+              train_steps,
+              model_name)
     train(models, x_train, params)
 
 
