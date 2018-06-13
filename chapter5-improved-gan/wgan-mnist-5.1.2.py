@@ -17,11 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from keras.layers import Activation, Dense, Input
-from keras.layers import Conv2D, Flatten
-from keras.layers import Reshape, Conv2DTranspose
-from keras.layers import LeakyReLU
-from keras.layers import BatchNormalization
+from keras.layers import Input
 from keras.optimizers import RMSprop
 from keras.models import Model
 from keras.datasets import mnist
@@ -29,9 +25,6 @@ from keras import backend as K
 from keras.models import load_model
 
 import numpy as np
-import math
-import matplotlib.pyplot as plt
-import os
 import argparse
 import gan
 
