@@ -27,7 +27,7 @@ import gan
 
 
 def build_and_train_models():
-    # MNIST dataset
+    # load MNIST dataset
     (x_train, _), (_, _) = mnist.load_data()
 
     # reshape data for CNN as (28, 28, 1) and normalize

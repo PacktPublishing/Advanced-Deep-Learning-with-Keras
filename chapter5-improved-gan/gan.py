@@ -12,13 +12,14 @@ from keras.layers import Reshape, Conv2DTranspose
 from keras.layers import LeakyReLU
 from keras.layers import BatchNormalization
 from keras.models import Model
+from keras.layers.merge import concatenate
 
 import numpy as np
 import math
 import matplotlib.pyplot as plt
 import os
 
-def generator(inputs, image_size, activation='sigmoid'):
+def generator(inputs, image_size, activation='sigmoid', y_labels=None):
     """Build a Generator Model
 
     Stack of BN-ReLU-Conv2DTranpose to generate fake images.
@@ -27,7 +28,9 @@ def generator(inputs, image_size, activation='sigmoid'):
 
     # Arguments
         inputs (Layer): Input layer of the generator (the z-vector)
-        image_size: Target size of one side (assuming square image)
+        image_size (int): Target size of one side (assuming square image)
+        activation (string): Name of output activation layer
+        y_labels (tensor): Input labels
 
     # Returns
         Model: Generator Model
@@ -37,8 +40,15 @@ def generator(inputs, image_size, activation='sigmoid'):
     kernel_size = 5
     layer_filters = [128, 64, 32, 1]
 
-    x = Dense(image_resize * image_resize * layer_filters[0])(inputs)
-    x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
+    if y_labels is None:
+        # noise vector input
+        x = Dense(image_resize * image_resize * layer_filters[0])(inputs)
+        x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
+    else:
+        # concatenate noise vector and one-hot labels
+        x = concatenate([inputs, y_labels], axis=1)
+        x = Dense(image_resize * image_resize * layer_filters[0])(x)
+        x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
 
     for filters in layer_filters:
         # first two convolution layers use strides = 2
@@ -56,11 +66,14 @@ def generator(inputs, image_size, activation='sigmoid'):
 
     if activation is not None:
         x = Activation(activation)(x)
-    generator = Model(inputs, x, name='generator')
-    return generator
+    if y_labels is None:
+        return Model(inputs, x, name='generator')
+    else:
+        # generator that is conditioned on y_labels
+        return Model([inputs, y_labels], x, name='generator')
 
 
-def discriminator(inputs, activation='sigmoid'):
+def discriminator(inputs, activation='sigmoid', num_labels=None):
     """Build a Discriminator Model
 
     Stack of LeakyReLU-Conv2D to discriminate real from fake
@@ -69,6 +82,8 @@ def discriminator(inputs, activation='sigmoid'):
 
     # Arguments
         inputs (Layer): Input layer of the discriminator (the image)
+        activation (string): Name of output activation layer
+        num_labels (int): Dimension of one-hot labels
 
     # Returns
         Model: Discriminator Model
@@ -91,11 +106,19 @@ def discriminator(inputs, activation='sigmoid'):
                    padding='same')(x)
 
     x = Flatten()(x)
-    x = Dense(1)(x)
+    # default output is probability that the image is real (the source)
+    y_source = Dense(1)(x)
     if activation is not None:
-        x = Activation(activation)(x)
-    discriminator = Model(inputs, x, name='discriminator')
-    return discriminator
+        y_source = Activation(activation)(y_source)
+    if num_labels is None:
+        return Model(inputs, y_source, name='discriminator')
+
+    # second output is 10-dim one-hot vector of label
+    y_class = Dense(layer_filters[-2])(x)
+    y_class = Dense(num_labels)(y_class)
+    y_class = Activation('softmax', name='label')(y_class)
+
+    return Model(inputs, [y_source, y_class], name='discriminator')
 
 
 def train(models, x_train, params):
@@ -181,6 +204,7 @@ def train(models, x_train, params):
 
 def plot_images(generator,
                 noise_input,
+                noise_class=None,
                 show=False,
                 step=0,
                 model_name="gan"):
@@ -199,7 +223,10 @@ def plot_images(generator,
     """
     os.makedirs(model_name, exist_ok=True)
     filename = os.path.join(model_name, "%05d.png" % step)
-    images = generator.predict(noise_input)
+    if noise_class is None:
+        images = generator.predict(noise_input)
+    else:
+        images = generator.predict([noise_input, noise_class])
     plt.figure(figsize=(2.2, 2.2))
     num_images = images.shape[0]
     image_size = images.shape[1]
