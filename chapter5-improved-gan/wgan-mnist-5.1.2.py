@@ -147,7 +147,7 @@ def train(models, x_train, params):
 
 
 def wasserstein_loss(y_label, y_pred):
-    return K.mean(-y_label * y_pred)
+    return -K.mean(y_label * y_pred)
 
 
 def plot_images(generator,
