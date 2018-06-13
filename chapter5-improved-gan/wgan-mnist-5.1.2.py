@@ -33,7 +33,7 @@ import math
 import matplotlib.pyplot as plt
 import os
 import argparse
-import model_builder
+import gan
 
 
 def train(models, x_train, params):
@@ -135,11 +135,11 @@ def train(models, x_train, params):
                 show = False
 
             # plot generator images on a periodic basis
-            plot_images(generator,
-                        noise_input=noise_input,
-                        show=show,
-                        step=(i + 1),
-                        model_name=model_name)
+            gan.plot_images(generator,
+                            noise_input=noise_input,
+                            show=show,
+                            step=(i + 1),
+                            model_name=model_name)
 
     # save the model after training the generator
     # the trained generator can be reloaded for future MNIST digit generation
@@ -148,43 +148,6 @@ def train(models, x_train, params):
 
 def wasserstein_loss(y_label, y_pred):
     return -K.mean(y_label * y_pred)
-
-
-def plot_images(generator,
-                noise_input,
-                show=False,
-                step=0,
-                model_name="gan"):
-    """Generate fake images and plot them
-
-    For visualization purposes, generate fake images
-    then plot them in a square grid
-
-    # Arguments
-        generator (Model): The Generator Model for fake images generation
-        noise_input (ndarray): Array of z-vectors
-        show (bool): Whether to show plot or not
-        step (int): Appended to filename of the save images
-        model_name (string): Model name
-
-    """
-    os.makedirs(model_name, exist_ok=True)
-    filename = os.path.join(model_name, "%05d.png" % step)
-    images = generator.predict(noise_input)
-    plt.figure(figsize=(2.2, 2.2))
-    num_images = images.shape[0]
-    image_size = images.shape[1]
-    rows = int(math.sqrt(noise_input.shape[0]))
-    for i in range(num_images):
-        plt.subplot(rows, rows, i + 1)
-        image = np.reshape(images[i], [image_size, image_size])
-        plt.imshow(image, cmap='gray')
-        plt.axis('off')
-    plt.savefig(filename)
-    if show:
-        plt.show()
-    else:
-        plt.close('all')
 
 
 def build_and_train_models():
@@ -211,7 +174,7 @@ def build_and_train_models():
     # build discriminator model
     inputs = Input(shape=input_shape, name='discriminator_input')
     # WGAN uses linear activation in paper [2]
-    discriminator = model_builder.discriminator(inputs, activation='linear')
+    discriminator = gan.discriminator(inputs, activation='linear')
     optimizer = RMSprop(lr=lr)
     # WGAN discriminator uses wassertein loss
     discriminator.compile(loss=wasserstein_loss,
@@ -222,7 +185,7 @@ def build_and_train_models():
     # build generator model
     input_shape = (latent_size, )
     inputs = Input(shape=input_shape, name='z_input')
-    generator = model_builder.generator(inputs, image_size)
+    generator = gan.generator(inputs, image_size)
     generator.summary()
 
     # build adversarial model = generator + discriminator
@@ -247,14 +210,6 @@ def build_and_train_models():
     train(models, x_train, params)
 
 
-def test_generator(generator):
-    noise_input = np.random.uniform(-1.0, 1.0, size=[16, 100])
-    plot_images(generator,
-                noise_input=noise_input,
-                show=True,
-                model_name="test_outputs")
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     help_ = "Load generator h5 model with trained weights"
@@ -262,6 +217,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.generator:
         generator = load_model(args.generator)
-        test_generator(generator)
+        gan.test_generator(generator)
     else:
         build_and_train_models()
