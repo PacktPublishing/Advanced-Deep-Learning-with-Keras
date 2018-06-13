@@ -26,9 +26,6 @@ from keras.datasets import mnist
 from keras.models import load_model
 
 import numpy as np
-import math
-import matplotlib.pyplot as plt
-import os
 import argparse
 import gan
 
