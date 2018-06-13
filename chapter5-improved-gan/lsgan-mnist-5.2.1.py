@@ -85,7 +85,7 @@ def build_and_train_models():
     # train discriminator and adversarial networks
     models = (generator, discriminator, adversarial)
     params = (batch_size, latent_size, train_steps, model_name)
-    train(models, x_train, params)
+    gan.train(models, x_train, params)
 
 
 if __name__ == '__main__':
