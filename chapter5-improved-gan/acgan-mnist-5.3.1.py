@@ -128,7 +128,7 @@ def train(models, data, params):
             # plot generator images on a periodic basis
             gan.plot_images(generator,
                         noise_input=noise_input,
-                        noise_class=noise_class,
+                        noise_label=noise_label,
                         show=show,
                         step=(i + 1),
                         model_name=model_name)
