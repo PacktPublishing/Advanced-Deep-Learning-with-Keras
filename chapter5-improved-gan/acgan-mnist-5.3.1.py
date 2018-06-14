@@ -84,7 +84,7 @@ def train(models, data, params):
         # real + fake images = 1 batch of train data
         x = np.concatenate((real_images, fake_images))
         # real + fake labels = 1 batch of train data labels
-        y_labels = np.concatenate((real_labels, fake_labels))
+        labels = np.concatenate((real_labels, fake_labels))
 
         # label real and fake images
         # real images label is 1.0
@@ -93,7 +93,7 @@ def train(models, data, params):
         y[batch_size:, :] = 0
         # train discriminator network, log the loss and accuracy
         # ['loss', 'activation_1_loss', 'label_loss', 'activation_1_acc', 'label_acc']
-        metrics  = discriminator.train_on_batch(x, [y, y_labels])
+        metrics  = discriminator.train_on_batch(x, [y, labels])
         fmt = "%d: [disc loss: %f, srcloss: %f, lblloss: %f, srcacc: %f, lblacc: %f]" 
         log = fmt % (i, metrics[0], metrics[1], metrics[2], metrics[3], metrics[4])
 
@@ -178,16 +178,17 @@ def build_and_train_models():
     # build generator model
     input_shape = (latent_size, )
     inputs = Input(shape=input_shape, name='z_input')
-    y_labels = Input(shape=label_shape, name='y_labels')
+    labels = Input(shape=label_shape, name='labels')
     # call generator builder with input labels
-    generator = gan.generator(inputs, image_size, y_labels=y_labels)
+    generator = gan.generator(inputs, image_size, labels=labels)
     generator.summary()
 
     # build adversarial model = generator + discriminator
     optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
+    # freeze the weights of discriminator during adversarial training
     discriminator.trainable = False
-    adversarial = Model([inputs, y_labels],
-                        discriminator(generator([inputs, y_labels])),
+    adversarial = Model([inputs, labels],
+                        discriminator(generator([inputs, labels])),
                         name=model_name)
     # same 2 loss fuctions: 1) probability image is real
     # 2) class label of the image

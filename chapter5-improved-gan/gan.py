@@ -19,7 +19,11 @@ import math
 import matplotlib.pyplot as plt
 import os
 
-def generator(inputs, image_size, activation='sigmoid', y_labels=None):
+def generator(inputs,
+              image_size,
+              activation='sigmoid',
+              labels=None,
+              codes=None):
     """Build a Generator Model
 
     Stack of BN-ReLU-Conv2DTranpose to generate fake images.
@@ -40,15 +44,21 @@ def generator(inputs, image_size, activation='sigmoid', y_labels=None):
     kernel_size = 5
     layer_filters = [128, 64, 32, 1]
 
-    if y_labels is None:
-        # noise vector input
-        x = Dense(image_resize * image_resize * layer_filters[0])(inputs)
-        x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
+    if labels is not None:
+        if codes is None:
+            # ACGAN labels
+            # concatenate z noise vector and one-hot labels
+            inputs = [inputs, labels]
+        else:
+            # infoGAN codes
+            # concatenate z noise vector, one-hot labels and codes 1 & 2
+            inputs = [inputs, labels, codes]
+        x = concatenate(inputs, axis=1)
     else:
-        # concatenate noise vector and one-hot labels
-        x = concatenate([inputs, y_labels], axis=1)
-        x = Dense(image_resize * image_resize * layer_filters[0])(x)
-        x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
+        x = inputs
+
+    x = Dense(image_resize * image_resize * layer_filters[0])(x)
+    x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
 
     for filters in layer_filters:
         # first two convolution layers use strides = 2
@@ -66,14 +76,14 @@ def generator(inputs, image_size, activation='sigmoid', y_labels=None):
 
     if activation is not None:
         x = Activation(activation)(x)
-    if y_labels is None:
-        return Model(inputs, x, name='generator')
-    else:
-        # generator that is conditioned on y_labels
-        return Model([inputs, y_labels], x, name='generator')
+
+    return Model(inputs, x, name='generator')
 
 
-def discriminator(inputs, activation='sigmoid', num_labels=None):
+def discriminator(inputs,
+                  activation='sigmoid',
+                  num_labels=None,
+                  with_codes=False):
     """Build a Discriminator Model
 
     Stack of LeakyReLU-Conv2D to discriminate real from fake
@@ -106,19 +116,31 @@ def discriminator(inputs, activation='sigmoid', num_labels=None):
                    padding='same')(x)
 
     x = Flatten()(x)
-    # default output is probability that the image is real (the source)
-    y_source = Dense(1)(x)
+    # default output is probability that the image is real
+    outputs = Dense(1)(x)
     if activation is not None:
-        y_source = Activation(activation)(y_source)
-    if num_labels is None:
-        return Model(inputs, y_source, name='discriminator')
+        outputs = Activation(activation)(outputs)
 
-    # second output is 10-dim one-hot vector of label
-    y_class = Dense(layer_filters[-2])(x)
-    y_class = Dense(num_labels)(y_class)
-    y_class = Activation('softmax', name='label')(y_class)
+    if num_labels:
+        # ACGAN
+        # 2nd output is 10-dim one-hot vector of label
+        layer = Dense(layer_filters[-2])(x)
+        labels = Dense(num_labels)(layer)
+        labels = Activation('softmax', name='label')(labels)
+        if with_codes:
+            # 3rd output is 1-dim continous Q of 1st c given x
+            code1 = Dense(1)(layer)
+            code1 = Activation('sigmoid', name='code1')(code1)
 
-    return Model(inputs, [y_source, y_class], name='discriminator')
+            # 4th output is 1-dim continuous Q of 2nd c given x
+            code2 = Dense(1)(layer)
+            code2 = Activation('sigmoid', name='code2')(code2)
+
+            outputs = [outputs, labels, code1, code2]
+        else:
+            outputs = [outputs, labels]
+
+    return Model(inputs, outputs, name='discriminator')
 
 
 def train(models, x_train, params):
