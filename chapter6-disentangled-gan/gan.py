@@ -255,7 +255,7 @@ def plot_images(generator,
     plt.figure(figsize=(2.2, 2.2))
     num_images = images.shape[0]
     image_size = images.shape[1]
-    rows = int(math.sqrt(noise_input.shape[0]))
+    rows = int(math.sqrt(noise_input[0].shape[0]))
     for i in range(num_images):
         plt.subplot(rows, rows, i + 1)
         image = np.reshape(images[i], [image_size, image_size])
