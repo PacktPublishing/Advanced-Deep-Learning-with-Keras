@@ -30,7 +30,10 @@ from keras import backend as K
 
 import numpy as np
 import argparse
-import gan
+
+import sys
+sys.path.append("..")
+from lib import gan
 
 
 def train(models, data, params):

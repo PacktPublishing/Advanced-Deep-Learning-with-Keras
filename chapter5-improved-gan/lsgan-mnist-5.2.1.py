@@ -23,7 +23,10 @@ from keras.models import load_model
 
 import numpy as np
 import argparse
-import gan
+
+import sys
+sys.path.append("..")
+from lib import gan
 
 
 def build_and_train_models():

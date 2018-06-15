@@ -6,6 +6,7 @@ generative adversarial networks." arXiv preprint arXiv:1511.06434 (2015).
 
 '''
 
+
 from keras.layers import Activation, Dense, Input
 from keras.layers import Conv2D, Flatten
 from keras.layers import Reshape, Conv2DTranspose
