@@ -35,6 +35,7 @@ import sys
 sys.path.append("..")
 from lib import gan
 
+# from ..lib import gan
 
 def train(models, data, params):
     """Train the Discriminator and Adversarial networks
@@ -276,42 +277,42 @@ def build_and_train_models(latent_size=100):
 
 
 def test_generator(generator, params, latent_size=100):
-    class_label, latent_code1, latent_code2 = params
+    label, code1, code2 = params
     noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
     step = 0
-    if class_label is None:
+    if label is None:
         num_labels = 10
-        noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
+        noise_label = np.eye(num_labels)[np.random.choice(num_labels, 16)]
     else:
-        noise_class = np.zeros((16, 10))
-        noise_class[:,class_label] = 1
-        step = class_label
+        noise_label = np.zeros((16, 10))
+        noise_label[:,label] = 1
+        step = label
 
-    if latent_code1 is None:
+    if code1 is None:
         noise_code1 = np.random.normal(scale=0.5, size=[16, 1])
     else:
-        noise_code1 = np.ones((16, 1)) * latent_code1
+        noise_code1 = np.ones((16, 1)) * code1
         # a = np.linspace(-2, 2, 16)
         # a = np.reshape(a, [16, 1])
         # noise_code1 = np.ones((16, 1)) * a
         # print(noise_code1)
 
-    if latent_code2 is None:
+    if code2 is None:
         noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
     else:
-        noise_code2 = np.ones((16, 1)) * latent_code2
+        noise_code2 = np.ones((16, 1)) * code2
         # a = np.linspace(-2, 2, 16)
         # a = np.reshape(a, [16, 1])
-        # noise_code2 = np.ones((16, 1)) * a
+        # code2 = np.ones((16, 1)) * a
         # print(noise_code2)
 
-    noise_params = [noise_input, noise_class, noise_code1, noise_code2]
-
-    plot_images(generator,
-                noise_params=noise_params,
-                show=True,
-                step=step,
-                model_name="test_outputs")
+    gan.plot_images(generator,
+                    noise_input=noise_input,
+                    noise_label=noise_label,
+                    noise_codes=[noise_code1, noise_code2],
+                    show=True,
+                    step=step,
+                    model_name="test_outputs")
 
 
 if __name__ == '__main__':
@@ -327,16 +328,16 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.generator:
         generator = load_model(args.generator)
-        class_label = None
-        latent_code1 = None
-        latent_code2 = None
+        label = None
+        code1 = None
+        code2 = None
         if args.digit is not None:
-            class_label = args.digit
+            label = args.digit
         if args.code1 is not None:
-            latent_code1 = args.code1
+            code1 = args.code1
         if args.code2 is not None:
-            latent_code2 = args.code2
-        params = (class_label, latent_code1, latent_code2)
+            code2 = args.code2
+        params = (label, code1, code2)
         test_generator(generator, params, latent_size=62)
     else:
         build_and_train_models(latent_size=62)
