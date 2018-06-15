@@ -151,7 +151,7 @@ def build_and_train_models():
     x_train = x_train.astype('float32') / 255
 
     # train labels
-    num_labels = np.amax(y_train) + 1
+    num_labels = len(np.unique(y_train))
     y_train = to_categorical(y_train)
 
     model_name = "acgan_mnist"

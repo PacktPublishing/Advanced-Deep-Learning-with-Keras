@@ -159,71 +159,25 @@ def train(models, data, params):
 
 def mi_loss(c, q_of_c_given_x):
     """ Mutual information, Equation 5 in [2] , assuming H(c) is constant"""
-    # lambda is 0.5
-    conditional_entropy = K.mean(-K.sum(K.log(q_of_c_given_x + K.epsilon()) * c, axis=1))
-    return conditional_entropy
-
-
-def plot_images(generator,
-                noise_params,
-                show=False,
-                step=0,
-                model_name="gan"):
-    """Generate fake images and plot them
-
-    For visualization purposes, generate fake images
-    then plot them in a square grid
-
-    # Arguments
-        generator (Model): The Generator Model for fake images generation
-        noise_params (list): noise parameters (noise, label, codes)
-        show (bool): Whether to show plot or not
-        step (int): Appended to filename of the save images
-        model_name (string): Model name
-    """
-    noise_input, noise_class, _, _ = noise_params
-    os.makedirs(model_name, exist_ok=True)
-    filename = os.path.join(model_name, "%05d.png" % step)
-    images = (generator.predict(noise_params) + 1.0) * 0.5 
-    print(model_name,
-          " labels for generated images: ",
-          np.argmax(noise_class, axis=1))
-
-    plt.figure(figsize=(2.2, 2.2))
-    num_images = images.shape[0]
-    image_size = images.shape[1]
-    rows = int(math.sqrt(noise_input.shape[0]))
-    for i in range(num_images):
-        plt.subplot(rows, rows, i + 1)
-        image = np.reshape(images[i], [image_size, image_size])
-        plt.imshow(image, cmap='gray')
-        plt.axis('off')
-    plt.savefig(filename)
-    if show:
-        plt.show()
-    else:
-        plt.close('all')
+    # mi_loss = -c * log(Q(c|x))
+    return K.mean(-K.sum(K.log(q_of_c_given_x + K.epsilon()) * c, axis=1))
 
 
 def build_and_train_models(latent_size=100):
-    """ Build and train InfoGAN
-    
-    # Arguments
-        latent size (int): noise dimensionality
-    """
-
-    # MNIST dataset
+    # load MNIST dataset
     (x_train, y_train), (_, _) = mnist.load_data()
 
+    # reshape data for CNN as (28, 28, 1) and normalize
     image_size = x_train.shape[1]
     x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
     x_train = x_train.astype('float32') / 255
 
-    num_labels = np.amax(y_train) + 1
+    # train labels
+    num_labels = len(np.unique(y_train))
     y_train = to_categorical(y_train)
 
     model_name = "infogan_mnist"
-    # Network parameters
+    # network parameters
     batch_size = 64
     train_steps = 40000
     lr = 2e-4
@@ -232,14 +186,16 @@ def build_and_train_models(latent_size=100):
     label_shape = (num_labels, )
     code_shape = (1, )
 
-    # Build discriminator Model
+    # build discriminator model
     inputs = Input(shape=input_shape, name='discriminator_input')
+    # call discriminator builder with 4 outputs: source, label, and 2 codes
     discriminator = gan.discriminator(inputs, num_labels=num_labels, with_codes=True)
     # [1] uses Adam, but discriminator converges easily with RMSprop
     optimizer = RMSprop(lr=lr, decay=decay)
-    # Loss fuctions: 1) Probability image is real
-    # 2) Class label of the image, 3) and 4) Mutual Information Loss
+    # loss functions: 1) probability image is real (binary crossentropy)
+    # 2) categorical cross entropy image label, 3) and 4) mutual information loss
     loss = ['binary_crossentropy', 'categorical_crossentropy', mi_loss, mi_loss]
+    # lamda or mi_loss weight is 0.5
     loss_weights = [1.0, 1.0, 0.5, 0.5]
     discriminator.compile(loss=loss,
                           loss_weights=loss_weights,
@@ -247,29 +203,32 @@ def build_and_train_models(latent_size=100):
                           metrics=['accuracy'])
     discriminator.summary()
 
-    # Build generator model
+    # build generator model
     input_shape = (latent_size, )
     inputs = Input(shape=input_shape, name='z_input')
     labels = Input(shape=label_shape, name='labels')
     code1 = Input(shape=code_shape, name="code1")
     code2 = Input(shape=code_shape, name="code2")
+    # call generator with inputs, labels and codes as total inputs to generator
     generator = gan.generator(inputs, image_size, labels=labels, codes=[code1, code2])
     generator.summary()
 
-    # Build adversarial model = generator + discriminator
+    # build adversarial model = generator + discriminator
     optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
     discriminator.trainable = False
+    # total inputs = noise code, labels, and codes
     inputs = [inputs, labels, code1, code2]
     adversarial = Model(inputs,
                         discriminator(generator(inputs)),
                         name=model_name)
+    # same loss as discriminator
     adversarial.compile(loss=loss,
                         loss_weights=loss_weights,
                         optimizer=optimizer,
                         metrics=['accuracy'])
     adversarial.summary()
 
-    # Train discriminator and adversarial networks
+    # train discriminator and adversarial networks
     models = (generator, discriminator, adversarial)
     data = (x_train, y_train)
     params = (batch_size, latent_size, train_steps, num_labels, model_name)
@@ -292,10 +251,10 @@ def test_generator(generator, params, latent_size=100):
         noise_code1 = np.random.normal(scale=0.5, size=[16, 1])
     else:
         noise_code1 = np.ones((16, 1)) * code1
-        # a = np.linspace(-2, 2, 16)
-        # a = np.reshape(a, [16, 1])
-        # noise_code1 = np.ones((16, 1)) * a
-        # print(noise_code1)
+        a = np.linspace(-2, 2, 16)
+        a = np.reshape(a, [16, 1])
+        noise_code1 = np.ones((16, 1)) * a
+        print(noise_code1)
 
     if code2 is None:
         noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
@@ -303,7 +262,7 @@ def test_generator(generator, params, latent_size=100):
         noise_code2 = np.ones((16, 1)) * code2
         # a = np.linspace(-2, 2, 16)
         # a = np.reshape(a, [16, 1])
-        # code2 = np.ones((16, 1)) * a
+        # noise_code2 = np.ones((16, 1)) * a
         # print(noise_code2)
 
     gan.plot_images(generator,

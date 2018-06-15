@@ -35,7 +35,8 @@ def generator(inputs,
         inputs (Layer): Input layer of the generator (the z-vector)
         image_size (int): Target size of one side (assuming square image)
         activation (string): Name of output activation layer
-        y_labels (tensor): Input labels
+        labels (tensor): Input labels
+        codes (list): 2-dim disentangled codes for InfoGAN
 
     # Returns
         Model: Generator Model
@@ -56,6 +57,7 @@ def generator(inputs,
             inputs = [inputs, labels] + codes
         x = concatenate(inputs, axis=1)
     else:
+        # default input is just 100-dim noise (z-code)
         x = inputs
 
     x = Dense(image_resize * image_resize * layer_filters[0])(x)
@@ -78,6 +80,7 @@ def generator(inputs,
     if activation is not None:
         x = Activation(activation)(x)
 
+    # generator output is the synthesized image x
     return Model(inputs, x, name='generator')
 
 
@@ -95,6 +98,7 @@ def discriminator(inputs,
         inputs (Layer): Input layer of the discriminator (the image)
         activation (string): Name of output activation layer
         num_labels (int): Dimension of one-hot labels
+        with_codes (bool): Build 2 Q networks w/ code as output for InfoGAN
 
     # Returns
         Model: Discriminator Model
@@ -124,12 +128,13 @@ def discriminator(inputs,
         outputs = Activation(activation)(outputs)
 
     if num_labels:
-        # ACGAN
+        # ACGAN and InfoGAN have 2nd output
         # 2nd output is 10-dim one-hot vector of label
         layer = Dense(layer_filters[-2])(x)
         labels = Dense(num_labels)(layer)
         labels = Activation('softmax', name='label')(labels)
         if with_codes:
+            # InfoGAN have 3rd and 4th outputs
             # 3rd output is 1-dim continous Q of 1st c given x
             code1 = Dense(1)(layer)
             code1 = Activation('sigmoid', name='code1')(code1)

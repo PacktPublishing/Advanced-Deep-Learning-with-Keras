@@ -38,7 +38,7 @@ import os
 import argparse
 
 
-def build_generator(inputs, y_labels, image_size):
+def build_generator(inputs, labels, image_size):
     """Build a Generator Model
 
     Inputs are concatenated before Dense layer.
@@ -48,7 +48,7 @@ def build_generator(inputs, y_labels, image_size):
 
     # Arguments
         inputs (Layer): Input layer of the generator (the z-vector)
-        y_labels (Layer): Input layer for one-hot vector to condition
+        labels (Layer): Input layer for one-hot vector to condition
             the inputs
         image_size: Target size of one side (assuming square image)
 
@@ -60,7 +60,7 @@ def build_generator(inputs, y_labels, image_size):
     kernel_size = 5
     layer_filters = [128, 64, 32, 1]
 
-    x = concatenate([inputs, y_labels], axis=1)
+    x = concatenate([inputs, labels], axis=1)
     x = Dense(image_resize * image_resize * layer_filters[0])(x)
     x = Reshape((image_resize, image_resize, layer_filters[0]))(x)
 
@@ -79,12 +79,12 @@ def build_generator(inputs, y_labels, image_size):
                             padding='same')(x)
 
     x = Activation('sigmoid')(x)
-    # input is conditioned by y_labels
-    generator = Model([inputs, y_labels], x, name='generator')
+    # input is conditioned by labels
+    generator = Model([inputs, labels], x, name='generator')
     return generator
 
 
-def build_discriminator(inputs, y_labels, image_size):
+def build_discriminator(inputs, labels, image_size):
     """Build a Discriminator Model
 
     Inputs are concatenated after Dense layer.
@@ -94,7 +94,7 @@ def build_discriminator(inputs, y_labels, image_size):
 
     # Arguments
         inputs (Layer): Input layer of the discriminator (the image)
-        y_labels (Layer): Input layer for one-hot vector to condition
+        labels (Layer): Input layer for one-hot vector to condition
             the inputs
         image_size: Target size of one side (assuming square image)
 
@@ -106,7 +106,7 @@ def build_discriminator(inputs, y_labels, image_size):
 
     x = inputs
 
-    y = Dense(image_size * image_size)(y_labels)
+    y = Dense(image_size * image_size)(labels)
     y = Reshape((image_size, image_size, 1))(y)
     x = concatenate([x, y])
 
@@ -126,8 +126,8 @@ def build_discriminator(inputs, y_labels, image_size):
     x = Flatten()(x)
     x = Dense(1)(x)
     x = Activation('sigmoid')(x)
-    # input is conditioned by y_labels
-    discriminator = Model([inputs, y_labels], x, name='discriminator')
+    # input is conditioned by labels
+    discriminator = Model([inputs, labels], x, name='discriminator')
     return discriminator
 
 
@@ -187,7 +187,7 @@ def train(models, data, params):
         # real + fake images = 1 batch of train data
         x = np.concatenate((real_images, fake_images))
         # real + fake one-hot labels = 1 batch of train one-hot labels
-        y_labels = np.concatenate((real_labels, fake_labels))
+        labels = np.concatenate((real_labels, fake_labels))
 
         # label real and fake images
         # real images label is 1.0
@@ -195,7 +195,7 @@ def train(models, data, params):
         # fake images label is 0.0
         y[batch_size:, :] = 0.0
         # train discriminator network, log the loss and accuracy
-        loss, acc = discriminator.train_on_batch([x, y_labels], y)
+        loss, acc = discriminator.train_on_batch([x, labels], y)
         log = "%d: [discriminator loss: %f, acc: %f]" % (i, loss, acc)
 
         # train the adversarial network for 1 batch
@@ -301,9 +301,9 @@ def build_and_train_models():
 
     # build discriminator model
     inputs = Input(shape=input_shape, name='discriminator_input')
-    y_labels = Input(shape=label_shape, name='class_labels')
+    labels = Input(shape=label_shape, name='class_labels')
 
-    discriminator = build_discriminator(inputs, y_labels, image_size)
+    discriminator = build_discriminator(inputs, labels, image_size)
     # [1] or original paper uses Adam, 
     # but discriminator converges easily with RMSprop
     optimizer = RMSprop(lr=lr, decay=decay)
@@ -315,15 +315,15 @@ def build_and_train_models():
     # build generator model
     input_shape = (latent_size, )
     inputs = Input(shape=input_shape, name='z_input')
-    generator = build_generator(inputs, y_labels, image_size)
+    generator = build_generator(inputs, labels, image_size)
     generator.summary()
 
     # build adversarial model = generator + discriminator
     optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
     # freeze the weights of discriminator during adversarial training
     discriminator.trainable = False
-    outputs = discriminator([generator([inputs, y_labels]), y_labels])
-    adversarial = Model([inputs, y_labels],
+    outputs = discriminator([generator([inputs, labels]), labels])
+    adversarial = Model([inputs, labels],
                         outputs,
                         name=model_name)
     adversarial.compile(loss='binary_crossentropy',
