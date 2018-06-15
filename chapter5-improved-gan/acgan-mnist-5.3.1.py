@@ -59,12 +59,12 @@ def train(models, data, params):
     noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
     # class labels are 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5
     # the generator must produce these MNIST digits
-    noise_class = np.eye(num_labels)[np.arange(0, 16) % num_labels]
+    noise_label = np.eye(num_labels)[np.arange(0, 16) % num_labels]
     # number of elements in train dataset
     train_size = x_train.shape[0]
     print(model_name,
           "Labels for generated images: ",
-          np.argmax(noise_class, axis=1))
+          np.argmax(noise_label, axis=1))
 
     for i in range(train_steps):
         # train the discriminator for 1 batch
@@ -209,15 +209,15 @@ def test_generator(generator, class_label=None):
     step = 0
     if class_label is None:
         num_labels = 10
-        noise_class = np.eye(num_labels)[np.random.choice(num_labels, 16)]
+        noise_label = np.eye(num_labels)[np.random.choice(num_labels, 16)]
     else:
-        noise_class = np.zeros((16, 10))
-        noise_class[:,class_label] = 1
+        noise_label = np.zeros((16, 10))
+        noise_label[:,class_label] = 1
         step = class_label
 
     gan.plot_images(generator,
                     noise_input=noise_input,
-                    noise_class=noise_class,
+                    noise_label=noise_label,
                     show=True,
                     step=step,
                     model_name="test_outputs")

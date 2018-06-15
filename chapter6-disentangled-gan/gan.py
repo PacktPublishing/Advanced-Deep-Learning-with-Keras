@@ -247,15 +247,16 @@ def plot_images(generator,
     """
     os.makedirs(model_name, exist_ok=True)
     filename = os.path.join(model_name, "%05d.png" % step)
+    rows = int(math.sqrt(noise_input.shape[0]))
     if noise_label is not None:
         noise_input = [noise_input, noise_label]
         if noise_codes is not None:
             noise_input += noise_codes
+
     images = generator.predict(noise_input)
     plt.figure(figsize=(2.2, 2.2))
     num_images = images.shape[0]
     image_size = images.shape[1]
-    rows = int(math.sqrt(noise_input[0].shape[0]))
     for i in range(num_images):
         plt.subplot(rows, rows, i + 1)
         image = np.reshape(images[i], [image_size, image_size])
