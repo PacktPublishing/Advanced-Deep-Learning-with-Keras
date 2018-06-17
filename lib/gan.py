@@ -56,6 +56,10 @@ def generator(inputs,
             # concatenate z noise vector, one-hot labels and codes 1 & 2
             inputs = [inputs, labels] + codes
         x = concatenate(inputs, axis=1)
+    elif codes is not None:
+        # generator 0 of StackedGAN
+        inputs = [inputs, codes]
+        x = concatenate(inputs, axis=1)
     else:
         # default input is just 100-dim noise (z-code)
         x = inputs
@@ -87,7 +91,7 @@ def generator(inputs,
 def discriminator(inputs,
                   activation='sigmoid',
                   num_labels=None,
-                  with_codes=False):
+                  num_codes=None):
     """Build a Discriminator Model
 
     Stack of LeakyReLU-Conv2D to discriminate real from fake
@@ -97,8 +101,10 @@ def discriminator(inputs,
     # Arguments
         inputs (Layer): Input layer of the discriminator (the image)
         activation (string): Name of output activation layer
-        num_labels (int): Dimension of one-hot labels
-        with_codes (bool): Build 2 Q networks w/ code as output for InfoGAN
+        num_labels (int): Dimension of one-hot labels for ACGAN & InfoGAN
+        num_codes (int): num_codes-dim Q network as output 
+                    if StackedGAN or 2 Q networks if InfoGAN
+                    
 
     # Returns
         Model: Discriminator Model
@@ -133,7 +139,9 @@ def discriminator(inputs,
         layer = Dense(layer_filters[-2])(x)
         labels = Dense(num_labels)(layer)
         labels = Activation('softmax', name='label')(labels)
-        if with_codes:
+        if num_codes is None:
+            outputs = [outputs, labels]
+        else:
             # InfoGAN have 3rd and 4th outputs
             # 3rd output is 1-dim continous Q of 1st c given x
             code1 = Dense(1)(layer)
@@ -144,8 +152,11 @@ def discriminator(inputs,
             code2 = Activation('sigmoid', name='code2')(code2)
 
             outputs = [outputs, labels, code1, code2]
-        else:
-            outputs = [outputs, labels]
+    elif num_codes is not None:
+        # z0_recon is reconstruction of z0 normal distribution
+        z0_recon =  Dense(num_codes)(x)
+        z0_recon = Activation('tanh', name='z0')(z0_recon)
+        outputs = [outputs, z0_recon]
 
     return Model(inputs, outputs, name='discriminator')
 

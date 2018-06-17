@@ -189,7 +189,7 @@ def build_and_train_models(latent_size=100):
     # build discriminator model
     inputs = Input(shape=input_shape, name='discriminator_input')
     # call discriminator builder with 4 outputs: source, label, and 2 codes
-    discriminator = gan.discriminator(inputs, num_labels=num_labels, with_codes=True)
+    discriminator = gan.discriminator(inputs, num_labels=num_labels, num_codes=2)
     # [1] uses Adam, but discriminator converges easily with RMSprop
     optimizer = RMSprop(lr=lr, decay=decay)
     # loss functions: 1) probability image is real (binary crossentropy)
