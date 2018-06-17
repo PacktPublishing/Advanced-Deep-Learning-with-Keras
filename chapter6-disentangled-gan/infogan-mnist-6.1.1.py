@@ -251,19 +251,19 @@ def test_generator(generator, params, latent_size=100):
         noise_code1 = np.random.normal(scale=0.5, size=[16, 1])
     else:
         noise_code1 = np.ones((16, 1)) * code1
-        a = np.linspace(-2, 2, 16)
-        a = np.reshape(a, [16, 1])
-        noise_code1 = np.ones((16, 1)) * a
-        print(noise_code1)
+        # a = np.linspace(-2, 2, 16)
+        # a = np.reshape(a, [16, 1])
+        # noise_code1 = np.ones((16, 1)) * a
+        # print(noise_code1)
 
     if code2 is None:
         noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
     else:
         noise_code2 = np.ones((16, 1)) * code2
-        # a = np.linspace(-2, 2, 16)
-        # a = np.reshape(a, [16, 1])
-        # noise_code2 = np.ones((16, 1)) * a
-        # print(noise_code2)
+        a = np.linspace(-2, 2, 16)
+        a = np.reshape(a, [16, 1])
+        noise_code2 = np.ones((16, 1)) * a
+        print(noise_code2)
 
     gan.plot_images(generator,
                     noise_input=noise_input,
