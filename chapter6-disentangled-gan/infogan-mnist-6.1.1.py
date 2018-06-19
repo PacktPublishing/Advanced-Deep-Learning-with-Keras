@@ -105,11 +105,13 @@ def train(models, data, params):
 
         # train discriminator network, log the loss and label accuracy
         outputs = [y, labels, codes1, codes2]
-        # metrics = ['loss', 'activation_1_loss', 'label_loss', 'code1_loss', 
-        # 'code2_loss', 'activation_1_acc', 'label_acc', 'code1_acc', 'code2_acc']
+        # metrics = ['loss', 'activation_1_loss', 'label_loss',
+        # 'code1_loss', 'code2_loss', 'activation_1_acc',
+        # 'label_acc', 'code1_acc', 'code2_acc']
         # from discriminator.metrics_names
         metrics = discriminator.train_on_batch(x, outputs)
-        log = "%d: [discriminator loss: %f, label_acc: %f]" % (i, metrics[0], metrics[6])
+        fmt = "%d: [discriminator loss: %f, label_acc: %f]"
+        log = fmt % (i, metrics[0], metrics[6])
 
         # train the adversarial network for 1 batch
         # 1 batch of fake images with label=1.0 and
@@ -134,7 +136,8 @@ def train(models, data, params):
         inputs = [noise, fake_labels, fake_code1, fake_code2]
         outputs = [y, fake_labels, fake_code1, fake_code2]
         metrics  = adversarial.train_on_batch(inputs, outputs)
-        log = "%s [adversarial loss: %f, label_acc: %f]" % (log, metrics[0], metrics[6])
+        fmt = "%s [adversarial loss: %f, label_acc: %f]"
+        log = fmt % (log, metrics[0], metrics[6])
 
         print(log)
         if (i + 1) % save_interval == 0:
@@ -153,7 +156,8 @@ def train(models, data, params):
                             model_name=model_name)
    
     # save the model after training the generator
-    # the trained generator can be reloaded for future MNIST digit generation
+    # the trained generator can be reloaded for
+    # future MNIST digit generation
     generator.save(model_name + ".h5")
 
 
@@ -189,11 +193,14 @@ def build_and_train_models(latent_size=100):
     # build discriminator model
     inputs = Input(shape=input_shape, name='discriminator_input')
     # call discriminator builder with 4 outputs: source, label, and 2 codes
-    discriminator = gan.discriminator(inputs, num_labels=num_labels, num_codes=2)
+    discriminator = gan.discriminator(inputs,
+                                      num_labels=num_labels,
+                                      num_codes=2)
     # [1] uses Adam, but discriminator converges easily with RMSprop
     optimizer = RMSprop(lr=lr, decay=decay)
     # loss functions: 1) probability image is real (binary crossentropy)
-    # 2) categorical cross entropy image label, 3) and 4) mutual information loss
+    # 2) categorical cross entropy image label,
+    # 3) and 4) mutual information loss
     loss = ['binary_crossentropy', 'categorical_crossentropy', mi_loss, mi_loss]
     # lamda or mi_loss weight is 0.5
     loss_weights = [1.0, 1.0, 0.5, 0.5]
@@ -209,8 +216,12 @@ def build_and_train_models(latent_size=100):
     labels = Input(shape=label_shape, name='labels')
     code1 = Input(shape=code_shape, name="code1")
     code2 = Input(shape=code_shape, name="code2")
-    # call generator with inputs, labels and codes as total inputs to generator
-    generator = gan.generator(inputs, image_size, labels=labels, codes=[code1, code2])
+    # call generator with inputs, 
+    # labels and codes as total inputs to generator
+    generator = gan.generator(inputs,
+                              image_size,
+                              labels=labels,
+                              codes=[code1, code2])
     generator.summary()
 
     # build adversarial model = generator + discriminator
@@ -236,7 +247,7 @@ def build_and_train_models(latent_size=100):
 
 
 def test_generator(generator, params, latent_size=100):
-    label, code1, code2 = params
+    label, code1, code2, p1, p2 = params
     noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
     step = 0
     if label is None:
@@ -250,19 +261,23 @@ def test_generator(generator, params, latent_size=100):
     if code1 is None:
         noise_code1 = np.random.normal(scale=0.5, size=[16, 1])
     else:
-        noise_code1 = np.ones((16, 1)) * code1
-        # a = np.linspace(-2, 2, 16)
-        # a = np.reshape(a, [16, 1])
-        # noise_code1 = np.ones((16, 1)) * a
-        # print(noise_code1)
+        if p1:
+            a = np.linspace(-2, 2, 16)
+            a = np.reshape(a, [16, 1])
+            noise_code1 = np.ones((16, 1)) * a
+        else:
+            noise_code1 = np.ones((16, 1)) * code1
+        print(noise_code1)
 
     if code2 is None:
         noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
     else:
-        noise_code2 = np.ones((16, 1)) * code2
-        a = np.linspace(-2, 2, 16)
-        a = np.reshape(a, [16, 1])
-        noise_code2 = np.ones((16, 1)) * a
+        if p2:
+            a = np.linspace(-2, 2, 16)
+            a = np.reshape(a, [16, 1])
+            noise_code2 = np.ones((16, 1)) * a
+        else:
+            noise_code2 = np.ones((16, 1)) * code2
         print(noise_code2)
 
     gan.plot_images(generator,
@@ -284,19 +299,19 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--code1", type=float, help=help_)
     help_ = "Specify latent code 2"
     parser.add_argument("-b", "--code2", type=float, help=help_)
+    help_ = "Plot digits with code1 ranging fr -n1 to +n2"
+    parser.add_argument("--p1", action='store_true', help=help_)
+    help_ = "Plot digits with code2 ranging fr -n1 to +n2"
+    parser.add_argument("--p2", action='store_true', help=help_)
     args = parser.parse_args()
     if args.generator:
         generator = load_model(args.generator)
-        label = None
-        code1 = None
-        code2 = None
-        if args.digit is not None:
-            label = args.digit
-        if args.code1 is not None:
-            code1 = args.code1
-        if args.code2 is not None:
-            code2 = args.code2
-        params = (label, code1, code2)
+        label = args.digit
+        code1 = args.code1
+        code2 = args.code2
+        p1 = args.p1
+        p2 = args.p2
+        params = (label, code1, code2, p1, p2)
         test_generator(generator, params, latent_size=62)
     else:
         build_and_train_models(latent_size=62)

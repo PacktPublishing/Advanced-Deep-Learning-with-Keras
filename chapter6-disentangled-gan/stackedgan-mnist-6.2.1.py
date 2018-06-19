@@ -184,8 +184,8 @@ def train(models, data, params):
     save_interval = 500
 
     # label and noise codes for generator testing
-    z0 = np.random.normal(scale=0.5, size=[16, z_dim])
-    z1 = np.random.normal(scale=0.5, size=[16, z_dim])
+    z0 = np.random.normal(0.5, size=[16, z_dim])
+    z1 = np.random.normal(0.5, size=[16, z_dim])
     noise_class = np.eye(num_labels)[np.arange(0, 16) % num_labels]
     noise_params = [noise_class, z0, z1]
     # number of elements in train dataset
@@ -321,6 +321,7 @@ def plot_images(generators,
     filename = os.path.join(model_name, "%05d.png" % step)
     feature1 = gen1.predict([noise_class, z1])
     images = gen0.predict([feature1, z0])
+    # images = (images + 1.0) * 0.5
     print(model_name,
           "Labels for generated images: ",
           np.argmax(noise_class, axis=1))
@@ -373,7 +374,7 @@ def build_and_train_models(encoder_saved_model):
     # reshape and normalize images
     image_size = x_train.shape[1]
     x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
-    x_train = x_train.astype('float32') / 255
+    x_train = x_train.astype('float32') / 255 
 
     x_test = np.reshape(x_test, [-1, image_size, image_size, 1])
     x_test = x_test.astype('float32') / 255
@@ -388,7 +389,7 @@ def build_and_train_models(encoder_saved_model):
     # network parameters
     batch_size = 64
     train_steps = 40000
-    lr = 0.0002
+    lr = 2e-4
     decay = 6e-8
     input_shape = (image_size, image_size, 1)
     label_shape = (num_labels, )
@@ -405,7 +406,8 @@ def build_and_train_models(encoder_saved_model):
     # loss fuctions: 1) probability image is real (GAN0 loss)
     # 2) MSE z0 recon loss (Q0 network loss or entropy0 loss)
     loss = ['binary_crossentropy', 'mse']
-    dis0.compile(loss=loss, optimizer=optimizer, metrics=['accuracy'])
+    loss_weights = [1.0, 10.0] 
+    dis0.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer, metrics=['accuracy'])
     dis0.summary() # image discriminator, z0 estimator 
 
     # build discriminator 1 and Q network 1 models
@@ -415,7 +417,8 @@ def build_and_train_models(encoder_saved_model):
     # loss fuctions: 1) probability feature1 is real (GAN1 loss)
     # 2) MSE z1 recon loss (Q1 network loss or entropy1 loss)
     loss = ['binary_crossentropy', 'mse']
-    dis1.compile(loss=loss, optimizer=optimizer, metrics=['accuracy'])
+    loss_weights = [1.0, 10.0] 
+    dis1.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer, metrics=['accuracy'])
     dis1.summary() # feature1 discriminator, z1 estimator
 
     # build generator models
@@ -459,7 +462,8 @@ def build_and_train_models(encoder_saved_model):
     # 2) Q network 0 loss (entropy0 loss)
     # 3) conditional0 loss
     loss = ['binary_crossentropy', 'mse', 'mse']
-    adv0.compile(loss=loss, optimizer=optimizer, metrics=['accuracy'])
+    loss_weights = [1.0, 10.0, 1.0] 
+    adv0.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer, metrics=['accuracy'])
     adv0.summary()
 
     # build adversarial1 model = generator1 + discriminator1 + encoder1
@@ -475,8 +479,9 @@ def build_and_train_models(encoder_saved_model):
     # loss functions: 1) prob labels are real (adversarial1 loss)
     # 2) Q network 1 loss (entropy1 loss)
     # 3) conditional1 loss (classifier error)
+    loss_weights = [1.0, 10.0, 1.0] 
     loss = ['binary_crossentropy', 'mse', 'categorical_crossentropy']
-    adv1.compile(loss=loss, optimizer=optimizer, metrics=['accuracy'])
+    adv1.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer, metrics=['accuracy'])
     adv1.summary()
 
     # train discriminator and adversarial networks
@@ -486,7 +491,7 @@ def build_and_train_models(encoder_saved_model):
 
 
 def test_generator(generators, params, z_dim=50):
-    class_label, z0, z1 = params
+    class_label, z0, z1, p0, p1 = params
     step = 0
     if class_label is None:
         num_labels = 10
@@ -499,19 +504,23 @@ def test_generator(generators, params, z_dim=50):
     if z0 is None:
         z0 = np.random.normal(0.5, size=[16, z_dim])
     else:
-        z0 = np.ones((16, z_dim)) * z0
-        # a = np.linspace(-2, 2, 16)
-        # a = np.reshape(a, [16, 1])
-        # z0 = np.ones((16, z_dim)) * a
+        if p0:
+            a = np.linspace(-1.5, 2.5, 16)
+            a = np.reshape(a, [16, 1])
+            z0 = np.ones((16, z_dim)) * a
+        else:
+            z0 = np.ones((16, z_dim)) * z0
         print("z0: ", z0[:,0])
 
     if z1 is None:
         z1 = np.random.normal(0.5, size=[16, z_dim])
     else:
-        z1 = np.ones((16, z_dim)) * z1
-        # a = np.linspace(-2, 2, 16)
-        # a = np.reshape(a, [16, 1])
-        # z1 = np.ones((16, z_dim)) * a
+        if p1:
+            a = np.linspace(-1.5, 2.5, 16)
+            a = np.reshape(a, [16, 1])
+            z1 = np.ones((16, z_dim)) * a
+        else:
+            z1 = np.ones((16, z_dim)) * z1
         print("z1: ", z1[:,0])
 
     noise_params = [noise_class, z0, z1]
@@ -537,6 +546,10 @@ if __name__ == '__main__':
     parser.add_argument("-z", "--z0", type=float, help=help_)
     help_ = "Specify z1 noise code (as a 50-dim with z1 constant)"
     parser.add_argument("-x", "--z1", type=float, help=help_)
+    help_ = "Plot digits with z0 ranging fr -n1 to +n2"
+    parser.add_argument("--p0", action='store_true', help=help_)
+    help_ = "Plot digits with z1 ranging fr -n1 to +n2"
+    parser.add_argument("--p1", action='store_true', help=help_)
     args = parser.parse_args()
     if args.encoder:
         encoder = args.encoder
@@ -549,16 +562,12 @@ if __name__ == '__main__':
         else:
             print("Must specify both generators 0 and 1 models")
             exit(0)
-        class_label = None
-        z0 = None
-        z1 = None
-        if args.digit is not None:
-            class_label = args.digit
-        if args.z0 is not None:
-            z0 = args.z0
-        if args.z1 is not None:
-            z1 = args.z1
-        params = (class_label, z0, z1)
+        class_label = args.digit
+        z0 = args.z0
+        z1 = args.z1
+        p0 = args.p0
+        p1 = args.p1
+        params = (class_label, z0, z1, p0, p1)
         test_generator((gen0, gen1), params)
     else:
         build_and_train_models(encoder)
