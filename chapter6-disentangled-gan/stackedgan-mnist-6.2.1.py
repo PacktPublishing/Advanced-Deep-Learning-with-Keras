@@ -389,7 +389,7 @@ def build_and_train_models():
     model_name = "stackedgan_mnist"
     # network parameters
     batch_size = 64
-    train_steps = 40000
+    train_steps = 10000
     lr = 2e-4
     decay = 6e-8
     input_shape = (image_size, image_size, 1)
@@ -407,7 +407,7 @@ def build_and_train_models():
     # loss fuctions: 1) probability image is real (adversarial0 loss)
     # 2) MSE z0 recon loss (Q0 network loss or entropy0 loss)
     loss = ['binary_crossentropy', 'mse']
-    loss_weights = [1.0, 2.0] 
+    loss_weights = [1.0, 10.0] 
     dis0.compile(loss=loss,
                  loss_weights=loss_weights,
                  optimizer=optimizer,
@@ -467,7 +467,7 @@ def build_and_train_models():
     # 2) Q network 0 loss (entropy0 loss)
     # 3) conditional0 loss
     loss = ['binary_crossentropy', 'mse', 'mse']
-    loss_weights = [1.0, 2.0, 1.0] 
+    loss_weights = [1.0, 10.0, 1.0] 
     adv0.compile(loss=loss,
                  loss_weights=loss_weights,
                  optimizer=optimizer,
