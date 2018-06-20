@@ -184,8 +184,8 @@ def train(models, data, params):
     save_interval = 500
 
     # label and noise codes for generator testing
-    z0 = np.random.normal(loc=0.5, scale=0.5, size=[16, z_dim])
-    z1 = np.random.normal(loc=0.5, scale=0.5, size=[16, z_dim])
+    z0 = np.random.normal(scale=0.5, size=[16, z_dim])
+    z1 = np.random.normal(scale=0.5, size=[16, z_dim])
     noise_class = np.eye(num_labels)[np.arange(0, 16) % num_labels]
     noise_params = [noise_class, z0, z1]
     # number of elements in train dataset
@@ -203,16 +203,13 @@ def train(models, data, params):
         # real feature1 from encoder0 output
         real_feature1 = enc0.predict(real_images)
         # gaussian z_dim-dim noise
-        real_z1 = np.random.normal(loc=0.5, scale=0.5, size=[batch_size, z_dim])
+        real_z1 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
         # real labels from dataset
         real_labels = y_train[rand_indexes]
 
-        # generate fake feature1 using generator1 from random labels 
-        # and noise
-        fake_z1 = np.random.normal(loc=0.5, scale=0.5, size=[batch_size, z_dim])
-        fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
-                                                          batch_size)]
-        fake_feature1 = gen1.predict([fake_labels, fake_z1])
+        # generate fake feature1 using generator1 from labels and noise
+        fake_z1 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
+        fake_feature1 = gen1.predict([real_labels, fake_z1])
 
         # real + fake data
         feature1 = np.concatenate((real_feature1, fake_feature1))
@@ -229,11 +226,9 @@ def train(models, data, params):
         metrics = dis1.train_on_batch(feature1, [y, z1])
         log = "%d: [dis1_loss: %f]" % (i, metrics[0])
 
-        # Stack 0
-        real_z0 = np.random.normal(loc=0.5, scale=0.5, size=[batch_size, z_dim])
-        fake_z0 = np.random.normal(loc=0.5, scale=0.5, size=[batch_size, z_dim])
-        # Joint 
-        fake_images = gen0.predict([fake_feature1, fake_z0])
+        real_z0 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
+        fake_z0 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
+        fake_images = gen0.predict([real_feature1, fake_z0])
        
         # real + fake data
         x = np.concatenate((real_images, fake_images))
@@ -248,10 +243,8 @@ def train(models, data, params):
 
         # adversarial training 
         # generate fake z1, labels
-        fake_z1 = np.random.normal(loc=0.5, scale=0.5, size=[batch_size, z_dim])
-        fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
-                                                          batch_size)]
-        gen1_inputs = [fake_labels, fake_z1]
+        fake_z1 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
+        gen1_inputs = [real_labels, fake_z1]
 
         # label fake feature1 as real
         y = np.ones([batch_size, 1])
@@ -260,21 +253,20 @@ def train(models, data, params):
         # and approximating encoder1 feature1 generator
         # metrics = ['loss', 'dis1_loss', 'dis1_loss',
         # 'encoder1_loss', 'dis1_acc', 'dis1_acc_1', 'encoder1_acc']
-        metrics = adv1.train_on_batch(gen1_inputs, [y, fake_z1, fake_labels])
+        metrics = adv1.train_on_batch(gen1_inputs, [y, fake_z1, real_labels])
         fmt = "%s [adv1_loss: %f, enc1_acc: %f]"
         log = fmt % (log, metrics[0], metrics[6])
 
         # generate fake feature1 and noise
-        fake_feature1 = gen1.predict([fake_labels, fake_z1])
-        fake_z0 = np.random.normal(loc=0.5, scale=0.5, size=[batch_size, z_dim])
-        gen0_inputs = [fake_feature1, fake_z0]
+        fake_z0 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
+        gen0_inputs = [real_feature1, fake_z0]
 
         # train generator0 (thru adversarial) by fooling the discriminator
         # and approximating encoder1 image source generator
         # metrics = ['loss', 'discriminator_loss', 'discriminator_loss',
         # 'encoder0_loss', 'discriminator_acc', 
         # 'discriminator_acc_1', 'encoder0_acc']
-        metrics = adv0.train_on_batch(gen0_inputs, [y, fake_z0, fake_feature1])
+        metrics = adv0.train_on_batch(gen0_inputs, [y, fake_z0, real_feature1])
         log = "%s [adv0_loss: %f]" % (log, metrics[0])
 
         print(log)
@@ -367,7 +359,7 @@ def train_encoder(model, data, model_name="stackedgan_mnist", batch_size=64):
     print("\nTest accuracy: %.1f%%" % (100.0 * score[1]))
 
 
-def build_and_train_models(encoder_saved_model):
+def build_and_train_models():
     # load MNIST dataset
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
@@ -406,7 +398,7 @@ def build_and_train_models(encoder_saved_model):
     # loss fuctions: 1) probability image is real (GAN0 loss)
     # 2) MSE z0 recon loss (Q0 network loss or entropy0 loss)
     loss = ['binary_crossentropy', 'mse']
-    loss_weights = [1.0, 10.0] 
+    loss_weights = [1.0, 5.0] 
     dis0.compile(loss=loss,
                  loss_weights=loss_weights,
                  optimizer=optimizer,
@@ -420,7 +412,7 @@ def build_and_train_models(encoder_saved_model):
     # loss fuctions: 1) probability feature1 is real (GAN1 loss)
     # 2) MSE z1 recon loss (Q1 network loss or entropy1 loss)
     loss = ['binary_crossentropy', 'mse']
-    loss_weights = [1.0, 10.0] 
+    loss_weights = [1.0, 1.0] 
     dis1.compile(loss=loss,
                  loss_weights=loss_weights,
                  optimizer=optimizer,
@@ -447,11 +439,7 @@ def build_and_train_models(encoder_saved_model):
     encoder.summary() # image to labels encoder (classifier)
 
     data = (x_train, y_train), (x_test, y_test)
-    # Train or load encoder saved model
-    if encoder_saved_model is not None:
-        encoder = load_model(encoder_saved_model)
-    else:
-        train_encoder(encoder, data, model_name=model_name)
+    train_encoder(encoder, data, model_name=model_name)
 
     # build adversarial0 model =
     # generator0 + discriminator0 + encoder0
@@ -470,7 +458,7 @@ def build_and_train_models(encoder_saved_model):
     # 2) Q network 0 loss (entropy0 loss)
     # 3) conditional0 loss
     loss = ['binary_crossentropy', 'mse', 'mse']
-    loss_weights = [1.0, 10.0, 1.0] 
+    loss_weights = [1.0, 5.0, 1.0] 
     adv0.compile(loss=loss,
                  loss_weights=loss_weights,
                  optimizer=optimizer,
@@ -490,7 +478,7 @@ def build_and_train_models(encoder_saved_model):
     # loss functions: 1) prob labels are real (adversarial1 loss)
     # 2) Q network 1 loss (entropy1 loss)
     # 3) conditional1 loss (classifier error)
-    loss_weights = [1.0, 10.0, 1.0] 
+    loss_weights = [1.0, 1.0, 1.0] 
     loss = ['binary_crossentropy', 'mse', 'categorical_crossentropy']
     adv1.compile(loss=loss,
                  loss_weights=loss_weights,
@@ -516,10 +504,10 @@ def test_generator(generators, params, z_dim=50):
         step = class_label
 
     if z0 is None:
-        z0 = np.random.normal(loc=0.5, scale=0.5, size=[16, z_dim])
+        z0 = np.random.normal(scale=0.5, size=[16, z_dim])
     else:
         if p0:
-            a = np.linspace(-1.5, 2.5, 16)
+            a = np.linspace(-4.0, 4.0, 16)
             a = np.reshape(a, [16, 1])
             z0 = np.ones((16, z_dim)) * a
         else:
@@ -527,10 +515,10 @@ def test_generator(generators, params, z_dim=50):
         print("z0: ", z0[:,0])
 
     if z1 is None:
-        z1 = np.random.normal(loc=0.5, scale=0.5, size=[16, z_dim])
+        z1 = np.random.normal(scale=0.5, size=[16, z_dim])
     else:
         if p1:
-            a = np.linspace(-1.5, 2.5, 16)
+            a = np.linspace(-1.0, 1.0, 16)
             a = np.reshape(a, [16, 1])
             z1 = np.ones((16, z_dim)) * a
         else:
@@ -552,8 +540,8 @@ if __name__ == '__main__':
     parser.add_argument("-g", "--generator0", help=help_)
     help_ = "Load generator 1 h5 model with trained weights"
     parser.add_argument("-k", "--generator1", help=help_)
-    help_ = "Load encoder h5 model with trained weights"
-    parser.add_argument("-e", "--encoder", help=help_)
+    # help_ = "Load encoder h5 model with trained weights"
+    # parser.add_argument("-e", "--encoder", help=help_)
     help_ = "Specify a specific digit to generate"
     parser.add_argument("-d", "--digit", type=int, help=help_)
     help_ = "Specify z0 noise code (as a 50-dim with z0 constant)"
@@ -565,10 +553,10 @@ if __name__ == '__main__':
     help_ = "Plot digits with z1 ranging fr -n1 to +n2"
     parser.add_argument("--p1", action='store_true', help=help_)
     args = parser.parse_args()
-    if args.encoder:
-        encoder = args.encoder
-    else:
-        encoder = None
+    # if args.encoder:
+    #    encoder = args.encoder
+    #else:
+    #    encoder = None
     if args.generator0:
         gen0 = load_model(args.generator0)
         if args.generator1:
@@ -584,4 +572,4 @@ if __name__ == '__main__':
         params = (class_label, z0, z1, p0, p1)
         test_generator((gen0, gen1), params)
     else:
-        build_and_train_models(encoder)
+        build_and_train_models()
