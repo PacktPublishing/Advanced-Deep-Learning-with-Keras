@@ -214,7 +214,7 @@ def train(models, data, params):
 
         # real + fake data
         feature1 = np.concatenate((real_feature1, fake_feature1))
-        z1 = np.concatenate((real_z1, fake_z1))
+        z1 = np.concatenate((fake_z1, fake_z1))
 
         # label 1st half as real and 2nd half as fake
         y = np.ones([2 * batch_size, 1])
@@ -239,7 +239,7 @@ def train(models, data, params):
        
         # real + fake data
         x = np.concatenate((real_images, fake_images))
-        z0 = np.concatenate((real_z0, fake_z0))
+        z0 = np.concatenate((fake_z0, fake_z0))
 
         # train discriminator0 to classify image as real/fake and recover
         # latent code (z0)
