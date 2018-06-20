@@ -222,11 +222,10 @@ def train(models, data, params):
 
         # train discriminator1 to classify feature1 as real/fake and recover
         # latent code (z1). real = from encoder1, fake = from genenerator1 
-        # metrics = ['loss', 'feature1_source_loss', 'z1_loss', 
-        # 'feature1_source_acc', 'z1_acc']
-        # joint training using discriminator part of advserial loss
-        # and entropy loss
+        # joint training using discriminator part of advserial1 loss
+        # and entropy1 loss
         metrics = dis1.train_on_batch(feature1, [y, z1])
+        # log the overall loss only
         log = "%d: [dis1_loss: %f]" % (i, metrics[0])
 
          
@@ -244,11 +243,10 @@ def train(models, data, params):
 
         # train discriminator0 to classify image as real/fake and recover
         # latent code (z0)
-        # metrics = ['loss', 'activation_1_loss', 'z0_loss',
-        # 'activation_1_acc', 'z0_acc']
-        # joint training using discriminator part of advserial loss
-        # and entropy loss
+        # joint training using discriminator part of advserial0 loss
+        # and entropy0 loss
         metrics = dis0.train_on_batch(x, [y, z0])
+        # log the overall loss only (use dis0.metrics_names)
         log = "%s [dis0_loss: %f]" % (log, metrics[0])
 
         # adversarial training 
@@ -263,10 +261,10 @@ def train(models, data, params):
     
         # train generator1 (thru adversarial) by fooling the discriminator
         # and approximating encoder1 feature1 generator
-        # metrics = ['loss', 'dis1_loss', 'dis1_loss',
-        # 'encoder1_loss', 'dis1_acc', 'dis1_acc_1', 'encoder1_acc']
+        # joint training: adversarial1, entropy1, conditional1
         metrics = adv1.train_on_batch(gen1_inputs, [y, fake_z1, real_labels])
         fmt = "%s [adv1_loss: %f, enc1_acc: %f]"
+        # log the overall loss and classification accuracy
         log = fmt % (log, metrics[0], metrics[6])
 
         # input to generator0 is real feature1 and 
@@ -276,10 +274,9 @@ def train(models, data, params):
 
         # train generator0 (thru adversarial) by fooling the discriminator
         # and approximating encoder1 image source generator
-        # metrics = ['loss', 'discriminator_loss', 'discriminator_loss',
-        # 'encoder0_loss', 'discriminator_acc', 
-        # 'discriminator_acc_1', 'encoder0_acc']
+        # joint training: adversarial0, entropy0, conditional0
         metrics = adv0.train_on_batch(gen0_inputs, [y, fake_z0, real_feature1])
+        # log the overall loss only
         log = "%s [adv0_loss: %f]" % (log, metrics[0])
 
         print(log)
@@ -326,7 +323,6 @@ def plot_images(generators,
     filename = os.path.join(model_name, "%05d.png" % step)
     feature1 = gen1.predict([noise_class, z1])
     images = gen0.predict([feature1, z0])
-    # images = (images + 1.0) * 0.5
     print(model_name,
           "Labels for generated images: ",
           np.argmax(noise_class, axis=1))
@@ -408,7 +404,7 @@ def build_and_train_models():
     dis0 = gan.discriminator(inputs, num_codes=z_dim)
     # [1] uses Adam, but discriminator converges easily with RMSprop
     optimizer = RMSprop(lr=lr, decay=decay)
-    # loss fuctions: 1) probability image is real (GAN0 loss)
+    # loss fuctions: 1) probability image is real (adversarial0 loss)
     # 2) MSE z0 recon loss (Q0 network loss or entropy0 loss)
     loss = ['binary_crossentropy', 'mse']
     loss_weights = [1.0, 5.0] 
@@ -422,7 +418,7 @@ def build_and_train_models():
     input_shape = (feature1_dim, )
     inputs = Input(shape=input_shape, name='discriminator1_input')
     dis1 = build_discriminator(inputs, z_dim=z_dim )
-    # loss fuctions: 1) probability feature1 is real (GAN1 loss)
+    # loss fuctions: 1) probability feature1 is real (adversarial1 loss)
     # 2) MSE z1 recon loss (Q1 network loss or entropy1 loss)
     loss = ['binary_crossentropy', 'mse']
     loss_weights = [1.0, 1.0] 
@@ -465,7 +461,7 @@ def build_and_train_models():
     gen0_outputs = gen0(gen0_inputs)
     adv0_outputs = dis0(gen0_outputs) + [enc0(gen0_outputs)]
     # feature1 + z0 to prob feature1 is 
-    # real + z0 recon + feature0 recon
+    # real + z0 recon + feature0/image recon
     adv0 = Model(gen0_inputs, adv0_outputs, name="adv0")
     # loss functions: 1) prob feature1 is real (adversarial0 loss)
     # 2) Q network 0 loss (entropy0 loss)
@@ -478,7 +474,8 @@ def build_and_train_models():
                  metrics=['accuracy'])
     adv0.summary()
 
-    # build adversarial1 model = generator1 + discriminator1 + encoder1
+    # build adversarial1 model = 
+    # generator1 + discriminator1 + encoder1
     # encoder1 weights frozen
     enc1.trainable = False
     # discriminator1 weights frozen
