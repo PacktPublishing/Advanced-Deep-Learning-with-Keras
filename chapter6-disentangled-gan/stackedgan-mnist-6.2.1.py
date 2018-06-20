@@ -196,18 +196,19 @@ def train(models, data, params):
 
     for i in range(train_steps):
         # train the discriminator1 for 1 batch
-        # 1 batch of real (label=1.0) and fake images (label=0.0)
+        # 1 batch of real (label=1.0) and fake feature1 (label=0.0)
         # randomly pick real images from dataset
         rand_indexes = np.random.randint(0, train_size, size=batch_size)
         real_images = x_train[rand_indexes]
         # real feature1 from encoder0 output
         real_feature1 = enc0.predict(real_images)
-        # gaussian z_dim-dim noise
+        # generate random 50-dim z1 latent code
         real_z1 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
         # real labels from dataset
         real_labels = y_train[rand_indexes]
 
-        # generate fake feature1 using generator1 from labels and noise
+        # generate fake feature1 using generator1 from
+        # real labels and 50-dim z1 latent code
         fake_z1 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
         fake_feature1 = gen1.predict([real_labels, fake_z1])
 
@@ -223,11 +224,18 @@ def train(models, data, params):
         # latent code (z1). real = from encoder1, fake = from genenerator1 
         # metrics = ['loss', 'feature1_source_loss', 'z1_loss', 
         # 'feature1_source_acc', 'z1_acc']
+        # joint training using discriminator part of advserial loss
+        # and entropy loss
         metrics = dis1.train_on_batch(feature1, [y, z1])
         log = "%d: [dis1_loss: %f]" % (i, metrics[0])
 
+         
+        # train the discriminator0 for 1 batch
+        # 1 batch of real (label=1.0) and fake images (label=0.0)
+        # generate random 50-dim z0 latent code
         real_z0 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
         fake_z0 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
+        # generate fake images from real feature1 and fake z0
         fake_images = gen0.predict([real_feature1, fake_z0])
        
         # real + fake data
@@ -238,12 +246,16 @@ def train(models, data, params):
         # latent code (z0)
         # metrics = ['loss', 'activation_1_loss', 'z0_loss',
         # 'activation_1_acc', 'z0_acc']
+        # joint training using discriminator part of advserial loss
+        # and entropy loss
         metrics = dis0.train_on_batch(x, [y, z0])
         log = "%s [dis0_loss: %f]" % (log, metrics[0])
 
         # adversarial training 
         # generate fake z1, labels
         fake_z1 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
+        # input to generator1 is sampling fr real labels and
+        # 50-dim z1 latent code
         gen1_inputs = [real_labels, fake_z1]
 
         # label fake feature1 as real
@@ -257,7 +269,8 @@ def train(models, data, params):
         fmt = "%s [adv1_loss: %f, enc1_acc: %f]"
         log = fmt % (log, metrics[0], metrics[6])
 
-        # generate fake feature1 and noise
+        # input to generator0 is real feature1 and 
+        # 50-dim z0 latent code
         fake_z0 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
         gen0_inputs = [real_feature1, fake_z0]
 
