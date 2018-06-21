@@ -153,6 +153,7 @@ def discriminator(inputs,
 
             outputs = [outputs, labels, code1, code2]
     elif num_codes is not None:
+        # StackedGAN Q0 output
         # z0_recon is reconstruction of z0 normal distribution
         z0_recon =  Dense(num_codes)(x)
         z0_recon = Activation('tanh', name='z0')(z0_recon)

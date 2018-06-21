@@ -128,32 +128,32 @@ def build_generator(latent_codes, image_size, feature1_dim=256):
 
 
 def build_discriminator(inputs, z_dim=50):
-    """Build a Discriminator 1 Model
+    """Build Discriminator 1 Model
 
     Classifies feature1 (features) as real/fake image and recovers
     the input noise or latent code (by minimizing entropy loss)
 
     # Arguments
-        inputs (Layer): feature2 features
+        inputs (Layer): feature1
         z_dim (int): noise dimensionality
 
     # Returns
         dis1 (Model): feature1 as real/fake and recovered latent code
     """
 
-    # 
+    # input is 256-dim feature1
     x = Dense(256, activation='relu')(inputs)
     x = Dense(256, activation='relu')(x)
 
     # first output is probability that feature1 is real
-    y_source = Dense(1)(x)
-    y_source = Activation('sigmoid', name='feature1_source')(y_source)
+    f1_source = Dense(1)(x)
+    f1_source = Activation('sigmoid', name='feature1_source')(f1_source)
 
     # z1 reonstruction (Q1 network)
     z1_recon = Dense(z_dim)(x) 
     z1_recon = Activation('tanh', name='z1')(z1_recon)
     
-    discriminator_outputs = [y_source, z1_recon]
+    discriminator_outputs = [f1_source, z1_recon]
     dis1 = Model(inputs, discriminator_outputs, name='dis1')
     return dis1
 
@@ -232,7 +232,6 @@ def train(models, data, params):
         # train the discriminator0 for 1 batch
         # 1 batch of real (label=1.0) and fake images (label=0.0)
         # generate random 50-dim z0 latent code
-        real_z0 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
         fake_z0 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
         # generate fake images from real feature1 and fake z0
         fake_images = gen0.predict([real_feature1, fake_z0])
