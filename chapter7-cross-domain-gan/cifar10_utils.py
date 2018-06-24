@@ -26,7 +26,7 @@ def display_images(imgs,
                    filename,
                    title='',
                    imgs_dir=None,
-                   show=True):
+                   show=False):
     # display the 1st 100 input images (color and gray)
     # create saved_images folder
     if imgs_dir is None:
@@ -91,11 +91,11 @@ def load_data():
 
 
     # normalize output train and test color images
-    x_train = x_train.astype('float32') / 255
+    x_train = x_train.astype('float32')  / 255
     x_test = x_test.astype('float32') / 255
 
     # normalize input train and test grayscale images
-    x_train_gray = x_train_gray.astype('float32') / 255
+    x_train_gray = x_train_gray.astype('float32')  / 255
     x_test_gray = x_test_gray.astype('float32') / 255
 
     # reshape images to row x col x channels

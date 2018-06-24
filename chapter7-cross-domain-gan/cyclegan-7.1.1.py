@@ -29,12 +29,14 @@ import cifar10_utils
 
 def encoder_layer(inputs,
                   filters=16,
+                  kernel_size=3,
+                  strides=2,
                   activate=True,
                   normalize=True):
 
     conv = Conv2D(filters=filters,
-                  kernel_size=5,
-                  strides=2,
+                  kernel_size=kernel_size,
+                  strides=strides,
                   padding='same')
 
     x = inputs
@@ -49,17 +51,17 @@ def encoder_layer(inputs,
 def decoder_layer(inputs,
                   paired_inputs,
                   filters=16,
-                  strides=2,
-                  activation='relu'):
+                  kernel_size=3,
+                  strides=2):
 
     conv = Conv2DTranspose(filters=filters,
-                           kernel_size=5,
+                           kernel_size=kernel_size,
                            strides=strides,
-                           activation=activation,
                            padding='same')
 
-    x = conv(inputs)
-    x = InstanceNormalization()(x)
+    x = InstanceNormalization()(inputs)
+    x = LeakyReLU(alpha=0.2)(x)
+    x = conv(x)
     x = concatenate([x, paired_inputs])
     return x
 
@@ -68,17 +70,17 @@ def build_generator(input_shape, output_shape=None):
 
     inputs = Input(shape=input_shape)
     channels = int(output_shape[-1])
-    e1 = encoder_layer(inputs, 16) 
-    e2 = encoder_layer(e1, 32) 
-    e3 = encoder_layer(e2, 64) 
-    e4 = encoder_layer(e3, 128) 
+    e1 = encoder_layer(inputs, 32, kernel_size=3, strides=1) 
+    e2 = encoder_layer(e1, 64, kernel_size=3) 
+    e3 = encoder_layer(e2, 128, kernel_size=3) 
+    e4 = encoder_layer(e3, 256, kernel_size=3) 
 
-    d1 = decoder_layer(e4, e3, 64)
-    d2 = decoder_layer(d1, e2, 32)
-    d3 = decoder_layer(d2, e1, 16)
+    d1 = decoder_layer(e4, e3, 128, kernel_size=3)
+    d2 = decoder_layer(d1, e2, 64, kernel_size=3)
+    d3 = decoder_layer(d2, e1, 32, kernel_size=3)
     outputs = Conv2DTranspose(channels,
-                              kernel_size=5,
-                              strides=2,
+                              kernel_size=3,
+                              strides=1,
                               activation='sigmoid',
                               padding='same')(d3)
 
@@ -89,19 +91,24 @@ def build_generator(input_shape, output_shape=None):
     return generator
 
 
-def build_discriminator(input_shape):
+def build_discriminator(input_shape, patchgan=True):
 
     inputs = Input(shape=input_shape)
     x = encoder_layer(inputs, 32, normalize=False)
-    x = encoder_layer(x, 64)
-    x = encoder_layer(x, 128)
-    x = encoder_layer(x, 256)
-    x = LeakyReLU(alpha=0.2)(x)
-    outputs = Conv2D(1,
-                     kernel_size=5,
-                     strides=1,
-                     activation='linear',
-                     padding='same')(x)
+    x = encoder_layer(x, 64, normalize=False)
+    x = encoder_layer(x, 128, normalize=False)
+    x = encoder_layer(x, 256, strides=1, normalize=False)
+    if patchgan:
+        x = LeakyReLU(alpha=0.2)(x)
+        outputs = Conv2D(1,
+                         kernel_size=3,
+                         strides=1,
+                         padding='same')(x)
+    else:
+        x = Flatten()(x)
+        x = Dense(1)(x)
+        outputs = Activation('linear')(x)
+
 
     discriminator = Model(inputs, outputs)
 
@@ -120,10 +127,12 @@ def train_cifar10(models, data, params):
     save_interval = 500
     # number of elements in train dataset
     train_size = x_train.shape[0]
-    # test_size = x_test.shape[0]
 
-    valid = np.ones((batch_size,) + dis_patch)
-    fake = np.zeros((batch_size,) + dis_patch)
+    # valid = np.ones((batch_size,) + dis_patch)
+    # fake = np.zeros((batch_size,) + dis_patch)
+    valid = np.ones([batch_size, 1])
+    fake = np.zeros([batch_size, 1])
+    valid_fake = np.concatenate((valid, fake))
 
     for i in range(train_steps):
         # train the discriminator1 for 1 batch
@@ -135,11 +144,10 @@ def train_cifar10(models, data, params):
         rand_indexes = np.random.randint(0, train_size, size=batch_size)
         real_gray = x_train_gray[rand_indexes]
         fake_color = gen_color.predict(real_gray)
-
-        metrics1 = dis_color.train_on_batch(real_color, valid)
-        metrics2 = dis_color.train_on_batch(fake_color, fake)
-        loss = 0.5 * (metrics1[0] + metrics2[1])
-        log = "%d: [dis_color loss: %f]" % (i, loss)
+        
+        x = np.concatenate((real_color, fake_color))
+        metrics = dis_color.train_on_batch(x, valid_fake)
+        log = "%d: [dis_color loss: %f]" % (i, metrics[0])
 
         rand_indexes = np.random.randint(0, train_size, size=batch_size)
         real_gray = x_train_gray[rand_indexes]
@@ -148,10 +156,9 @@ def train_cifar10(models, data, params):
         real_color = x_train[rand_indexes]
         fake_gray = gen_gray.predict(real_color)
 
-        metrics1 = dis_gray.train_on_batch(real_gray, valid)
-        metrics2 = dis_gray.train_on_batch(fake_gray, fake)
-        loss = 0.5 * (metrics1[0] + metrics2[1])
-        log = "%s [dis_gray loss: %f]" % (log, loss)
+        x = np.concatenate((real_gray, fake_gray))
+        metrics = dis_gray.train_on_batch(x, valid_fake)
+        log = "%s [dis_gray loss: %f]" % (log, metrics[0])
 
         rand_indexes = np.random.randint(0, train_size, size=batch_size)
         real_gray = x_train_gray[rand_indexes]
@@ -198,8 +205,8 @@ def colorize_cifar10():
     print('---- GRAY GENERATOR---')
     gen_gray.summary()
 
-    dis_color = build_discriminator(color_shape)
-    dis_gray = build_discriminator(gray_shape)
+    dis_color = build_discriminator(color_shape, patchgan=False)
+    dis_gray = build_discriminator(gray_shape, patchgan=False)
     print('---- COLOR DISCRIMINATOR---')
     dis_color.summary()
     print('---- GRAY DISCRIMINATOR---')
@@ -242,7 +249,7 @@ def colorize_cifar10():
     adv.summary()
 
     # Calculate output shape of D (PatchGAN)
-    patch = int(rows / 2**4)
+    patch = int(rows / 2**3)
     dis_patch = (patch, patch, 1)
 
     models = (gen_gray, gen_color, dis_gray, dis_color, adv)
