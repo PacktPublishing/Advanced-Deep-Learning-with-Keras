@@ -31,7 +31,6 @@ def encoder_layer(inputs,
                   filters=16,
                   kernel_size=3,
                   strides=2,
-                  activate=True,
                   normalize=True):
 
     conv = Conv2D(filters=filters,
@@ -42,8 +41,7 @@ def encoder_layer(inputs,
     x = inputs
     if normalize:
         x = InstanceNormalization()(x)
-    if activate:
-        x = LeakyReLU(alpha=0.2)(x)
+    x = LeakyReLU(alpha=0.2)(x)
     x = conv(x)
     return x
 
@@ -66,42 +64,75 @@ def decoder_layer(inputs,
     return x
 
 
-def build_generator(input_shape, output_shape=None):
+def build_generator(input_shape,
+                    output_shape=None,
+                    kernel_size=3):
 
     inputs = Input(shape=input_shape)
     channels = int(output_shape[-1])
-    e1 = encoder_layer(inputs, 32, kernel_size=3, strides=1) 
-    e2 = encoder_layer(e1, 64, kernel_size=3) 
-    e3 = encoder_layer(e2, 128, kernel_size=3) 
-    e4 = encoder_layer(e3, 256, kernel_size=3) 
+    e1 = encoder_layer(inputs,
+                       32,
+                       kernel_size=kernel_size,
+                       strides=1) 
+    e2 = encoder_layer(e1,
+                        64,
+                        kernel_size=kernel_size) 
+    e3 = encoder_layer(e2,
+                       128,
+                       kernel_size=kernel_size) 
+    e4 = encoder_layer(e3,
+                       256,
+                       kernel_size=kernel_size) 
 
-    d1 = decoder_layer(e4, e3, 128, kernel_size=3)
-    d2 = decoder_layer(d1, e2, 64, kernel_size=3)
-    d3 = decoder_layer(d2, e1, 32, kernel_size=3)
+    d1 = decoder_layer(e4,
+                       e3,
+                       128,
+                       kernel_size=kernel_size)
+    d2 = decoder_layer(d1,
+                       e2,
+                       64,
+                       kernel_size=kernel_size)
+    d3 = decoder_layer(d2,
+                       e1,
+                       32,
+                       kernel_size=kernel_size)
     outputs = Conv2DTranspose(channels,
-                              kernel_size=3,
+                              kernel_size=kernel_size,
                               strides=1,
                               activation='sigmoid',
                               padding='same')(d3)
-
-
 
     generator = Model(inputs, outputs)
 
     return generator
 
 
-def build_discriminator(input_shape, patchgan=True):
+def build_discriminator(input_shape,
+                        kernel_size=3,
+                        patchgan=True):
 
     inputs = Input(shape=input_shape)
-    x = encoder_layer(inputs, 32, normalize=False)
-    x = encoder_layer(x, 64, normalize=False)
-    x = encoder_layer(x, 128, normalize=False)
-    x = encoder_layer(x, 256, strides=1, normalize=False)
+    x = encoder_layer(inputs,
+                      32,
+                      kernel_size=kernel_size,
+                      normalize=False)
+    x = encoder_layer(x,
+                      64,
+                      kernel_size=kernel_size,
+                      normalize=False)
+    x = encoder_layer(x,
+                      128,
+                      kernel_size=kernel_size,
+                      normalize=False)
+    x = encoder_layer(x,
+                      256,
+                      kernel_size=kernel_size,
+                      strides=1,
+                      normalize=False)
     if patchgan:
         x = LeakyReLU(alpha=0.2)(x)
         outputs = Conv2D(1,
-                         kernel_size=3,
+                         kernel_size=kernel_size,
                          strides=1,
                          padding='same')(x)
     else:
@@ -116,77 +147,7 @@ def build_discriminator(input_shape, patchgan=True):
 
 
 
-def train_cifar10(models, data, params):
-    # the models
-    gen_gray, gen_color, dis_gray, dis_color, adv = models
-    # network parameters
-    batch_size, train_steps, dis_patch, model_name = params
-    # train dataset
-    x_train, x_test, x_train_gray, x_test_gray = data
-    # the generator image is saved every 500 steps
-    save_interval = 500
-    # number of elements in train dataset
-    train_size = x_train.shape[0]
-
-    # valid = np.ones((batch_size,) + dis_patch)
-    # fake = np.zeros((batch_size,) + dis_patch)
-    valid = np.ones([batch_size, 1])
-    fake = np.zeros([batch_size, 1])
-    valid_fake = np.concatenate((valid, fake))
-
-    for i in range(train_steps):
-        # train the discriminator1 for 1 batch
-        # 1 batch of real (label=1.0) and fake feature1 (label=0.0)
-        # randomly pick real images from dataset
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
-        real_color = x_train[rand_indexes]
-
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
-        real_gray = x_train_gray[rand_indexes]
-        fake_color = gen_color.predict(real_gray)
-        
-        x = np.concatenate((real_color, fake_color))
-        metrics = dis_color.train_on_batch(x, valid_fake)
-        log = "%d: [dis_color loss: %f]" % (i, metrics[0])
-
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
-        real_gray = x_train_gray[rand_indexes]
-
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
-        real_color = x_train[rand_indexes]
-        fake_gray = gen_gray.predict(real_color)
-
-        x = np.concatenate((real_gray, fake_gray))
-        metrics = dis_gray.train_on_batch(x, valid_fake)
-        log = "%s [dis_gray loss: %f]" % (log, metrics[0])
-
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
-        real_gray = x_train_gray[rand_indexes]
-        fake_color = gen_color.predict(real_gray)
-
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
-        real_color = x_train[rand_indexes]
-        fake_gray = gen_gray.predict(real_color)
-
-        x = [real_gray, real_color]
-        y = [valid, valid, fake_gray, fake_color]
-        metrics = adv.train_on_batch(x, y)
-        log = "%s [adv loss: %f]" % (log, metrics[0])
-        print(log)
-        if (i + 1) % save_interval == 0:
-            if (i + 1) == train_steps:
-                show = True
-            else:
-                show = False
-
-            cifar10_utils.test_generator(gen_color,
-                                         x_test_gray,
-                                         step=i+1,
-                                         show=show)
-
-
 def colorize_cifar10():
-
     model_name = 'cyclegan_cifar10'
     batch_size = 32
     train_steps = 100000
@@ -229,18 +190,20 @@ def colorize_cifar10():
     preal_gray = dis_gray(fake_gray)
     reco_color = gen_color(fake_gray)
 
-    # iden_gray = gen_gray(fake_gray)
-    # iden_color = gen_color(fake_color)
+    iden_gray = gen_gray(img_color)
+    iden_color = gen_color(img_gray)
 
     inputs = [img_gray, img_color]
     outputs = [preal_gray,
                preal_color,
                reco_gray,
-               reco_color]
+               reco_color,
+               iden_gray,
+               iden_color]
 
     adv = Model(inputs, outputs)
-    loss = ['mse', 'mse', 'mae', 'mae']
-    loss_weights = [1., 1., 10., 10.]
+    loss = ['mse', 'mse', 'mae', 'mae', 'mse', 'mse']
+    loss_weights = [1., 1., 10., 10., 1., 1.]
     optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
     adv.compile(loss=loss,
                 loss_weights=loss_weights,
@@ -254,21 +217,8 @@ def colorize_cifar10():
 
     models = (gen_gray, gen_color, dis_gray, dis_color, adv)
     params = (batch_size, train_steps, dis_patch, model_name)
-    train_cifar10(models, data, params)
+    cifar10_utils.train(models, data, params)
 
-
-def test_generator(generator):
-    # predict the autoencoder output from test data
-    x_decoded = autoencoder.predict(x_test_gray)
-
-    # display the 1st 100 colorized images
-    imgs = x_decoded[:100]
-    title = 'Colorized test images (Predicted)'
-    filename = '%s/colorized.png' % imgs_dir
-    display_images(imgs,
-                   img_shape=img_shape,
-                   filename=filename,
-                   title=title)
 
 
 if __name__ == '__main__':
