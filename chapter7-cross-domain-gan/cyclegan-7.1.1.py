@@ -79,7 +79,7 @@ def build_generator(input_shape, output_shape=None):
     outputs = Conv2DTranspose(channels,
                               kernel_size=5,
                               strides=2,
-                              activation='tanh',
+                              activation='sigmoid',
                               padding='same')(d3)
 
 
@@ -124,8 +124,6 @@ def train_cifar10(models, data, params):
 
     valid = np.ones((batch_size,) + dis_patch)
     fake = np.zeros((batch_size,) + dis_patch)
-    y = np.concatenate((valid, fake))
-
 
     for i in range(train_steps):
         # train the discriminator1 for 1 batch
@@ -184,7 +182,7 @@ def colorize_cifar10():
 
     model_name = 'cyclegan_cifar10'
     batch_size = 32
-    train_steps = 10000
+    train_steps = 100000
     lr = 2e-4
     decay = 6e-8
 

@@ -51,6 +51,8 @@ def display_images(imgs,
     plt.savefig(filename)
     if show:
         plt.show()
+    
+    plt.close('all')
 
 
 
@@ -132,6 +134,7 @@ def test_generator(generator,
 
     # display the 1st 100 colorized images
     imgs = imgs_color[:100]
+    # imgs = 0.5 * (imgs + 1.0)
     title = 'Colorized test images (Predicted)'
     filename = '%05d.png' % step
     imgs_dir = 'test_outputs'
