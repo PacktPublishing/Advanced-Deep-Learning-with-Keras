@@ -12,6 +12,7 @@ from keras.models import load_model
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import datetime
 
 
 # convert from color image (RGB) to grayscale
@@ -66,11 +67,11 @@ def load_data():
     cols = x_train.shape[2]
     channels = x_train.shape[3]
 
-
     # convert color train and test images to gray
     x_train_gray = rgb2gray(x_train)
     x_test_gray = rgb2gray(x_test)
 
+    # display color version of test images
     imgs = x_test[:100]
     title = 'Test color images (Ground  Truth)'
     img_shape = (rows, cols, channels)
@@ -143,6 +144,8 @@ def train(models, data, params):
     fake = np.zeros([batch_size, 1])
     valid_fake = np.concatenate((valid, fake))
 
+    start_time = datetime.datetime.now()
+
     for i in range(train_steps):
         # train the discriminator1 for 1 batch
         # 1 batch of real (label=1.0) and fake feature1 (label=0.0)
@@ -158,29 +161,32 @@ def train(models, data, params):
         metrics = dis_color.train_on_batch(x, valid_fake)
         log = "%d: [dis_color loss: %f]" % (i, metrics[0])
 
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
-        real_gray = x_train_gray[rand_indexes]
+        # rand_indexes = np.random.randint(0, train_size, size=batch_size)
+        # real_gray = x_train_gray[rand_indexes]
 
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
-        real_color = x_train[rand_indexes]
+        # rand_indexes = np.random.randint(0, train_size, size=batch_size)
+        # real_color = x_train[rand_indexes]
         fake_gray = gen_gray.predict(real_color)
 
         x = np.concatenate((real_gray, fake_gray))
         metrics = dis_gray.train_on_batch(x, valid_fake)
         log = "%s [dis_gray loss: %f]" % (log, metrics[0])
 
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
-        real_gray = x_train_gray[rand_indexes]
-        fake_color = gen_color.predict(real_gray)
+        # rand_indexes = np.random.randint(0, train_size, size=batch_size)
+        # real_gray = x_train_gray[rand_indexes]
+        # fake_color = gen_color.predict(real_gray)
 
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
-        real_color = x_train[rand_indexes]
-        fake_gray = gen_gray.predict(real_color)
+        # rand_indexes = np.random.randint(0, train_size, size=batch_size)
+        # real_color = x_train[rand_indexes]
+        # fake_gray = gen_gray.predict(real_color)
 
         x = [real_gray, real_color]
-        y = [valid, valid, fake_gray, fake_color, real_gray, real_color]
+        y = [valid, valid, real_gray, real_color, real_gray, real_color]
         metrics = adv.train_on_batch(x, y)
-        log = "%s [adv loss: %f]" % (log, metrics[0])
+        # print(adv.metrics_names)
+        elapsed_time = datetime.datetime.now() - start_time
+        fmt = "%s [adv loss: %f] [time: %s]"
+        log = fmt % (log, metrics[0], elapsed_time)
         print(log)
         if (i + 1) % save_interval == 0:
             if (i + 1) == train_steps:

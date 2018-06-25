@@ -8,21 +8,16 @@ from __future__ import print_function
 
 from keras.layers import Activation, Dense, Input
 from keras.layers import Conv2D, Flatten
-from keras.layers import Reshape, Conv2DTranspose
+from keras.layers import Conv2DTranspose
 from keras.layers import LeakyReLU
-from keras.layers import BatchNormalization
 from keras.optimizers import RMSprop
 from keras.models import Model
-from keras.datasets import cifar10
 from keras.models import load_model
 from keras.layers.merge import concatenate
 
 from keras_contrib.layers.normalization import InstanceNormalization
 
 import numpy as np
-import math
-import matplotlib.pyplot as plt
-import os
 import argparse
 import cifar10_utils
 
@@ -66,7 +61,8 @@ def decoder_layer(inputs,
 
 def build_generator(input_shape,
                     output_shape=None,
-                    kernel_size=3):
+                    kernel_size=3,
+                    name=None):
 
     inputs = Input(shape=input_shape)
     channels = int(output_shape[-1])
@@ -102,14 +98,15 @@ def build_generator(input_shape,
                               activation='sigmoid',
                               padding='same')(d3)
 
-    generator = Model(inputs, outputs)
+    generator = Model(inputs, outputs, name=name)
 
     return generator
 
 
 def build_discriminator(input_shape,
                         kernel_size=3,
-                        patchgan=True):
+                        patchgan=True,
+                        name=None):
 
     inputs = Input(shape=input_shape)
     x = encoder_layer(inputs,
@@ -141,7 +138,7 @@ def build_discriminator(input_shape,
         outputs = Activation('linear')(x)
 
 
-    discriminator = Model(inputs, outputs)
+    discriminator = Model(inputs, outputs, name=name)
 
     return discriminator
 
@@ -159,23 +156,35 @@ def colorize_cifar10():
     color_shape = img_shape
     gray_shape = (rows, cols, 1)
 
-    gen_color = build_generator(gray_shape, color_shape)
-    gen_gray = build_generator(color_shape, gray_shape)
+    gen_color = build_generator(gray_shape,
+                                color_shape,
+                                name='gen_color')
+    gen_gray = build_generator(color_shape,
+                               gray_shape,
+                               name='gen_gray')
     print('---- COLOR GENERATOR---')
     gen_color.summary()
     print('---- GRAY GENERATOR---')
     gen_gray.summary()
 
-    dis_color = build_discriminator(color_shape, patchgan=False)
-    dis_gray = build_discriminator(gray_shape, patchgan=False)
+    dis_color = build_discriminator(color_shape,
+                                    patchgan=False,
+                                    name='dis_color')
+    dis_gray = build_discriminator(gray_shape,
+                                   patchgan=False,
+                                   name='dis_gray')
     print('---- COLOR DISCRIMINATOR---')
     dis_color.summary()
     print('---- GRAY DISCRIMINATOR---')
     dis_gray.summary()
 
     optimizer = RMSprop(lr=lr, decay=decay)
-    dis_color.compile(loss='mse', optimizer=optimizer, metrics=['accuracy'])
-    dis_gray.compile(loss='mse', optimizer=optimizer, metrics=['accuracy'])
+    dis_color.compile(loss='mse',
+                      optimizer=optimizer,
+                      metrics=['accuracy'])
+    dis_gray.compile(loss='mse',
+                     optimizer=optimizer,
+                     metrics=['accuracy'])
 
     dis_color.trainable = False
     dis_gray.trainable = False
@@ -201,9 +210,9 @@ def colorize_cifar10():
                iden_gray,
                iden_color]
 
-    adv = Model(inputs, outputs)
-    loss = ['mse', 'mse', 'mae', 'mae', 'mse', 'mse']
-    loss_weights = [1., 1., 10., 10., 1., 1.]
+    adv = Model(inputs, outputs, name='adversarial')
+    loss = ['mse', 'mse', 'mae', 'mae', 'mae', 'mae']
+    loss_weights = [1., 1., 10., 10., 0.5, 0.5]
     optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
     adv.compile(loss=loss,
                 loss_weights=loss_weights,
