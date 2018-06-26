@@ -202,20 +202,20 @@ def colorize_cifar10():
     preal_gray = dis_gray(fake_gray)
     reco_color = gen_color(fake_gray)
 
-    iden_gray = gen_gray(img_color)
-    iden_color = gen_color(img_gray)
+    # iden_gray = gen_gray(img_color)
+    # iden_color = gen_color(img_gray)
 
     inputs = [img_gray, img_color]
     outputs = [preal_gray,
                preal_color,
                reco_gray,
-               reco_color,
-               iden_gray,
-               iden_color]
+               reco_color]
+               # iden_gray,
+               # iden_color]
 
     adv = Model(inputs, outputs, name='adversarial')
-    loss = ['mse', 'mse', 'mae', 'mae', 'mae', 'mae']
-    loss_weights = [1., 1., 10., 10., 0.5, 0.5]
+    loss = ['mse', 'mse', 'mae', 'mae']
+    loss_weights = [1., 1., 10., 10.]
     optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
     adv.compile(loss=loss,
                 loss_weights=loss_weights,
