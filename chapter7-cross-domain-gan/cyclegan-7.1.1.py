@@ -26,7 +26,7 @@ def encoder_layer(inputs,
                   filters=16,
                   kernel_size=3,
                   strides=2,
-                  normalize=True):
+                  instance_norm=True):
 
     conv = Conv2D(filters=filters,
                   kernel_size=kernel_size,
@@ -34,7 +34,7 @@ def encoder_layer(inputs,
                   padding='same')
 
     x = inputs
-    if normalize:
+    if instance_norm:
         x = InstanceNormalization()(x)
     x = LeakyReLU(alpha=0.2)(x)
     x = conv(x)
@@ -45,14 +45,17 @@ def decoder_layer(inputs,
                   paired_inputs,
                   filters=16,
                   kernel_size=3,
-                  strides=2):
+                  strides=2,
+                  instance_norm=True):
 
     conv = Conv2DTranspose(filters=filters,
                            kernel_size=kernel_size,
                            strides=strides,
                            padding='same')
 
-    x = InstanceNormalization()(inputs)
+    x = inputs
+    if instance_norm:
+        x = InstanceNormalization()(x)
     x = LeakyReLU(alpha=0.2)(x)
     x = conv(x)
     x = concatenate([x, paired_inputs])
@@ -69,16 +72,16 @@ def build_generator(input_shape,
     e1 = encoder_layer(inputs,
                        32,
                        kernel_size=kernel_size,
-                       strides=1) 
+                       strides=1)
     e2 = encoder_layer(e1,
-                        64,
-                        kernel_size=kernel_size) 
+                       64,
+                       kernel_size=kernel_size)
     e3 = encoder_layer(e2,
                        128,
-                       kernel_size=kernel_size) 
+                       kernel_size=kernel_size)
     e4 = encoder_layer(e3,
                        256,
-                       kernel_size=kernel_size) 
+                       kernel_size=kernel_size)
 
     d1 = decoder_layer(e4,
                        e3,
@@ -112,20 +115,20 @@ def build_discriminator(input_shape,
     x = encoder_layer(inputs,
                       32,
                       kernel_size=kernel_size,
-                      normalize=False)
+                      instance_norm=False)
     x = encoder_layer(x,
                       64,
                       kernel_size=kernel_size,
-                      normalize=False)
+                      instance_norm=False)
     x = encoder_layer(x,
                       128,
                       kernel_size=kernel_size,
-                      normalize=False)
+                      instance_norm=False)
     x = encoder_layer(x,
                       256,
                       kernel_size=kernel_size,
                       strides=1,
-                      normalize=False)
+                      instance_norm=False)
     if patchgan:
         x = LeakyReLU(alpha=0.2)(x)
         outputs = Conv2D(1,

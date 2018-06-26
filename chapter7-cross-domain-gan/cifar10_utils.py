@@ -215,7 +215,8 @@ def test_generator(generator,
     # display the 1st 100 colorized images
     imgs = imgs_color[:100]
     # imgs = 0.5 * (imgs + 1.0)
-    title = 'Colorized test images (Predicted)'
+    title = "{:,}".format(step)
+    title = 'CycleGAN colorized test images. Step: %s' % title
     filename = '%05d.png' % step
     imgs_dir = 'test_outputs'
     img_shape = (x_test_gray.shape[1],
