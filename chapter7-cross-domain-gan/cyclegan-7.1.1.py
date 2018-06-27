@@ -20,6 +20,8 @@ from keras_contrib.layers.normalization import InstanceNormalization
 import numpy as np
 import argparse
 import cifar10_utils
+import mnist_svhn_utils
+import other_utils
 import datetime
 
 
@@ -292,7 +294,6 @@ def build_cyclegan(shapes,
     return g_source, g_target, d_source, d_target, adv
 
 
-
 def graycifar10_cross_colorcifar10():
     model_name = 'cyclegan_cifar10'
     batch_size = 32
@@ -301,8 +302,7 @@ def graycifar10_cross_colorcifar10():
     data, shapes = cifar10_utils.load_data()
     models = build_cyclegan(shapes, "gray", "color")
     params = (batch_size, train_steps, 1, model_name)
-    train_cyclegan(models, data, params, cifar10_utils.test_generator)
-
+    train_cyclegan(models, data, params, other_utils.test_generator)
 
 
 def mnist_cross_svhn():
@@ -313,8 +313,7 @@ def mnist_cross_svhn():
     data, shapes = mnist_svhn_utils.load_data()
     models = build_cyclegan(shapes, "mnist", "svhn")
     params = (batch_size, train_steps, 1, model_name)
-    train_cyclegan(models, data, params, mnist_svhn_utils.test_generator)
-
+    train_cyclegan(models, data, params, other_utils.test_generator)
 
 
 if __name__ == '__main__':
@@ -331,5 +330,5 @@ if __name__ == '__main__':
         generator = load_model(args.generator)
         test_generator(generator)
     else:
-        graycifar10_cross_colorcifar10()
-        # colorize_cifar10()
+        # graycifar10_cross_colorcifar10()
+        mnist_cross_svhn()
