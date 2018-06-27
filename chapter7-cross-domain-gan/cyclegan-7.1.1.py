@@ -20,6 +20,7 @@ from keras_contrib.layers.normalization import InstanceNormalization
 import numpy as np
 import argparse
 import cifar10_utils
+import datetime
 
 
 def encoder_layer(inputs,
@@ -146,70 +147,134 @@ def build_discriminator(input_shape,
     return discriminator
 
 
+def train_cyclegan(models, data, params, test_generator):
+    # the models
+    g_source, g_target, d_source, d_target, adv = models
+    # network parameters
+    batch_size, train_steps, dis_patch, model_name = params
+    # train dataset
+    source_data, target_data, test_source_data = data
+    # the generator image is saved every 500 steps
+    save_interval = 500
+    # number of elements in train dataset
+    target_size = target_data.shape[0]
+    source_size = source_data.shape[0]
 
-def colorize_cifar10():
-    model_name = 'cyclegan_cifar10'
-    batch_size = 32
-    train_steps = 100000
+    # valid = np.ones((batch_size,) + dis_patch)
+    # fake = np.zeros((batch_size,) + dis_patch)
+    valid = np.ones([batch_size, 1])
+    fake = np.zeros([batch_size, 1])
+    valid_fake = np.concatenate((valid, fake))
+
+    start_time = datetime.datetime.now()
+
+    for step in range(train_steps):
+        rand_indexes = np.random.randint(0, target_size, size=batch_size)
+        real_target = target_data[rand_indexes]
+
+        rand_indexes = np.random.randint(0, source_size, size=batch_size)
+        real_source = source_data[rand_indexes]
+        fake_target = g_target.predict(real_source)
+        
+        x = np.concatenate((real_target, fake_target))
+        metrics = d_target.train_on_batch(x, valid_fake)
+        log = "%d: [d_target loss: %f]" % (step, metrics[0])
+
+        fake_source = g_source.predict(real_target)
+        x = np.concatenate((real_source, fake_source))
+        metrics = d_source.train_on_batch(x, valid_fake)
+        log = "%s [d_source loss: %f]" % (log, metrics[0])
+
+        x = [real_source, real_target]
+        y = [valid, valid, real_source, real_target]
+        metrics = adv.train_on_batch(x, y)
+        # print(adv.metrics_names)
+        elapsed_time = datetime.datetime.now() - start_time
+        fmt = "%s [adv loss: %f] [time: %s]"
+        log = fmt % (log, metrics[0], elapsed_time)
+        print(log)
+        if (step + 1) % save_interval == 0:
+            if (step + 1) == train_steps:
+                show = True
+            else:
+                show = False
+
+            test_generator(g_target,
+                           test_source_data,
+                           step=step+1,
+                           show=show)
+
+    # save the model after training the generator
+    g_source.save(model_name + "-g_source.h5")
+    g_target.save(model_name + "-g_target.h5")
+
+
+
+def build_cyclegan(shapes,
+                   source_name='source',
+                   target_name='target',
+                   patchgan=False
+                   ):
+
+    source_shape, target_shape = shapes
     lr = 2e-4
     decay = 6e-8
+    gt_name = "gen_" + target_name
+    gs_name = "gen_" + source_name
+    dt_name = "dis_" + target_name
+    ds_name = "dis_" + source_name
 
-    data, img_shape = cifar10_utils.load_data()
-    rows, cols, _ = img_shape 
-    color_shape = img_shape
-    gray_shape = (rows, cols, 1)
+    g_target = build_generator(source_shape,
+                               target_shape,
+                               name=gt_name)
+    g_source = build_generator(target_shape,
+                               source_shape,
+                               name=gs_name)
+    print('---- TARGET GENERATOR ----')
+    g_target.summary()
+    print('---- SOURCE GENERATOR ----')
+    g_source.summary()
 
-    gen_color = build_generator(gray_shape,
-                                color_shape,
-                                name='gen_color')
-    gen_gray = build_generator(color_shape,
-                               gray_shape,
-                               name='gen_gray')
-    print('---- COLOR GENERATOR---')
-    gen_color.summary()
-    print('---- GRAY GENERATOR---')
-    gen_gray.summary()
-
-    dis_color = build_discriminator(color_shape,
-                                    patchgan=False,
-                                    name='dis_color')
-    dis_gray = build_discriminator(gray_shape,
-                                   patchgan=False,
-                                   name='dis_gray')
-    print('---- COLOR DISCRIMINATOR---')
-    dis_color.summary()
-    print('---- GRAY DISCRIMINATOR---')
-    dis_gray.summary()
+    d_target = build_discriminator(target_shape,
+                                   patchgan=patchgan,
+                                   name=dt_name)
+    d_source = build_discriminator(source_shape,
+                                   patchgan=patchgan,
+                                   name=ds_name)
+    print('---- TARGET DISCRIMINATOR ----')
+    d_target.summary()
+    print('---- SOURCE DISCRIMINATOR ----')
+    d_source.summary()
 
     optimizer = RMSprop(lr=lr, decay=decay)
-    dis_color.compile(loss='mse',
-                      optimizer=optimizer,
-                      metrics=['accuracy'])
-    dis_gray.compile(loss='mse',
+    d_target.compile(loss='mse',
+                     optimizer=optimizer,
+                     metrics=['accuracy'])
+    d_source.compile(loss='mse',
                      optimizer=optimizer,
                      metrics=['accuracy'])
 
-    dis_color.trainable = False
-    dis_gray.trainable = False
+    d_target.trainable = False
+    d_source.trainable = False
 
-    img_gray = Input(shape=(rows, cols, 1))
-    fake_color = gen_color(img_gray)
-    preal_color = dis_color(fake_color)
-    reco_gray = gen_gray(fake_color)
+    source_input = Input(shape=source_shape)
+    fake_target = g_target(source_input)
+    preal_target = d_target(fake_target)
+    reco_source = g_source(fake_target)
 
-    img_color = Input(shape=img_shape)
-    fake_gray = gen_gray(img_color)
-    preal_gray = dis_gray(fake_gray)
-    reco_color = gen_color(fake_gray)
+    target_input = Input(shape=target_shape)
+    fake_source = g_source(target_input)
+    preal_source = d_source(fake_source)
+    reco_target = g_target(fake_source)
 
-    # iden_gray = gen_gray(img_color)
-    # iden_color = gen_color(img_gray)
+    # iden_gray = g_source(img_color)
+    # iden_color = g_target(img_gray)
 
-    inputs = [img_gray, img_color]
-    outputs = [preal_gray,
-               preal_color,
-               reco_gray,
-               reco_color]
+    inputs = [source_input, target_input]
+    outputs = [preal_source,
+               preal_target,
+               reco_source,
+               reco_target]
                # iden_gray,
                # iden_color]
 
@@ -221,15 +286,34 @@ def colorize_cifar10():
                 loss_weights=loss_weights,
                 optimizer=optimizer,
                 metrics=['accuracy'])
+    print('---- ADVERSARIAL NETWORK ----')
     adv.summary()
 
-    # Calculate output shape of D (PatchGAN)
-    patch = int(rows / 2**3)
-    dis_patch = (patch, patch, 1)
+    return g_source, g_target, d_source, d_target, adv
 
-    models = (gen_gray, gen_color, dis_gray, dis_color, adv)
-    params = (batch_size, train_steps, dis_patch, model_name)
-    cifar10_utils.train(models, data, params)
+
+
+def graycifar10_cross_colorcifar10():
+    model_name = 'cyclegan_cifar10'
+    batch_size = 32
+    train_steps = 100000
+
+    data, shapes = cifar10_utils.load_data()
+    models = build_cyclegan(shapes, "gray", "color")
+    params = (batch_size, train_steps, 1, model_name)
+    train_cyclegan(models, data, params, cifar10_utils.test_generator)
+
+
+
+def mnist_cross_svhn():
+    model_name = 'cyclegan_mnist_svhn'
+    batch_size = 32
+    train_steps = 100000
+
+    data, shapes = mnist_svhn_utils.load_data()
+    models = build_cyclegan(shapes, "mnist", "svhn")
+    params = (batch_size, train_steps, 1, model_name)
+    train_cyclegan(models, data, params, mnist_svhn_utils.test_generator)
 
 
 
@@ -247,4 +331,5 @@ if __name__ == '__main__':
         generator = load_model(args.generator)
         test_generator(generator)
     else:
-        colorize_cifar10()
+        graycifar10_cross_colorcifar10()
+        # colorize_cifar10()

@@ -58,7 +58,7 @@ def display_images(imgs,
 
 
 def load_data():
-    # load the CIFAR10 data
+    # load CIFAR10 data
     (x_train, _), (x_test, _) = cifar10.load_data()
 
     # input image dimensions
@@ -120,75 +120,14 @@ def load_data():
                                       cols,
                                       1)
 
-    data = (x_train, x_test, x_train_gray, x_test_gray)
-    img_shape = (rows, cols, channels)
+    # source data, target data, test_source data
+    data = (x_train_gray, x_train, x_test_gray)
+    gray_shape = (rows, cols, 1)
+    color_shape = (rows, cols, channels)
+    # source shape, target shape
+    shapes = (gray_shape, color_shape)
     
-    return data, img_shape
-
-
-def train(models, data, params):
-    # the models
-    gen_gray, gen_color, dis_gray, dis_color, adv = models
-    # network parameters
-    batch_size, train_steps, dis_patch, model_name = params
-    # train dataset
-    x_train, x_test, x_train_gray, x_test_gray = data
-    # the generator image is saved every 500 steps
-    save_interval = 500
-    # number of elements in train dataset
-    train_size = x_train.shape[0]
-
-    # valid = np.ones((batch_size,) + dis_patch)
-    # fake = np.zeros((batch_size,) + dis_patch)
-    valid = np.ones([batch_size, 1])
-    fake = np.zeros([batch_size, 1])
-    valid_fake = np.concatenate((valid, fake))
-
-    start_time = datetime.datetime.now()
-
-    for i in range(train_steps):
-        # train the discriminator1 for 1 batch
-        # 1 batch of real (label=1.0) and fake feature1 (label=0.0)
-        # randomly pick real images from dataset
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
-        real_color = x_train[rand_indexes]
-
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
-        real_gray = x_train_gray[rand_indexes]
-        fake_color = gen_color.predict(real_gray)
-        
-        x = np.concatenate((real_color, fake_color))
-        metrics = dis_color.train_on_batch(x, valid_fake)
-        log = "%d: [dis_color loss: %f]" % (i, metrics[0])
-
-        fake_gray = gen_gray.predict(real_color)
-        x = np.concatenate((real_gray, fake_gray))
-        metrics = dis_gray.train_on_batch(x, valid_fake)
-        log = "%s [dis_gray loss: %f]" % (log, metrics[0])
-
-        x = [real_gray, real_color]
-        y = [valid, valid, real_gray, real_color]
-        metrics = adv.train_on_batch(x, y)
-        # print(adv.metrics_names)
-        elapsed_time = datetime.datetime.now() - start_time
-        fmt = "%s [adv loss: %f] [time: %s]"
-        log = fmt % (log, metrics[0], elapsed_time)
-        print(log)
-        if (i + 1) % save_interval == 0:
-            if (i + 1) == train_steps:
-                show = True
-            else:
-                show = False
-
-            test_generator(gen_color,
-                           x_test_gray,
-                           step=i+1,
-                           show=show)
-
-    # save the model after training the generator
-    gen_gray.save(model_name + "-gray.h5")
-    gen_color.save(model_name + "-color.h5")
-
+    return data, shapes
 
 
 def test_generator(generator,
