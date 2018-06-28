@@ -149,13 +149,16 @@ def build_discriminator(input_shape,
     return discriminator
 
 
-def train_cyclegan(models, data, params, test_generator):
+def train_cyclegan(models, data, params, test_params, test_generator):
     # the models
     g_source, g_target, d_source, d_target, adv = models
     # network parameters
     batch_size, train_steps, dis_patch, model_name = params
     # train dataset
-    source_data, target_data, test_source_data = data
+    source_data, target_data, test_source_data, test_target_data = data
+
+    titles, dirs = test_params
+
     # the generator image is saved every 500 steps
     save_interval = 500
     # number of elements in train dataset
@@ -201,9 +204,11 @@ def train_cyclegan(models, data, params, test_generator):
             else:
                 show = False
 
-            test_generator(g_target,
-                           test_source_data,
+            test_generator((g_source, g_target),
+                           (test_source_data, test_target_data),
                            step=step+1,
+                           titles=titles,
+                           dirs=dirs,
                            show=show)
 
     # save the model after training the generator
@@ -215,6 +220,7 @@ def train_cyclegan(models, data, params, test_generator):
 def build_cyclegan(shapes,
                    source_name='source',
                    target_name='target',
+                   kernel_size=3,
                    patchgan=False
                    ):
 
@@ -228,9 +234,11 @@ def build_cyclegan(shapes,
 
     g_target = build_generator(source_shape,
                                target_shape,
+                               kernel_size=kernel_size,
                                name=gt_name)
     g_source = build_generator(target_shape,
                                source_shape,
+                               kernel_size=kernel_size,
                                name=gs_name)
     print('---- TARGET GENERATOR ----')
     g_target.summary()
@@ -239,9 +247,11 @@ def build_cyclegan(shapes,
 
     d_target = build_discriminator(target_shape,
                                    patchgan=patchgan,
+                                   kernel_size=kernel_size,
                                    name=dt_name)
     d_source = build_discriminator(source_shape,
                                    patchgan=patchgan,
+                                   kernel_size=kernel_size,
                                    name=ds_name)
     print('---- TARGET DISCRIMINATOR ----')
     d_target.summary()
@@ -300,9 +310,16 @@ def graycifar10_cross_colorcifar10():
     train_steps = 100000
 
     data, shapes = cifar10_utils.load_data()
-    models = build_cyclegan(shapes, "gray", "color")
+    models = build_cyclegan(shapes, "gray", "color", kernel_size=3)
     params = (batch_size, train_steps, 1, model_name)
-    train_cyclegan(models, data, params, other_utils.test_generator)
+    titles = ('CIFAR10 predicted source images.', 'CIFAR10 predicted target images.')
+    dirs = ('cifar10_source', 'cifar10_target')
+    test_params = (titles, dirs)
+    train_cyclegan(models,
+                   data,
+                   params,
+                   test_params,
+                   other_utils.test_generator)
 
 
 def mnist_cross_svhn():
@@ -311,9 +328,16 @@ def mnist_cross_svhn():
     train_steps = 100000
 
     data, shapes = mnist_svhn_utils.load_data()
-    models = build_cyclegan(shapes, "mnist", "svhn")
+    models = build_cyclegan(shapes, "mnist", "svhn", kernel_size=3)
     params = (batch_size, train_steps, 1, model_name)
-    train_cyclegan(models, data, params, other_utils.test_generator)
+    titles = ('MNIST predicted source images.', 'SVHN predicted target images.')
+    dirs = ('mnist_source', 'svhn_target')
+    test_params = (titles, dirs)
+    train_cyclegan(models,
+                   data,
+                   params,
+                   test_params,
+                   other_utils.test_generator)
 
 
 if __name__ == '__main__':
@@ -325,10 +349,16 @@ if __name__ == '__main__':
                         "--cifar10",
                         action='store_true',
                         help=help_)
+    help_ = "Train mnist-svhn cross domain cyclegan"
+    parser.add_argument("-m",
+                        "--mnist-svhn",
+                        action='store_true',
+                        help=help_)
     args = parser.parse_args()
     if args.generator:
         generator = load_model(args.generator)
         test_generator(generator)
+    elif args.cifar10:
+        graycifar10_cross_colorcifar10()
     else:
-        # graycifar10_cross_colorcifar10()
         mnist_cross_svhn()
