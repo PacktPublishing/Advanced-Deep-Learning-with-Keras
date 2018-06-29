@@ -10,7 +10,7 @@ from keras.layers import Activation, Dense, Input
 from keras.layers import Conv2D, Flatten
 from keras.layers import Conv2DTranspose
 from keras.layers import LeakyReLU
-from keras.optimizers import RMSprop
+from keras.optimizers import RMSprop, Adam
 from keras.models import Model
 from keras.models import load_model
 from keras.layers.merge import concatenate
@@ -29,6 +29,7 @@ def encoder_layer(inputs,
                   filters=16,
                   kernel_size=3,
                   strides=2,
+                  activation='relu',
                   instance_norm=True):
 
     conv = Conv2D(filters=filters,
@@ -39,7 +40,10 @@ def encoder_layer(inputs,
     x = inputs
     if instance_norm:
         x = InstanceNormalization()(x)
-    x = LeakyReLU(alpha=0.2)(x)
+    if activation == 'relu':
+        x = Activation('relu')(x)
+    else:
+        x = LeakyReLU(alpha=0.2)(x)
     x = conv(x)
     return x
 
@@ -49,6 +53,7 @@ def decoder_layer(inputs,
                   filters=16,
                   kernel_size=3,
                   strides=2,
+                  activation='relu',
                   instance_norm=True):
 
     conv = Conv2DTranspose(filters=filters,
@@ -59,7 +64,10 @@ def decoder_layer(inputs,
     x = inputs
     if instance_norm:
         x = InstanceNormalization()(x)
-    x = LeakyReLU(alpha=0.2)(x)
+    if activation == 'relu':
+        x = Activation('relu')(x)
+    else:
+        x = LeakyReLU(alpha=0.2)(x)
     x = conv(x)
     x = concatenate([x, paired_inputs])
     return x
@@ -75,15 +83,19 @@ def build_generator(input_shape,
     e1 = encoder_layer(inputs,
                        32,
                        kernel_size=kernel_size,
+                       activation='leaky_relu',
                        strides=1)
     e2 = encoder_layer(e1,
                        64,
+                       activation='leaky_relu',
                        kernel_size=kernel_size)
     e3 = encoder_layer(e2,
                        128,
+                       activation='leaky_relu',
                        kernel_size=kernel_size)
     e4 = encoder_layer(e3,
                        256,
+                       activation='leaky_relu',
                        kernel_size=kernel_size)
 
     d1 = decoder_layer(e4,
@@ -118,19 +130,23 @@ def build_discriminator(input_shape,
     x = encoder_layer(inputs,
                       32,
                       kernel_size=kernel_size,
+                      activation='leaky_relu',
                       instance_norm=False)
     x = encoder_layer(x,
                       64,
                       kernel_size=kernel_size,
+                      activation='leaky_relu',
                       instance_norm=False)
     x = encoder_layer(x,
                       128,
                       kernel_size=kernel_size,
+                      activation='leaky_relu',
                       instance_norm=False)
     x = encoder_layer(x,
                       256,
                       kernel_size=kernel_size,
                       strides=1,
+                      activation='leaky_relu',
                       instance_norm=False)
     if patchgan:
         x = LeakyReLU(alpha=0.2)(x)
@@ -153,7 +169,7 @@ def train_cyclegan(models, data, params, test_params, test_generator):
     # the models
     g_source, g_target, d_source, d_target, adv = models
     # network parameters
-    batch_size, train_steps, dis_patch, model_name = params
+    batch_size, train_steps, patch, model_name = params
     # train dataset
     source_data, target_data, test_source_data, test_target_data = data
 
@@ -161,16 +177,18 @@ def train_cyclegan(models, data, params, test_params, test_generator):
 
     # the generator image is saved every 500 steps
     save_interval = 500
-    # number of elements in train dataset
     target_size = target_data.shape[0]
     source_size = source_data.shape[0]
 
-    # valid = np.ones((batch_size,) + dis_patch)
-    # fake = np.zeros((batch_size,) + dis_patch)
-    valid = np.ones([batch_size, 1])
-    fake = np.zeros([batch_size, 1])
-    valid_fake = np.concatenate((valid, fake))
+    if patch > 1:
+        d_patch = (patch, patch, 1)
+        valid = np.ones((batch_size,) + d_patch)
+        fake = np.zeros((batch_size,) + d_patch)
+    else:
+        valid = np.ones([batch_size, 1])
+        fake = np.zeros([batch_size, 1])
 
+    valid_fake = np.concatenate((valid, fake))
     start_time = datetime.datetime.now()
 
     for step in range(train_steps):
@@ -216,7 +234,6 @@ def train_cyclegan(models, data, params, test_params, test_generator):
     g_target.save(model_name + "-g_target.h5")
 
 
-
 def build_cyclegan(shapes,
                    source_name='source',
                    target_name='target',
@@ -259,6 +276,7 @@ def build_cyclegan(shapes,
     d_source.summary()
 
     optimizer = RMSprop(lr=lr, decay=decay)
+    # optimizer = Adam(lr, 0.5)
     d_target.compile(loss='mse',
                      optimizer=optimizer,
                      metrics=['accuracy'])
@@ -310,10 +328,10 @@ def graycifar10_cross_colorcifar10():
     train_steps = 100000
 
     data, shapes = cifar10_utils.load_data()
-    models = build_cyclegan(shapes, "gray", "color", kernel_size=3)
+    models = build_cyclegan(shapes, "gray-3", "color-3", kernel_size=3)
     params = (batch_size, train_steps, 1, model_name)
     titles = ('CIFAR10 predicted source images.', 'CIFAR10 predicted target images.')
-    dirs = ('cifar10_source', 'cifar10_target')
+    dirs = ('cifar10_source-3', 'cifar10_target-3')
     test_params = (titles, dirs)
     train_cyclegan(models,
                    data,
@@ -328,11 +346,18 @@ def mnist_cross_svhn():
     train_steps = 100000
 
     data, shapes = mnist_svhn_utils.load_data()
-    models = build_cyclegan(shapes, "mnist", "svhn", kernel_size=3)
-    params = (batch_size, train_steps, 1, model_name)
+    source_data, _, _, _= data
+    models = build_cyclegan(shapes,
+                            "mnist-5",
+                            "svhn-5",
+                            kernel_size=5,
+                            patchgan=True)
+    patch = int(source_data.shape[1] / 2**3)
+    params = (batch_size, train_steps, patch, model_name)
     titles = ('MNIST predicted source images.', 'SVHN predicted target images.')
-    dirs = ('mnist_source', 'svhn_target')
+    dirs = ('mnist_source-5', 'svhn_target-5')
     test_params = (titles, dirs)
+    print("Train steps: ", train_steps)
     train_cyclegan(models,
                    data,
                    params,

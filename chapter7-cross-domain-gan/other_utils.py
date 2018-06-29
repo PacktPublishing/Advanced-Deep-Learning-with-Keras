@@ -134,5 +134,3 @@ def load_data(data, titles, filenames, todisplay=100):
     shapes = (source_shape, target_shape)
     
     return data, shapes
-
-
