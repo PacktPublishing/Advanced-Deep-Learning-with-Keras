@@ -1,10 +1,5 @@
-'''
-Utility for plotting a linear function
+'''Utility for plotting a linear function
 with and without noise
-
-Project: https://github.com/roatienza/dl-keras
-Dependency: keras 2.0
-Usage: python3 <this file>
 '''
 
 import numpy as np

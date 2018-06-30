@@ -1,10 +1,5 @@
-'''
-Utility for plotting a 2nd deg polynomial and
+'''Utility for plotting a 2nd deg polynomial and
 its derivative
-
-Project: https://github.com/roatienza/dl-keras
-Dependency: keras 2.0
-Usage: python3 <this file>
 '''
 
 from __future__ import absolute_import

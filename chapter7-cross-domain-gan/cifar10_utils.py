@@ -1,4 +1,4 @@
-"""
+"""Load CIFAR10 data
 
 """
 

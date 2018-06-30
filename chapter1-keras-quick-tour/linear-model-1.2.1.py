@@ -1,8 +1,4 @@
-'''
-A simple MLP in Keras implementing linear regression.
-
-https://github.com/roatienza/dl-keras
-Usage: python3 <this file>
+'''A simple MLP in Keras implementing linear regression.
 '''
 
 from __future__ import absolute_import

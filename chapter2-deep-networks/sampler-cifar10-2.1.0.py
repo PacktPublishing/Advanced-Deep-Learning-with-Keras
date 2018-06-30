@@ -1,9 +1,5 @@
-'''
-Demonstrates how to sample and plot CIFAR10 images
+'''Demonstrates how to sample and plot CIFAR10 images
 using Keras API
-
-Project: https://github.com/roatienza/dl-keras
-Usage: python3 <this file>
 '''
 
 from __future__ import absolute_import

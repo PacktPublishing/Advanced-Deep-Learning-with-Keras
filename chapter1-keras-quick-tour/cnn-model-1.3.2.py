@@ -1,9 +1,4 @@
-'''
-A sample CNN network for classification
-
-Project: https://github.com/roatienza/dl-keras
-Dependencies: keras 
-Usage: python3 <this file>
+'''A sample CNN network for classification
 '''
 
 from __future__ import absolute_import

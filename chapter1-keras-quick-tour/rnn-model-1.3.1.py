@@ -1,8 +1,5 @@
 '''
 A Simple RNN model with 30 x 12 input and 5-dim one-hot vector
-
-Project: https://github.com/roatienza/dl-keras
-Usage: python3 <this file>
 '''
 
 from __future__ import absolute_import
