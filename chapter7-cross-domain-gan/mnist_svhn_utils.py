@@ -1,4 +1,13 @@
-"""
+"""Utilities for loading MNIST and SVHN
+
+Street View House Number (SVHN) dataset:
+http://ufldl.stanford.edu/housenumbers/
+
+Yuval Netzer, Tao Wang, Adam Coates, Alessandro Bissacco, 
+Bo Wu, Andrew Y. Ng Reading Digits in Natural Images with 
+Unsupervised Feature Learning NIPS Workshop on Deep Learning 
+and Unsupervised Feature Learning 2011. (PDF)
+
 
 """
 
@@ -18,6 +27,7 @@ def load_data():
     (source_data, _), (test_source_data, _) = mnist.load_data()
 
     # pad with zeros 28x28 MNIST image to become 32x32
+    # svhn is 32x32
     source_data = np.pad(source_data,
                          ((0,0), (2,2), (2,2)),
                          'constant',
@@ -60,10 +70,13 @@ def load_data():
 def loadmat(filename):
     # load SVHN dataset
     mat = io.loadmat(filename)
+    # the key to image data is 'X', the image label key is 'y'
     data = mat['X']
     rows =data.shape[0]
     cols = data.shape[1]
     channels = data.shape[2]
+    # in matlab data, the image index is the last index
+    # in keras, the image index is the first index so
+    # perform transpose for the last index
     data = np.transpose(data, (3, 0, 1, 2))
-    print(data.shape)
     return data

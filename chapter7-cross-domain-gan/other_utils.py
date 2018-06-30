@@ -1,4 +1,5 @@
-"""
+"""General utilities for displaying and loading data, RGB to gray
+function, and testing source/target generators
 
 """
 
@@ -11,10 +12,11 @@ import matplotlib.pyplot as plt
 import os
 import math
 
-# convert from color image (RGB) to grayscale
-# source: opencv.org
-# grayscale = 0.299*red + 0.587*green + 0.114*blue
 def rgb2gray(rgb):
+    """Convert from color image (RGB) to grayscale
+       Reference: opencv.org
+       Formula: grayscale = 0.299*red + 0.587*green + 0.114*blue
+    """
     return np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
 
 
@@ -23,6 +25,17 @@ def display_images(imgs,
                    title='',
                    imgs_dir=None,
                    show=False):
+    """Display images in an nxn grid
+
+    Arguments:
+    imgs (tensor): array of images
+    filename (string): filename to save the displayed image
+    title (string): title on the displayed image
+    imgs_dir (string): directory where to save the files
+    show (bool): whether to display the image or not 
+          (False during training, True during testing)
+
+    """
 
     rows = imgs.shape[1]
     cols = imgs.shape[2]
@@ -64,6 +77,22 @@ def test_generator(generators,
                    dirs,
                    todisplay=100,
                    show=False):
+    """Test the generator models
+
+    Arguments:
+    generators (tuple): source and target generators
+    test_data (tuple): source and target test data
+    step (int): step number during training (0 during testing)
+    titles (tuple): titles on the displayed image
+    dirs (tuple): folders to save the outputs of testings
+    todisplay (int): number of images to display (must be
+        perfect square)
+    show (bool): whether to display the image or not 
+          (False during training, True during testing)
+
+    """
+
+
     # predict the output from test data
     g_source, g_target = generators
     test_source_data, test_target_data = test_data
@@ -82,7 +111,7 @@ def test_generator(generators,
                    filename=filename,
                    imgs_dir=dir_pred_target,
                    title=title,
-                   show=False)
+                   show=show)
 
     imgs = pred_source_data[:todisplay]
     title = title_pred_source + step
@@ -90,10 +119,21 @@ def test_generator(generators,
                    filename=filename,
                    imgs_dir=dir_pred_source,
                    title=title,
-                   show=False)
+                   show=show)
 
 
 def load_data(data, titles, filenames, todisplay=100):
+    """Generic loaded data transformation
+
+    Arguments:
+    data (tuple): source, target, test source, test target data
+    titles (tuple): titles of the test and source images to display
+    filenames (tuple): filenames of the test and source images to
+       display
+    todisplay (int): number of images to display (must be
+        perfect square)
+
+    """
 
     source_data, target_data, test_source_data, test_target_data = data
     test_source_filename, test_target_filename = filenames
