@@ -75,13 +75,14 @@ def encoder_layer(inputs,
                   strides=strides,
                   padding='same')
 
-    x = conv(inputs)
+    x = inputs
     if instance_norm:
         x = InstanceNormalization()(x)
     if activation == 'relu':
         x = Activation('relu')(x)
     else:
         x = LeakyReLU(alpha=0.2)(x)
+    x = conv(x)
     return x
 
 
@@ -102,13 +103,14 @@ def decoder_layer(inputs,
                            strides=strides,
                            padding='same')
 
-    x = conv(inputs)
+    x = inputs
     if instance_norm:
         x = InstanceNormalization()(x)
     if activation == 'relu':
         x = Activation('relu')(x)
     else:
         x = LeakyReLU(alpha=0.2)(x)
+    x = conv(x)
     x = concatenate([x, paired_inputs])
     return x
 
@@ -218,7 +220,7 @@ def build_discriminator(input_shape,
     # if patchgan=True use nxn-dim output of probability
     # else use 1-dim output of probability
     if patchgan:
-        # x = LeakyReLU(alpha=0.2)(x)
+        x = LeakyReLU(alpha=0.2)(x)
         outputs = Conv2D(1,
                          kernel_size=kernel_size,
                          strides=1,
@@ -493,14 +495,14 @@ def mnist_cross_svhn(g_models=None):
     """
 
     model_name = 'cyclegan_mnist_svhn'
-    batch_size = 1
-    train_steps = 200000
+    batch_size = 32
+    train_steps = 100000
 
     data, shapes = mnist_svhn_utils.load_data()
     source_data, _, test_source_data, test_target_data = data
     titles = ('MNIST predicted source images.',
               'SVHN predicted target images.')
-    dirs = ('mnist_source-3', 'svhn_target-3')
+    dirs = ('mnist_source-5', 'svhn_target-5')
 
     # generate predicted target(svhn) and source(mnist) images
     if g_models is not None:
@@ -517,14 +519,14 @@ def mnist_cross_svhn(g_models=None):
     # kernel_size=5 and with patchgan 
     # has more natural looking fake svhn and mnist
     models = build_cyclegan(shapes,
-                            "mnist-3",
-                            "svhn-3",
-                            kernel_size=3,
-                            patchgan=True)
+                            "mnist-5",
+                            "svhn-5",
+                            kernel_size=5,
+                            patchgan=False)
     # patch size is divided by 2^n since we downscaled the input
     # in the discriminator by 2^n (ie. we use strides=2 n times)
-    patch = int(source_data.shape[1] / 2**3)
-    params = (batch_size, train_steps, patch, model_name)
+    patch = int(source_data.shape[1] / 2**4)
+    params = (batch_size, train_steps, 1, model_name)
     test_params = (titles, dirs)
     train_cyclegan(models,
                    data,
