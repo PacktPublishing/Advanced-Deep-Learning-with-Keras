@@ -223,7 +223,7 @@ def build_discriminator(input_shape,
         x = LeakyReLU(alpha=0.2)(x)
         outputs = Conv2D(1,
                          kernel_size=kernel_size,
-                         strides=1,
+                         strides=2,
                          padding='same')(x)
     else:
         x = Flatten()(x)
@@ -497,12 +497,15 @@ def mnist_cross_svhn(g_models=None):
     model_name = 'cyclegan_mnist_svhn'
     batch_size = 32
     train_steps = 100000
+    patchgan = True
+    kernel_size = 5
+    postfix = ('%dp' % kernel_size) if patchgan else ('%d' % kernel_size)
 
     data, shapes = mnist_svhn_utils.load_data()
     source_data, _, test_source_data, test_target_data = data
     titles = ('MNIST predicted source images.',
               'SVHN predicted target images.')
-    dirs = ('mnist_source-5', 'svhn_target-5')
+    dirs = ('mnist_source-%s' % postfix, 'svhn_target-%s' % postfix)
 
     # generate predicted target(svhn) and source(mnist) images
     if g_models is not None:
@@ -519,14 +522,14 @@ def mnist_cross_svhn(g_models=None):
     # kernel_size=5 and with patchgan 
     # has more natural looking fake svhn and mnist
     models = build_cyclegan(shapes,
-                            "mnist-5",
-                            "svhn-5",
-                            kernel_size=5,
-                            patchgan=False)
+                            "mnist-%s" % postfix,
+                            "svhn-%s" % postfix,
+                            kernel_size=kernel_size,
+                            patchgan=patchgan)
     # patch size is divided by 2^n since we downscaled the input
     # in the discriminator by 2^n (ie. we use strides=2 n times)
-    patch = int(source_data.shape[1] / 2**4)
-    params = (batch_size, train_steps, 1, model_name)
+    patch = int(source_data.shape[1] / 2**4) if patchgan else 1
+    params = (batch_size, train_steps, patch, model_name)
     test_params = (titles, dirs)
     train_cyclegan(models,
                    data,
