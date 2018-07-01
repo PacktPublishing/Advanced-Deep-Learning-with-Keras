@@ -180,7 +180,7 @@ def build_discriminator(input_shape,
                         kernel_size=3,
                         patchgan=True,
                         name=None):
-    """The discriminator is a 4-layer decoder that outputs either
+    """The discriminator is a 4-layer encoder that outputs either
     a 1-dim or a n x n-dim patch of probability that input is real 
 
     Arguments:
@@ -262,7 +262,7 @@ def train_cyclegan(models, data, params, test_params, test_generator):
 
     titles, dirs = test_params
 
-    # the generator image is saved every 500 steps
+    # the generator image is saved every 2000 steps
     save_interval = 2000
     target_size = target_data.shape[0]
     source_size = source_data.shape[0]
@@ -287,7 +287,7 @@ def train_cyclegan(models, data, params, test_params, test_generator):
         # sample a batch of real source data
         rand_indexes = np.random.randint(0, source_size, size=batch_size)
         real_source = source_data[rand_indexes]
-        # generate a batch of fake data fr real source data
+        # generate a batch of fake target data fr real source data
         fake_target = g_target.predict(real_source)
         
         # combine real and fake into one batch
@@ -296,7 +296,7 @@ def train_cyclegan(models, data, params, test_params, test_generator):
         metrics = d_target.train_on_batch(x, valid_fake)
         log = "%d: [d_target loss: %f]" % (step, metrics[0])
 
-        # generate a batch of fake data fr real source data
+        # generate a batch of fake source data fr real target data
         fake_source = g_source.predict(real_target)
         x = np.concatenate((real_source, fake_source))
         # train the source discriminator using fake/real data
@@ -462,16 +462,19 @@ def graycifar10_cross_colorcifar10(g_models=None):
     model_name = 'cyclegan_cifar10'
     batch_size = 32
     train_steps = 100000
+    patchgan = True
+    kernel_size = 3
+    postfix = ('%dp' % kernel_size) if patchgan else ('%d' % kernel_size)
 
     data, shapes = cifar10_utils.load_data()
+    source_data, _, test_source_data, test_target_data = data
     titles = ('CIFAR10 predicted source images.',
              'CIFAR10 predicted target images.')
-    dirs = ('cifar10_source-3', 'cifar10_target-3')
+    dirs = ('cifar10_source-%s' % postfix, 'cifar10_target-%s' % postfix)
 
     # generate predicted target(color) and source(gray) images
     if g_models is not None:
         g_source, g_target = g_models
-        _, _, test_source_data, test_target_data = data
         other_utils.test_generator((g_source, g_target),
                                    (test_source_data, test_target_data),
                                    step=0,
@@ -480,9 +483,18 @@ def graycifar10_cross_colorcifar10(g_models=None):
                                    show=True)
         return
 
-    models = build_cyclegan(shapes, "gray-3", "color-3", kernel_size=3)
-    params = (batch_size, train_steps, 1, model_name)
+    # build the cyclegan for cifar10 colorization
+    models = build_cyclegan(shapes,
+                            "gray-%s" % postfix,
+                            "color-%s" % postfix,
+                            kernel_size=kernel_size,
+                            patchgan=patchgan)
+    # patch size is divided by 2^n since we downscaled the input
+    # in the discriminator by 2^n (ie. we use strides=2 n times)
+    patch = int(source_data.shape[1] / 2**4) if patchgan else 1
+    params = (batch_size, train_steps, patch, model_name)
     test_params = (titles, dirs)
+    # train the cyclegan
     train_cyclegan(models,
                    data,
                    params,
@@ -510,7 +522,6 @@ def mnist_cross_svhn(g_models=None):
     # generate predicted target(svhn) and source(mnist) images
     if g_models is not None:
         g_source, g_target = g_models
-        _, _, test_source_data, test_target_data = data
         other_utils.test_generator((g_source, g_target),
                                    (test_source_data, test_target_data),
                                    step=0,
@@ -519,8 +530,7 @@ def mnist_cross_svhn(g_models=None):
                                    show=True)
         return
 
-    # kernel_size=5 and with patchgan 
-    # has more natural looking fake svhn and mnist
+    # build the cyclegan for mnist cross svhn
     models = build_cyclegan(shapes,
                             "mnist-%s" % postfix,
                             "svhn-%s" % postfix,
@@ -531,6 +541,7 @@ def mnist_cross_svhn(g_models=None):
     patch = int(source_data.shape[1] / 2**4) if patchgan else 1
     params = (batch_size, train_steps, patch, model_name)
     test_params = (titles, dirs)
+    # train the cyclegan
     train_cyclegan(models,
                    data,
                    params,
