@@ -34,7 +34,7 @@ class PolicyAgent():
         n_inputs = env.observation_space.shape[0]
         self.action_model, self.log_prob_model = self.build_model(n_inputs)
         # self.pi_model = self.build_model(n_inputs)
-        self.log_prob_model.compile(loss=self.loss, optimizer=Adam(lr=1e-3))
+        self.log_prob_model.compile(loss=self.loss, optimizer=Adam(lr=1e-5))
 
     def reset_memory(self):
         self.memory = []
@@ -82,10 +82,12 @@ class PolicyAgent():
     def remember(self, item):
         self.memory.append(item)
 
-    def train_by_step(self, t, state, reward):
+    def train_by_step(self, step, state, reward):
+        discount_factor = self.gamma**step
+        reward *= discount_factor
         target = np.array([reward])
         target = np.reshape(target, [1, 1])
-        if t == 998:
+        if reward > 0 or step == 998:
             verbose = 1
         else:
             verbose = 0
@@ -98,15 +100,16 @@ class PolicyAgent():
     def train_by_episode(self):
         state_batch, target_batch = [], []
         for item in self.memory:
-            t, state, reward = item
+            step, state, reward = item
             target_batch.append(reward)
             state_batch.append(state)
-
-        state_batch = np.reshape(state_batch, [len(self.memory),2])
+    
+        batch_size = len(self.memory)
+        state_batch = np.reshape(state_batch, [batch_size,2])
         print(state_batch.shape)
         self.log_prob_model.fit(state_batch,
                           np.array(target_batch),
-                          batch_size=32,
+                          batch_size=batch_size,
                           epochs=1,
                           verbose=1)
 
@@ -126,7 +129,7 @@ if __name__ == '__main__':
 
     env = wrappers.Monitor(env, directory=outdir, force=True)
     env.seed(0)
-    print(env._max_episode_steps)
+    # print(env._max_episode_steps)
 
     # instantiate agent
     agent = PolicyAgent(env)
@@ -151,14 +154,16 @@ if __name__ == '__main__':
             action = agent.act(state)
             env.render()
             next_state, reward, done, _ = env.step(action)
+            total_reward += reward
+            if done:
+                reward = 0
             if train_by_episode:
-                item = (t, state, reward)
+                item = (step, state, reward)
                 agent.remember(item)
             else:
-                agent.train_by_step(t, state, reward)
+                agent.train_by_step(step, state, reward)
             state = next_state
             state = np.reshape(state, [1, state_size])
-            total_reward += reward
             step += 1
 
         fmt = "Episode=%d, Step=%d. Action=%f, Reward=%f, Total_Reward=%f"
