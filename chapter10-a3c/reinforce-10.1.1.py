@@ -17,12 +17,15 @@ import random
 import argparse
 import gym
 from gym import wrappers, logger
+import sys
+import csv
 
 
 class PolicyAgent():
-    def __init__(self, env):
+    def __init__(self, env, args):
 
         self.env = env
+        self.args = args
         # experience buffer
         self.memory = []
 
@@ -30,10 +33,9 @@ class PolicyAgent():
         self.gamma = 0.99
 
         # weights filename
-        self.weights_file = 'reinforce_mountaincarcontinuous.h5'
+        self.weights_file = 'reinforce_mntcar.h5'
         n_inputs = env.observation_space.shape[0]
         self.action_model, self.log_prob_model = self.build_model(n_inputs)
-        # self.pi_model = self.build_model(n_inputs)
         self.log_prob_model.compile(loss=self.loss, optimizer=Adam(lr=1e-5))
 
     def reset_memory(self):
@@ -87,7 +89,7 @@ class PolicyAgent():
         reward *= discount_factor
         target = np.array([reward])
         target = np.reshape(target, [1, 1])
-        if reward > 0 or step == 998:
+        if step == 997:
             verbose = 1
         else:
             verbose = 0
@@ -120,25 +122,36 @@ if __name__ == '__main__':
                         nargs='?',
                         default='MountainCarContinuous-v0',
                         help='Select the environment to run')
+    parser.add_argument("-b",
+                        "--baseline",
+                        action='store_true',
+                        help="Reinforce with baseline")
     args = parser.parse_args()
 
     logger.setLevel(logger.ERROR)
     env = gym.make(args.env_id)
 
-    outdir = "/tmp/reinforce-%s" % args.env_id
+    postfix = ''
+    if args.baseline:
+        postfix = "-baseline"
+    outdir = "/tmp/reinforce%s-%s" % (postfix, args.env_id)
+    csvfilename = "reinforce%s.csv" % postfix
+    csvfile = open(csvfilename, 'w', 1)
+    writer = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_NONNUMERIC)
+    writer.writerow(['Episode','Step','Total Reward','Number of Episodes Solved'])
 
     env = wrappers.Monitor(env, directory=outdir, force=True)
     env.seed(0)
     # print(env._max_episode_steps)
 
     # instantiate agent
-    agent = PolicyAgent(env)
+    agent = PolicyAgent(env, args)
 
     # should be solved in this number of episodes
     episode_count = 1000
     state_size = env.observation_space.shape[0]
     train_by_episode = False
-
+    n_solved = 0 
     # sampling and fitting
     for episode in range(episode_count):
         state = env.reset()
@@ -149,14 +162,17 @@ if __name__ == '__main__':
         step = 0
         total_reward = 0
         done = False
-        while not done:
+        while True:
             # [min, max] action = [-1.0, 1.0]
             action = agent.act(state)
             env.render()
             next_state, reward, done, _ = env.step(action)
             total_reward += reward
             if done:
+                if reward > 0:
+                    n_solved += 1
                 reward = 0
+                break
             if train_by_episode:
                 item = (step, state, reward)
                 agent.remember(item)
@@ -168,9 +184,11 @@ if __name__ == '__main__':
 
         fmt = "Episode=%d, Step=%d. Action=%f, Reward=%f, Total_Reward=%f"
         print(fmt % (episode, step, action[0], reward, total_reward))
+        writer.writerow([episode, step, total_reward, n_solved])
         if train_by_episode:
             agent.train_by_episode()
 
 
     # close the env and write monitor result info to disk
+    csvfile.close()
     env.close() 
