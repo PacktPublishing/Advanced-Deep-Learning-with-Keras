@@ -28,29 +28,19 @@ class PolicyAgent():
 
         # discount rate
         self.gamma = 0.99
-        self.action = 0.0
-        self.log_prob = 0.0
 
         # weights filename
         self.weights_file = 'reinforce_mountaincarcontinuous.h5'
         n_inputs = env.observation_space.shape[0]
-        self.pi_model = self.build_model(n_inputs)
-        self.pi_model.compile(loss=self.loss, optimizer=Adam(lr=1e-5))
+        self.action_model, self.log_prob_model = self.build_model(n_inputs)
+        # self.pi_model = self.build_model(n_inputs)
+        self.log_prob_model.compile(loss=self.loss, optimizer=Adam(lr=1e-3))
 
     def reset_memory(self):
         self.memory = []
     
     def loss(self, y_true, y_pred):
-
-        # loss = -y_pred[0][1] * y_true[0][1]
-        # mean = y_pred[0][0]
-        # stddev = y_pred[0][1]
-        # action = self.action_sample([mean, stddev])
-        # action_log_prob = self.action_log_prob([mean, stddev, self.action])
-        loss = -y_pred[0][0][1] * y_true[0][0][1]
-
-        discount_rate = self.gamma**y_true[0][0][0]
-        loss *= discount_rate
+        loss = K.mean(-y_pred * y_true)
         return loss
 
     def action_sample(self, args):
@@ -58,9 +48,9 @@ class PolicyAgent():
         dist = tf.distributions.Normal(loc=mean, scale=stddev)
         action = dist.sample(1)
         action = K.clip(action, self.env.action_space.low[0], self.env.action_space.high[0])
-        log_prob = dist.log_prob(action)
-        outputs = concatenate([action, log_prob])
-        return outputs
+        # log_prob = dist.log_prob(action)
+        # outputs = concatenate([action, log_prob])
+        return action
 
     def action_log_prob(self, args):
         mean, stddev, action = args
@@ -70,56 +60,55 @@ class PolicyAgent():
 
     def build_model(self, n_inputs):
         inputs = Input(shape=(n_inputs, ), name='state')
-        x = Dense(64, activation='relu')(inputs)
-        x = Dense(64, activation='relu')(x)
-        x = Dense(64, activation='relu')(x)
+        x = Dense(256, activation='relu')(inputs)
+        x = Dense(256, activation='relu')(x)
+        x = Dense(256, activation='relu')(x)
         mean = Dense(1, activation='linear', name='action_mean')(x)
         stddev = Dense(1, activation='softplus', name='action_stddev')(x)
-        # action = Lambda(self.action_sample, output_shape=(1,), name='action')([mean, stddev])
-        # log_prob = Lambda(self.action_log_prob, output_shape=(1,), name='action_log_prob')([mean, stddev, action])
-        # outputs = concatenate([mean, stddev])
-        outputs = Lambda(self.action_sample, name='action')([mean, stddev])
-        model = Model(inputs, outputs)
-        model.summary()
-        return model
-
+        action = Lambda(self.action_sample, output_shape=(1,), name='action')([mean, stddev])
+        log_prob = Lambda(self.action_log_prob, output_shape=(1,), name='action_log_prob')([mean, stddev, action])
+        action_model = Model(inputs, action)
+        action_model.summary()
+        log_prob_model = Model(inputs, log_prob)
+        log_prob_model.summary()
+        return action_model, log_prob_model
 
     def act(self, state):
-        outputs = self.pi_model.predict(state)
-        action = outputs[0][0][0]
-        # stddev = outputs[0][1]
-        # action = self.action_sample([mean, stddev])
-        # self.log_prob = self.action_log_prob([mean, stddev, action])
-        # action = K.eval(action)
-        # print(action)
-        return [action]
+        outputs = self.action_model.predict(state)
+        # print(outputs.shape)
+        action = outputs[0]
+        return action
 
     def remember(self, item):
         self.memory.append(item)
 
-    def train_once(self, t, state, reward):
-        target = np.array([t, reward])
-        target = np.reshape(target, [1, 1, 2])
+    def train_by_step(self, t, state, reward):
+        target = np.array([reward])
+        target = np.reshape(target, [1, 1])
         if t == 998:
             verbose = 1
         else:
             verbose = 0
-        self.pi_model.fit(np.array(state),
+        self.log_prob_model.fit(np.array(state),
                           target,
                           batch_size=1,
                           epochs=1,
                           verbose=verbose)
 
-    def train(self):
+    def train_by_episode(self):
+        state_batch, target_batch = [], []
         for item in self.memory:
             t, state, reward = item
-            target = np.array([t, reward])
-            target = np.reshape(target, [1, 2])
-            self.pi_model.fit(np.array(state),
-                              target,
-                              batch_size=1,
-                              epochs=1,
-                              verbose=0)
+            target_batch.append(reward)
+            state_batch.append(state)
+
+        state_batch = np.reshape(state_batch, [len(self.memory),2])
+        print(state_batch.shape)
+        self.log_prob_model.fit(state_batch,
+                          np.array(target_batch),
+                          batch_size=32,
+                          epochs=1,
+                          verbose=1)
 
 
 if __name__ == '__main__':
@@ -137,6 +126,7 @@ if __name__ == '__main__':
 
     env = wrappers.Monitor(env, directory=outdir, force=True)
     env.seed(0)
+    print(env._max_episode_steps)
 
     # instantiate agent
     agent = PolicyAgent(env)
@@ -144,31 +134,37 @@ if __name__ == '__main__':
     # should be solved in this number of episodes
     episode_count = 1000
     state_size = env.observation_space.shape[0]
+    train_by_episode = False
 
     # sampling and fitting
     for episode in range(episode_count):
         state = env.reset()
         # state is car [position, speed]
         state = np.reshape(state, [1, state_size])
-        done = False
-        agent.reset_memory()
-        t = 0
+        if train_by_episode:
+            agent.reset_memory()
+        step = 0
         total_reward = 0
+        done = False
         while not done:
             # [min, max] action = [-1.0, 1.0]
             action = agent.act(state)
             env.render()
             next_state, reward, done, _ = env.step(action)
-            # item = (t, state, reward)
-            # agent.remember(item)
-            agent.train_once(t, state, reward)
+            if train_by_episode:
+                item = (t, state, reward)
+                agent.remember(item)
+            else:
+                agent.train_by_step(t, state, reward)
             state = next_state
             state = np.reshape(state, [1, state_size])
             total_reward += reward
-            t += 1
+            step += 1
 
-        print("Done at t=%d. Action=%f, Reward=%f, Total_Reward=%f" % (t, action[0], reward, total_reward))
-        # agent.train()
+        fmt = "Episode=%d, Step=%d. Action=%f, Reward=%f, Total_Reward=%f"
+        print(fmt % (episode, step, action[0], reward, total_reward))
+        if train_by_episode:
+            agent.train_by_episode()
 
 
     # close the env and write monitor result info to disk
