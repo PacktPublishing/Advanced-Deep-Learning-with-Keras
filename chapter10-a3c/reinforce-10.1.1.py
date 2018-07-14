@@ -35,12 +35,13 @@ class PolicyAgent():
         # weights filename
         self.weights_file = 'reinforce_mntcar.h5'
         n_inputs = env.observation_space.shape[0]
-        self.action_model, self.log_prob_model = self.build_model(n_inputs)
+        self.action_model, self.log_prob_model, self.value_model = self.build_model(n_inputs)
         self.log_prob_model.compile(loss=self.loss, optimizer=Adam(lr=1e-5))
+        self.value_model.compile(loss='mse', optimizer=Adam(lr=1e-5))
 
     def reset_memory(self):
         self.memory = []
-    
+   
     def loss(self, y_true, y_pred):
         loss = K.mean(-y_pred * y_true)
         return loss
@@ -65,6 +66,8 @@ class PolicyAgent():
         x = Dense(256, activation='relu')(inputs)
         x = Dense(256, activation='relu')(x)
         x = Dense(256, activation='relu')(x)
+        y = Dense(128, activation='relu')(x)
+        value = Dense(1, activation='linear', name='value')(y)
         mean = Dense(1, activation='linear', name='action_mean')(x)
         stddev = Dense(1, activation='softplus', name='action_stddev')(x)
         action = Lambda(self.action_sample, output_shape=(1,), name='action')([mean, stddev])
@@ -73,20 +76,33 @@ class PolicyAgent():
         action_model.summary()
         log_prob_model = Model(inputs, log_prob)
         log_prob_model.summary()
-        return action_model, log_prob_model
+        value_model = Model(inputs, value)
+        value_model.summary()
+        return action_model, log_prob_model, value_model
 
     def act(self, state):
-        outputs = self.action_model.predict(state)
-        # print(outputs.shape)
-        action = outputs[0]
-        return action
+        action = self.action_model.predict(state)
+        return action[0]
+
+    def value(self, state):
+        value = self.value_model.predict(state)
+        return value[0]
 
     def remember(self, item):
         self.memory.append(item)
 
-    def train_by_step(self, step, state, reward):
+    def train(self, step, state, next_state, reward):
         discount_factor = self.gamma**step
-        reward *= discount_factor
+        if self.args.baseline:
+            value_target = reward
+            value_target = np.reshape(value_target, [1, 1])
+            reward -= self.value(state)[0] 
+        elif self.args.actor_critic:
+            next_value = self.value(next_state)[0]
+            value_target = reward + self.gamma*next_value
+            reward = value_target - self.value(state)[0] 
+            value_target = np.reshape(value_target, [1, 1])
+        # reward *= discount_factor
         target = np.array([reward])
         target = np.reshape(target, [1, 1])
         if step == 997:
@@ -94,26 +110,17 @@ class PolicyAgent():
         else:
             verbose = 0
         self.log_prob_model.fit(np.array(state),
-                          target,
-                          batch_size=1,
-                          epochs=1,
-                          verbose=verbose)
+                                target,
+                                batch_size=1,
+                                epochs=1,
+                                verbose=verbose)
 
-    def train_by_episode(self):
-        state_batch, target_batch = [], []
-        for item in self.memory:
-            step, state, reward = item
-            target_batch.append(reward)
-            state_batch.append(state)
-    
-        batch_size = len(self.memory)
-        state_batch = np.reshape(state_batch, [batch_size,2])
-        print(state_batch.shape)
-        self.log_prob_model.fit(state_batch,
-                          np.array(target_batch),
-                          batch_size=batch_size,
-                          epochs=1,
-                          verbose=1)
+        if self.args.baseline or self.args.actor_critic:
+            self.value_model.fit(np.array(state),
+                                 value_target,
+                                 batch_size=1,
+                                 epochs=1,
+                                 verbose=verbose)
 
 
 if __name__ == '__main__':
@@ -126,6 +133,11 @@ if __name__ == '__main__':
                         "--baseline",
                         action='store_true',
                         help="Reinforce with baseline")
+    parser.add_argument("-a",
+                        "--actor_critic",
+                        action='store_true',
+                        help="Actor-Critic")
+    args = parser.parse_args()
     args = parser.parse_args()
 
     logger.setLevel(logger.ERROR)
@@ -134,6 +146,8 @@ if __name__ == '__main__':
     postfix = ''
     if args.baseline:
         postfix = "-baseline"
+    elif args.actor_critic:
+        postfix = "-actor-critic"
     outdir = "/tmp/reinforce%s-%s" % (postfix, args.env_id)
     csvfilename = "reinforce%s.csv" % postfix
     csvfile = open(csvfilename, 'w', 1)
@@ -148,46 +162,38 @@ if __name__ == '__main__':
     agent = PolicyAgent(env, args)
 
     # should be solved in this number of episodes
-    episode_count = 1000
+    episode_count = 100
     state_size = env.observation_space.shape[0]
-    train_by_episode = False
     n_solved = 0 
+
     # sampling and fitting
     for episode in range(episode_count):
         state = env.reset()
         # state is car [position, speed]
         state = np.reshape(state, [1, state_size])
-        if train_by_episode:
-            agent.reset_memory()
         step = 0
         total_reward = 0
         done = False
-        while True:
+        while not done:
             # [min, max] action = [-1.0, 1.0]
             action = agent.act(state)
             env.render()
             next_state, reward, done, _ = env.step(action)
+            next_state = np.reshape(next_state, [1, state_size])
             total_reward += reward
             if done:
-                if reward > 0:
-                    n_solved += 1
-                reward = 0
-                break
-            if train_by_episode:
-                item = (step, state, reward)
-                agent.remember(item)
-            else:
-                agent.train_by_step(step, state, reward)
+                if not args.baseline and not args.actor_critic:
+                    step += 1
+                    break
+            agent.train(step, state, next_state, reward)
             state = next_state
-            state = np.reshape(state, [1, state_size])
             step += 1
 
+        if reward > 0:
+            n_solved += 1
         fmt = "Episode=%d, Step=%d. Action=%f, Reward=%f, Total_Reward=%f"
         print(fmt % (episode, step, action[0], reward, total_reward))
         writer.writerow([episode, step, total_reward, n_solved])
-        if train_by_episode:
-            agent.train_by_episode()
-
 
     # close the env and write monitor result info to disk
     csvfile.close()
