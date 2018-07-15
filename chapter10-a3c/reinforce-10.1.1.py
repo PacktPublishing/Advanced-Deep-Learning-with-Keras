@@ -26,72 +26,97 @@ class PolicyAgent():
 
         self.env = env
         self.args = args
-        # experience buffer
-        self.memory = []
 
         # discount rate
         self.gamma = 0.99
+        self.state = env.reset()
+        state_size = env.observation_space.shape[0]
+        self.state = np.reshape(self.state, [1, state_size])
 
         # weights filename
-        self.weights_file = 'reinforce_mntcar.h5'
+        self.weights_file = 'reinforce_%s.h5' % args.env_id
         n_inputs = env.observation_space.shape[0]
-        self.action_model, self.log_prob_model, self.value_model = self.build_model(n_inputs)
-        self.log_prob_model.compile(loss=self.loss, optimizer=Adam(lr=1e-5))
+        self.actor_model, self.logprob_model, self.entropy_model, self.value_model = self.build_models(n_inputs)
+        loss = self.logprob_loss(self.state)
+        self.logprob_model.compile(loss=loss, optimizer=Adam(lr=1e-5))
         self.value_model.compile(loss='mse', optimizer=Adam(lr=1e-5))
 
-    def reset_memory(self):
-        self.memory = []
-   
-    def loss(self, y_true, y_pred):
-        loss = K.mean(-y_pred * y_true)
+
+    def logprob_loss(self, entropy):
+        def loss(y_true, y_pred):
+            return K.mean((-y_pred * y_true) - (0.1 * entropy))
+
         return loss
 
-    def action_sample(self, args):
+
+    def action(self, args):
         mean, stddev = args
         dist = tf.distributions.Normal(loc=mean, scale=stddev)
         action = dist.sample(1)
         action = K.clip(action, self.env.action_space.low[0], self.env.action_space.high[0])
-        # log_prob = dist.log_prob(action)
-        # outputs = concatenate([action, log_prob])
+        # logprob = dist.logprob(action)
+        # outputs = concatenate([action, logprob])
         return action
 
-    def action_log_prob(self, args):
+
+    def logprob(self, args):
         mean, stddev, action = args
         dist = tf.distributions.Normal(loc=mean, scale=stddev)
-        log_prob = dist.log_prob(action)
-        return log_prob
+        logprob = dist.log_prob(action)
+        return logprob
 
-    def build_model(self, n_inputs):
+
+    def entropy(self, args):
+        mean, stddev = args
+        dist = tf.distributions.Normal(loc=mean, scale=stddev)
+        entropy = dist.entropy()
+        return entropy
+
+
+    def build_models(self, n_inputs):
         inputs = Input(shape=(n_inputs, ), name='state')
         x = Dense(256, activation='relu')(inputs)
         x = Dense(256, activation='relu')(x)
         x = Dense(256, activation='relu')(x)
-        y = Dense(128, activation='relu')(x)
-        value = Dense(1, activation='linear', name='value')(y)
-        mean = Dense(1, activation='linear', name='action_mean')(x)
-        stddev = Dense(1, activation='softplus', name='action_stddev')(x)
-        action = Lambda(self.action_sample, output_shape=(1,), name='action')([mean, stddev])
-        log_prob = Lambda(self.action_log_prob, output_shape=(1,), name='action_log_prob')([mean, stddev, action])
-        action_model = Model(inputs, action)
-        action_model.summary()
-        log_prob_model = Model(inputs, log_prob)
-        log_prob_model.summary()
+        value = Dense(128, activation='relu')(x)
+        value = Dense(1, activation='linear', name='value')(value)
         value_model = Model(inputs, value)
         value_model.summary()
-        return action_model, log_prob_model, value_model
+
+        mean = Dense(1, activation='linear', name='action_mean')(x)
+        stddev = Dense(1, activation='softplus', name='action_stddev')(x)
+        action = Lambda(self.action, output_shape=(1,), name='action')([mean, stddev])
+        actor_model = Model(inputs, action)
+        actor_model.summary()
+
+        logprob = Lambda(self.logprob, output_shape=(1,), name='logprob')([mean, stddev, action])
+        logprob_model = Model(inputs, logprob)
+        logprob_model.summary()
+
+        entropy = Lambda(self.action, output_shape=(1,), name='entropy')([mean, stddev])
+        entropy_model = Model(inputs, entropy)
+        entropy_model.summary()
+
+        return actor_model, logprob_model, entropy_model, value_model
+
 
     def act(self, state):
-        action = self.action_model.predict(state)
+        action = self.actor_model.predict(state)
         return action[0]
+
 
     def value(self, state):
         value = self.value_model.predict(state)
         return value[0]
 
-    def remember(self, item):
-        self.memory.append(item)
+
+    def get_entropy(self, state):
+        entropy = self.entropy_model.predict(state)
+        return entropy[0]
+
 
     def train(self, step, state, next_state, reward):
+        self.state = state
         discount_factor = self.gamma**step
         if self.args.baseline:
             value_target = reward
@@ -105,11 +130,11 @@ class PolicyAgent():
         # reward *= discount_factor
         target = np.array([reward])
         target = np.reshape(target, [1, 1])
-        if step == 997:
+        if step == 998:
             verbose = 1
         else:
             verbose = 0
-        self.log_prob_model.fit(np.array(state),
+        self.logprob_model.fit(np.array(state),
                                 target,
                                 batch_size=1,
                                 epochs=1,
@@ -137,7 +162,6 @@ if __name__ == '__main__':
                         "--actor_critic",
                         action='store_true',
                         help="Actor-Critic")
-    args = parser.parse_args()
     args = parser.parse_args()
 
     logger.setLevel(logger.ERROR)
@@ -182,9 +206,8 @@ if __name__ == '__main__':
             next_state = np.reshape(next_state, [1, state_size])
             total_reward += reward
             if done:
-                if not args.baseline and not args.actor_critic:
-                    step += 1
-                    break
+                step += 1
+                break
             agent.train(step, state, next_state, reward)
             state = next_state
             step += 1
