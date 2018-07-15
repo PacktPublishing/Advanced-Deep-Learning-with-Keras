@@ -37,14 +37,15 @@ class PolicyAgent():
         self.weights_file = 'reinforce_%s.h5' % args.env_id
         n_inputs = env.observation_space.shape[0]
         self.actor_model, self.logprob_model, self.entropy_model, self.value_model = self.build_models(n_inputs)
-        loss = self.logprob_loss(self.state)
+        loss = self.logprob_loss(self.get_entropy(self.state))
         self.logprob_model.compile(loss=loss, optimizer=Adam(lr=1e-5))
         self.value_model.compile(loss='mse', optimizer=Adam(lr=1e-5))
 
 
     def logprob_loss(self, entropy):
         def loss(y_true, y_pred):
-            return K.mean((-y_pred * y_true) - (0.1 * entropy))
+            beta = 0.01
+            return K.mean((-y_pred * y_true) - (beta * entropy))
 
         return loss
 
@@ -54,8 +55,6 @@ class PolicyAgent():
         dist = tf.distributions.Normal(loc=mean, scale=stddev)
         action = dist.sample(1)
         action = K.clip(action, self.env.action_space.low[0], self.env.action_space.high[0])
-        # logprob = dist.logprob(action)
-        # outputs = concatenate([action, logprob])
         return action
 
 
@@ -78,6 +77,7 @@ class PolicyAgent():
         x = Dense(256, activation='relu')(inputs)
         x = Dense(256, activation='relu')(x)
         x = Dense(256, activation='relu')(x)
+
         value = Dense(128, activation='relu')(x)
         value = Dense(1, activation='linear', name='value')(value)
         value_model = Model(inputs, value)
@@ -127,10 +127,10 @@ class PolicyAgent():
             value_target = reward + self.gamma*next_value
             reward = value_target - self.value(state)[0] 
             value_target = np.reshape(value_target, [1, 1])
-        # reward *= discount_factor
+        reward *= discount_factor
         target = np.array([reward])
         target = np.reshape(target, [1, 1])
-        if step == 998:
+        if step == 997:
             verbose = 1
         else:
             verbose = 0
