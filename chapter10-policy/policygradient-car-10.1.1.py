@@ -39,7 +39,7 @@ class PolicyAgent():
         self.actor_model, self.logprob_model, self.entropy_model, self.value_model = self.build_models(n_inputs)
         loss = self.logprob_loss(self.get_entropy(self.state))
         if args.actor_critic:
-            self.gamma = 0.9
+            self.gamma = 0.99
         self.logprob_model.compile(loss=loss, optimizer=Adam(lr=1e-3))
         self.value_model.compile(loss=self.value_loss, optimizer=Adam(lr=1e-6, clipvalue=0.5))
 
