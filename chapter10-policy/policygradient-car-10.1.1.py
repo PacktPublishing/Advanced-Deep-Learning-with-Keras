@@ -58,7 +58,7 @@ class PolicyAgent():
         def loss(y_true, y_pred):
             # beta is 0.1 for reinforce, positive return = 39/100, lr=1e-3
             # beta is 0.1 for reinforce with baseline, positive return = 48/100
-            beta = 0.5
+            beta = 10.0
             return K.mean((-y_pred * y_true) - (beta * entropy), axis=-1)
 
         return loss
@@ -154,10 +154,7 @@ class PolicyAgent():
             delta -= self.value(state)[0] 
         discounted_delta = delta * discount_factor
         discounted_delta = np.reshape(discounted_delta, [1, 1])
-        if step == 0:
-            verbose = 1
-        else:
-            verbose = 0
+        verbose = 1 if step == 0 else 0
         if self.args.baseline or self.args.actor_critic:
             self.value_model.fit(np.array(state),
                                  discounted_delta,
