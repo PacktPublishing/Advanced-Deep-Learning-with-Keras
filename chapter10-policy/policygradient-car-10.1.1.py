@@ -58,7 +58,7 @@ class PolicyAgent():
         def loss(y_true, y_pred):
             # beta is 0.1 for reinforce, positive return = 39/100, lr=1e-3
             # beta is 0.1 for reinforce with baseline, positive return = 48/100
-            beta = 0.5
+            beta = 10.0
             return K.mean((-y_pred * y_true) - (beta * entropy), axis=-1)
 
         return loss
