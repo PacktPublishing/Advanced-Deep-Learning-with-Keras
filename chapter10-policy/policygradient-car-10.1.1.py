@@ -43,11 +43,11 @@ class PolicyAgent():
         if args.baseline:
             lr = 1e-3
         elif args.actor_critic:
-            lr = 1e-2
+            lr = 1e-3
         else:
             lr = 1e-3
         self.logprob_model.compile(loss=loss, optimizer=Adam(lr=lr))
-        self.value_model.compile(loss=self.value_loss, optimizer=Adam(lr=1e-7, clipvalue=0.5))
+        self.value_model.compile(loss=self.value_loss, optimizer=Adam(lr=1e-6, clipvalue=0.5))
 
 
     def get_delta(self):
@@ -58,7 +58,7 @@ class PolicyAgent():
         def loss(y_true, y_pred):
             # beta is 0.1 for reinforce, positive return = 39/100, lr=1e-3
             # beta is 0.1 for reinforce with baseline, positive return = 48/100
-            beta = 0.1
+            beta = 0.5
             return K.mean((-y_pred * y_true) - (beta * entropy), axis=-1)
 
         return loss
@@ -259,7 +259,7 @@ if __name__ == '__main__':
         print(fmt % (episode, step, action[0], reward, total_reward))
         writer.writerow([episode, step, total_reward, n_solved])
 
-    if not args.model and not args.random:
+    if not args.weights and not args.random:
         agent.save_actor_weights()
 
     # close the env and write monitor result info to disk
