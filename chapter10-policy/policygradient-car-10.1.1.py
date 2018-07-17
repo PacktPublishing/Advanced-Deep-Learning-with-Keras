@@ -154,10 +154,7 @@ class PolicyAgent():
             delta -= self.value(state)[0] 
         discounted_delta = delta * discount_factor
         discounted_delta = np.reshape(discounted_delta, [1, 1])
-        if step == 0:
-            verbose = 1
-        else:
-            verbose = 0
+        verbose = 1 if step == 0 else 0
         if self.args.baseline or self.args.actor_critic:
             self.value_model.fit(np.array(state),
                                  discounted_delta,
