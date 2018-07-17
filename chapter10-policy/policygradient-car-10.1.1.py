@@ -119,8 +119,7 @@ class PolicyAgent():
         return actor_model, logprob_model, entropy_model, value_model
 
 
-    def save_actor_weights(self):
-        filename = "actor-%s.h5" % self.args.env_id 
+    def save_actor_weights(self, filename):
         self.actor_model.save_weights(filename)
 
 
@@ -205,7 +204,9 @@ if __name__ == '__main__':
     elif args.actor_critic:
         postfix = "actor-critic"
     elif args.random:
-        postfix = "-random"
+        postfix = "random"
+
+    filename = "actor_weights-%s-%s.h5" % (postfix, args.env_id)
     outdir = "/tmp/%s-%s" % (postfix, args.env_id)
     csvfilename = "%s.csv" % postfix
     csvfile = open(csvfilename, 'w', 1)
@@ -260,7 +261,7 @@ if __name__ == '__main__':
         writer.writerow([episode, step, total_reward, n_solved])
 
     if not args.weights and not args.random:
-        agent.save_actor_weights()
+        agent.save_actor_weights(filename)
 
     # close the env and write monitor result info to disk
     csvfile.close()
