@@ -9,6 +9,8 @@ from keras.models import Model
 from keras.optimizers import Adam
 from keras import backend as K
 from keras.layers.merge import concatenate
+from keras.models import load_model
+
 import tensorflow as tf
 
 from collections import deque
@@ -24,7 +26,6 @@ import csv
 class PolicyAgent():
     def __init__(self, env, args):
 
-        global delta
         self.env = env
         self.args = args
 
@@ -34,15 +35,19 @@ class PolicyAgent():
         state_size = env.observation_space.shape[0]
         self.state = np.reshape(self.state, [1, state_size])
 
-        # weights filename
-        self.weights_file = 'reinforce_%s.h5' % args.env_id
         n_inputs = env.observation_space.shape[0]
         self.actor_model, self.logprob_model, self.entropy_model, self.value_model = self.build_models(n_inputs)
         loss = self.logprob_loss(self.get_entropy(self.state))
         # reinforce, lr = 1e-5
         # reinforce with baseline, lr = 1e-2 and 1e-5
-        self.logprob_model.compile(loss=loss, optimizer=Adam(lr=1e-3))
-        self.value_model.compile(loss=self.value_loss, optimizer=Adam(lr=1e-5))
+        if args.baseline:
+            lr = 1e-3
+        elif args.actor_critic:
+            lr = 1e-2
+        else:
+            lr = 1e-3
+        self.logprob_model.compile(loss=loss, optimizer=Adam(lr=lr))
+        self.value_model.compile(loss=self.value_loss, optimizer=Adam(lr=1e-7, clipvalue=0.5))
 
 
     def get_delta(self):
@@ -51,9 +56,9 @@ class PolicyAgent():
 
     def logprob_loss(self, entropy):
         def loss(y_true, y_pred):
-            # beta is 0.01 for reinforce, positive return = 36/100
-            # beta is 0.01 for reinforce with baseline, positive return = 48/100
-            beta = 0.01
+            # beta is 0.1 for reinforce, positive return = 39/100, lr=1e-3
+            # beta is 0.1 for reinforce with baseline, positive return = 48/100
+            beta = 0.1
             return K.mean((-y_pred * y_true) - (beta * entropy), axis=-1)
 
         return loss
@@ -87,17 +92,18 @@ class PolicyAgent():
 
     def build_models(self, n_inputs):
         inputs = Input(shape=(n_inputs, ), name='state')
-        x = Dense(256, activation='relu')(inputs)
-        x = Dense(256, activation='relu')(x)
-        x = Dense(256, activation='relu')(x)
+        kernel_initializer = 'zeros'
+        x = Dense(256, activation='relu', kernel_initializer=kernel_initializer)(inputs)
+        x = Dense(256, activation='relu', kernel_initializer=kernel_initializer)(x)
+        x = Dense(256, activation='relu', kernel_initializer=kernel_initializer)(x)
 
-        value = Dense(128, activation='relu')(x)
-        value = Dense(1, activation='linear', name='value')(value)
+        value = Dense(128, activation='relu', kernel_initializer=kernel_initializer)(x)
+        value = Dense(1, activation='linear', name='value', kernel_initializer=kernel_initializer)(value)
         value_model = Model(inputs, value)
         value_model.summary()
 
-        mean = Dense(1, activation='linear', name='action_mean')(x)
-        stddev = Dense(1, activation='softplus', name='action_stddev')(x)
+        mean = Dense(1, activation='linear', kernel_initializer=kernel_initializer, name='action_mean')(x)
+        stddev = Dense(1, activation='softplus', kernel_initializer=kernel_initializer, name='action_stddev')(x)
         action = Lambda(self.action, output_shape=(1,), name='action')([mean, stddev])
         actor_model = Model(inputs, action)
         actor_model.summary()
@@ -111,6 +117,15 @@ class PolicyAgent():
         entropy_model.summary()
 
         return actor_model, logprob_model, entropy_model, value_model
+
+
+    def save_actor_weights(self):
+        filename = "actor-%s.h5" % self.args.env_id 
+        self.actor_model.save_weights(filename)
+
+
+    def load_actor_weights(self, filename):
+        self.actor_model.load_weights(filename)
 
 
     def act(self, state):
@@ -133,29 +148,25 @@ class PolicyAgent():
         discount_factor = self.gamma**step
         delta = reward
         if self.args.baseline:
-            value_target = reward
-            value_target = np.reshape(value_target, [1, 1])
-            reward -= self.value(state)[0] 
+            delta -= self.value(state)[0] 
         elif self.args.actor_critic:
             next_value = self.value(next_state)[0]
-            value_target = reward + self.gamma*next_value
-            reward = value_target - self.value(state)[0] 
-            value_target = np.reshape(value_target, [1, 1])
-        discounted_reward = reward * discount_factor
-        discounted_reward = np.reshape(discounted_reward, [1, 1])
+            delta += self.gamma*next_value
+            delta -= self.value(state)[0] 
+        discounted_delta = delta * discount_factor
+        discounted_delta = np.reshape(discounted_delta, [1, 1])
         if step == 0:
             verbose = 1
         else:
             verbose = 0
         if self.args.baseline or self.args.actor_critic:
-            # self.delta = discounted_reward
             self.value_model.fit(np.array(state),
-                                 discounted_reward,
+                                 discounted_delta,
                                  batch_size=1,
                                  epochs=1,
                                  verbose=verbose)
         self.logprob_model.fit(np.array(state),
-                               discounted_reward,
+                               discounted_delta,
                                batch_size=1,
                                epochs=1,
                                verbose=verbose)
@@ -179,31 +190,37 @@ if __name__ == '__main__':
     parser.add_argument("-r",
                         "--random",
                         action='store_true',
-                        help="Random Action")
+                        help="Random action policy")
+    parser.add_argument("-w",
+                        "--weights",
+                        help="Load pre-trained actor model weights")
     args = parser.parse_args()
 
     logger.setLevel(logger.ERROR)
     env = gym.make(args.env_id)
 
-    postfix = ''
+    postfix = 'reinforce'
     if args.baseline:
-        postfix = "-baseline"
+        postfix = "reinforce-baseline"
     elif args.actor_critic:
-        postfix = "-actor-critic"
+        postfix = "actor-critic"
     elif args.random:
         postfix = "-random"
-    outdir = "/tmp/reinforce%s-%s" % (postfix, args.env_id)
-    csvfilename = "reinforce%s.csv" % postfix
+    outdir = "/tmp/%s-%s" % (postfix, args.env_id)
+    csvfilename = "%s.csv" % postfix
     csvfile = open(csvfilename, 'w', 1)
     writer = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_NONNUMERIC)
     writer.writerow(['Episode','Step','Total Reward','Number of Episodes Solved'])
 
     env = wrappers.Monitor(env, directory=outdir, force=True)
     env.seed(0)
-    # print(env._max_episode_steps)
-
+    
     # instantiate agent
     agent = PolicyAgent(env, args)
+    train = True
+    if args.weights:
+        agent.load_actor_weights(args.model)
+        train = False
 
     # should be solved in this number of episodes
     episode_count = 100
@@ -228,10 +245,10 @@ if __name__ == '__main__':
             next_state, reward, done, _ = env.step(action)
             next_state = np.reshape(next_state, [1, state_size])
             total_reward += reward
-            if done:
-                step += 1
-                break
-            if not args.random:
+            # if done:
+            #    step += 1
+            #    break
+            if not args.random and train:
                 agent.train(step, state, next_state, reward)
             state = next_state
             step += 1
@@ -241,6 +258,9 @@ if __name__ == '__main__':
         fmt = "Episode=%d, Step=%d. Action=%f, Reward=%f, Total_Reward=%f"
         print(fmt % (episode, step, action[0], reward, total_reward))
         writer.writerow([episode, step, total_reward, n_solved])
+
+    if not args.model and not args.random:
+        agent.save_actor_weights()
 
     # close the env and write monitor result info to disk
     csvfile.close()
