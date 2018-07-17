@@ -4,7 +4,7 @@ MountainCarCountinuous-v0 problem
 
 """
 
-from keras.layers import Dense, Input, Lambda
+from keras.layers import Dense, Input, Lambda, Activation
 from keras.models import Model
 from keras.optimizers import Adam
 from keras import backend as K
@@ -24,6 +24,7 @@ import csv
 class PolicyAgent():
     def __init__(self, env, args):
 
+        global delta
         self.env = env
         self.args = args
 
@@ -38,16 +39,28 @@ class PolicyAgent():
         n_inputs = env.observation_space.shape[0]
         self.actor_model, self.logprob_model, self.entropy_model, self.value_model = self.build_models(n_inputs)
         loss = self.logprob_loss(self.get_entropy(self.state))
-        self.logprob_model.compile(loss=loss, optimizer=Adam(lr=1e-5))
-        self.value_model.compile(loss='mse', optimizer=Adam(lr=1e-5))
+        # reinforce, lr = 1e-5
+        # reinforce with baseline, lr = 1e-2 and 1e-5
+        self.logprob_model.compile(loss=loss, optimizer=Adam(lr=1e-3))
+        self.value_model.compile(loss=self.value_loss, optimizer=Adam(lr=1e-5))
+
+
+    def get_delta(self):
+        return K.variable(self.delta)
 
 
     def logprob_loss(self, entropy):
         def loss(y_true, y_pred):
+            # beta is 0.01 for reinforce, positive return = 36/100
+            # beta is 0.01 for reinforce with baseline, positive return = 48/100
             beta = 0.01
-            return K.mean((-y_pred * y_true) - (beta * entropy))
+            return K.mean((-y_pred * y_true) - (beta * entropy), axis=-1)
 
         return loss
+
+
+    def value_loss(self, y_true, y_pred):
+        return K.mean(-y_pred * y_true, axis=-1)
 
 
     def action(self, args):
@@ -118,6 +131,7 @@ class PolicyAgent():
     def train(self, step, state, next_state, reward):
         self.state = state
         discount_factor = self.gamma**step
+        delta = reward
         if self.args.baseline:
             value_target = reward
             value_target = np.reshape(value_target, [1, 1])
@@ -127,25 +141,25 @@ class PolicyAgent():
             value_target = reward + self.gamma*next_value
             reward = value_target - self.value(state)[0] 
             value_target = np.reshape(value_target, [1, 1])
-        reward *= discount_factor
-        target = np.array([reward])
-        target = np.reshape(target, [1, 1])
-        if step == 997:
+        discounted_reward = reward * discount_factor
+        discounted_reward = np.reshape(discounted_reward, [1, 1])
+        if step == 0:
             verbose = 1
         else:
             verbose = 0
-        self.logprob_model.fit(np.array(state),
-                                target,
-                                batch_size=1,
-                                epochs=1,
-                                verbose=verbose)
-
         if self.args.baseline or self.args.actor_critic:
+            # self.delta = discounted_reward
             self.value_model.fit(np.array(state),
-                                 value_target,
+                                 discounted_reward,
                                  batch_size=1,
                                  epochs=1,
                                  verbose=verbose)
+        self.logprob_model.fit(np.array(state),
+                               discounted_reward,
+                               batch_size=1,
+                               epochs=1,
+                               verbose=verbose)
+
 
 
 if __name__ == '__main__':
@@ -162,6 +176,10 @@ if __name__ == '__main__':
                         "--actor_critic",
                         action='store_true',
                         help="Actor-Critic")
+    parser.add_argument("-r",
+                        "--random",
+                        action='store_true',
+                        help="Random Action")
     args = parser.parse_args()
 
     logger.setLevel(logger.ERROR)
@@ -172,6 +190,8 @@ if __name__ == '__main__':
         postfix = "-baseline"
     elif args.actor_critic:
         postfix = "-actor-critic"
+    elif args.random:
+        postfix = "-random"
     outdir = "/tmp/reinforce%s-%s" % (postfix, args.env_id)
     csvfilename = "reinforce%s.csv" % postfix
     csvfile = open(csvfilename, 'w', 1)
@@ -200,7 +220,10 @@ if __name__ == '__main__':
         done = False
         while not done:
             # [min, max] action = [-1.0, 1.0]
-            action = agent.act(state)
+            if args.random:
+                action = env.action_space.sample()
+            else:
+                action = agent.act(state)
             env.render()
             next_state, reward, done, _ = env.step(action)
             next_state = np.reshape(next_state, [1, state_size])
@@ -208,7 +231,8 @@ if __name__ == '__main__':
             if done:
                 step += 1
                 break
-            agent.train(step, state, next_state, reward)
+            if not args.random:
+                agent.train(step, state, next_state, reward)
             state = next_state
             step += 1
 
