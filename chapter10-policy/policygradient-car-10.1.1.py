@@ -38,21 +38,9 @@ class PolicyAgent():
         n_inputs = env.observation_space.shape[0]
         self.actor_model, self.logprob_model, self.entropy_model, self.value_model = self.build_models(n_inputs)
         loss = self.logprob_loss(self.get_entropy(self.state))
-<<<<<<< HEAD
-        # reinforce, lr = 1e-5
-        # reinforce with baseline, lr = 1e-2 and 1e-5
-        if args.baseline:
-            lr = 1e-3
-        elif args.actor_critic:
-            lr = 1e-2
-        else:
-            lr = 1e-3
-        self.logprob_model.compile(loss=loss, optimizer=Adam(lr=lr))
-=======
         if args.actor_critic:
             self.gamma = 0.9
         self.logprob_model.compile(loss=loss, optimizer=Adam(lr=1e-3))
->>>>>>> d59678ab19e6301fd19cbc30a8ebf0c01dbb21fd
         self.value_model.compile(loss=self.value_loss, optimizer=Adam(lr=1e-6, clipvalue=0.5))
 
 
@@ -62,11 +50,6 @@ class PolicyAgent():
 
     def logprob_loss(self, entropy):
         def loss(y_true, y_pred):
-<<<<<<< HEAD
-            # beta is 0.1 for reinforce, positive return = 39/100, lr=1e-3
-            # beta is 0.1 for reinforce with baseline, positive return = 48/100
-=======
->>>>>>> d59678ab19e6301fd19cbc30a8ebf0c01dbb21fd
             beta = 0.5
             return K.mean((-y_pred * y_true) - (beta * entropy), axis=-1)
 
