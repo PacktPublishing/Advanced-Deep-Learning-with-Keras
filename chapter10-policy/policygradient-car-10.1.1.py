@@ -219,7 +219,7 @@ if __name__ == '__main__':
     agent = PolicyAgent(env, args)
     train = True
     if args.weights:
-        agent.load_actor_weights(args.model)
+        agent.load_actor_weights(args.weights)
         train = False
 
     # should be solved in this number of episodes
