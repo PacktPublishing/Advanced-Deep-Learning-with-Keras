@@ -23,23 +23,6 @@ class A3CAgent():
         self.memory = []
         self.model = PolicyModel(env, args)
 
-    def train(self, step, state, next_state, reward):
-        self.model.state = state
-        next_value = self.model.value(next_state)[0]
-        delta = reward + self.gamma*next_value
-        delta -= self.model.value(state)[0] 
-        delta = np.reshape(delta, [1, 1])
-        verbose = 1 if step == 0 else 0
-        self.model.value_model.fit(np.array(state),
-                                   delta,
-                                   batch_size=1,
-                                   epochs=1,
-                                   verbose=verbose)
-        self.model.logprob_model.fit(np.array(state),
-                                     delta,
-                                     batch_size=1,
-                                     epochs=1,
-                                     verbose=verbose)
 
     def reset_memory(self):
         self.memory = []
@@ -49,35 +32,31 @@ class A3CAgent():
         self.memory.append(item)
 
 
-    def train_by_episode(self, last_value=0):
-        state_batch, delta_batch = [], []
+    def train(self, last_value=0):
+        state_batch, delta_batch, r_batch = [], [], []
         batch_size = len(self.memory)
         r = last_value
         
-        # self.model.state = state
-        for item in self.memory:
+        # self.memory.reverse()
+    
+        # state_batch = np.reshape(state_batch, [batch_size,2])
+        # r_batch = np.reshape(r_batch, [batch_size,1])
+        # delta_batch = np.reshape(delta_batch, [batch_size,1])
+        value_loss = 0.0
+        logp_loss = 0.0
+        for item in self.memory[::-1]:
             step, state, next_state, reward, done = item
             r = reward + self.gamma*r 
+            self.model.state = state
             delta = r - self.model.value(state)[0] 
-            delta_batch.append(delta)
-            state_batch.append(state)
-    
-        state_batch = np.reshape(state_batch, [batch_size,2])
-        delta_batch = np.reshape(delta_batch, [batch_size,1])
-        self.model.value_model.fit(state_batch,
-                          delta_batch,
-                          batch_size=batch_size,
-                          epochs=1,
-                          verbose=1,
-                          shuffle=False)
+            r = np.reshape(r, [1, 1])
+            value_loss += self.model.value_model.train_on_batch(state, r)
+            delta = np.reshape(delta, [1, 1])
+            logp_loss += self.model.logp_model.train_on_batch(state, delta)
 
-        self.model.logprob_model.fit(state_batch,
-                          delta_batch,
-                          batch_size=batch_size,
-                          epochs=1,
-                          verbose=1,
-                          shuffle=False)
-
+        value_loss /= len(self.memory)
+        logp_loss /= len(self.memory)
+        print("Value loss: %f, Logp loss: %f" % (value_loss, logp_loss))
 
 
 if __name__ == '__main__':
@@ -122,14 +101,14 @@ if __name__ == '__main__':
         train = False
 
     # should be solved in this number of episodes
-    episode_count = 100
+    episode_count = 1000
     state_size = env.observation_space.shape[0]
     n_solved = 0 
 
     # sampling and fitting
     for episode in range(episode_count):
-        state = env.reset()
         # state is car [position, speed]
+        state = env.reset()
         state = np.reshape(state, [1, state_size])
         step = 0
         total_reward = 0
@@ -147,9 +126,8 @@ if __name__ == '__main__':
             agent.remember(item)
             total_reward += reward
             if not args.random and train and done:
-                #agent.train(step, state, next_state, reward)
-                last_value = 0 if reward > 0 else agent.model.value(state)
-                agent.train_by_episode(last_value=last_value)
+                last_value = 0 if reward > 0 else agent.model.value(next_state)
+                agent.train(last_value=last_value)
                 agent.reset_memory()
             state = next_state
             step += 1

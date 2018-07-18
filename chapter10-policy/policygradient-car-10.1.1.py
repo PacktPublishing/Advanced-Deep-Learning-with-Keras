@@ -30,7 +30,7 @@ class PolicyAgent():
         self.args = args
 
         # discount rate
-        self.gamma = 0.99
+        self.gamma = 1.0
         self.state = env.reset()
         state_size = env.observation_space.shape[0]
         self.state = np.reshape(self.state, [1, state_size])
@@ -39,7 +39,7 @@ class PolicyAgent():
         self.actor_model, self.logprob_model, self.entropy_model, self.value_model = self.build_models(n_inputs)
         loss = self.logprob_loss(self.get_entropy(self.state))
         self.logprob_model.compile(loss=loss, optimizer=Adam(lr=1e-3))
-        self.value_model.compile(loss=self.value_loss, optimizer=Adam(lr=1e-6, clipvalue=0.5))
+        self.value_model.compile(loss=self.value_loss, optimizer=Adam(lr=1e-5, clipvalue=0.5))
 
 
     def logprob_loss(self, entropy, beta=0.0):

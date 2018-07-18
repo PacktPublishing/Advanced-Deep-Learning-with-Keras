@@ -22,30 +22,33 @@ class PolicyModel():
         self.env = env
         self.args = args
 
-        # discount rate
         self.state = env.reset()
         state_size = env.observation_space.shape[0]
         self.state = np.reshape(self.state, [1, state_size])
 
-        n_inputs = env.observation_space.shape[0]
         self.actor_model = None
-        self.logprob_model = None
+        self.logp_model = None
         self.entropy_model = None
         self.value_model = None
-        self.build_models(n_inputs)
-        beta = 0.0 if args.a3c else 0.0
-        loss = self.logprob_loss(self.get_entropy(self.state), beta=beta)
-        self.logprob_model.compile(loss=loss, optimizer=Adam(lr=1e-2))
-        optimizer = Adam(lr=5e-3)
+        self.build_models(state_size)
+        beta = 0.1 if args.a3c else 0.0
+        loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
+        optimizer = Adam(lr=1e-3)
+        self.logp_model.compile(loss=loss, optimizer=optimizer)
+        optimizer = Adam(lr=1e-1)
         loss = 'mse' if args.a3c else self.value_loss
         self.value_model.compile(loss=loss, optimizer=optimizer)
 
 
-    def logprob_loss(self, entropy, beta=0.0):
+    def logp_loss(self, entropy, beta=0.0):
         def loss(y_true, y_pred):
             return K.mean((-y_pred * y_true) - (beta * entropy), axis=-1)
 
         return loss
+
+
+   # def logp_loss(self, y_true, y_pred):
+   #     return K.mean((-y_pred * y_true), axis=-1)
 
 
     def value_loss(self, y_true, y_pred):
@@ -62,11 +65,11 @@ class PolicyModel():
         return action
 
 
-    def logprob(self, args):
+    def logp(self, args):
         mean, stddev, action = args
         dist = tf.distributions.Normal(loc=mean, scale=stddev)
-        logprob = dist.log_prob(action)
-        return logprob
+        logp = dist.log_prob(action)
+        return logp
 
 
     def entropy(self, args):
@@ -79,13 +82,13 @@ class PolicyModel():
     def build_models(self, n_inputs):
         inputs = Input(shape=(n_inputs, ), name='state')
         kernel_initializer = 'zeros'
-        x = Dense(16,
+        n_units = 512
+        x = Dense(n_units,
                   activation='relu',
                   kernel_initializer=kernel_initializer)(inputs)
-        x = Dense(16,
+        x = Dense(n_units,
                   activation='tanh',
                   kernel_initializer=kernel_initializer)(x)
-
         value = Dense(1,
                       activation='linear',
                       kernel_initializer=kernel_initializer,
@@ -93,10 +96,10 @@ class PolicyModel():
         self.value_model = Model(inputs, value)
         self.value_model.summary()
 
-        x = Dense(16,
+        x = Dense(n_units,
                   activation='relu',
                   kernel_initializer=kernel_initializer)(inputs)
-        x = Dense(16,
+        x = Dense(n_units,
                   activation='tanh',
                   kernel_initializer=kernel_initializer)(x)
         mean = Dense(1,
@@ -113,11 +116,11 @@ class PolicyModel():
         self.actor_model = Model(inputs, action)
         self.actor_model.summary()
 
-        logprob = Lambda(self.logprob,
+        logp = Lambda(self.logp,
                          output_shape=(1,),
-                         name='logprob')([mean, stddev, action])
-        self.logprob_model = Model(inputs, logprob)
-        self.logprob_model.summary()
+                         name='logp')([mean, stddev, action])
+        self.logp_model = Model(inputs, logp)
+        self.logp_model.summary()
 
         entropy = Lambda(self.action,
                          output_shape=(1,),
