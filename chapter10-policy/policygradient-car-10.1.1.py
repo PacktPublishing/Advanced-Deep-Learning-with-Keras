@@ -42,13 +42,8 @@ class PolicyAgent():
         self.value_model.compile(loss=self.value_loss, optimizer=Adam(lr=1e-6, clipvalue=0.5))
 
 
-    def get_delta(self):
-        return K.variable(self.delta)
-
-
-    def logprob_loss(self, entropy):
+    def logprob_loss(self, entropy, beta=0.0):
         def loss(y_true, y_pred):
-            beta = 0.5
             return K.mean((-y_pred * y_true) - (beta * entropy), axis=-1)
 
         return loss
@@ -211,7 +206,7 @@ if __name__ == '__main__':
         train = False
 
     # should be solved in this number of episodes
-    episode_count = 100
+    episode_count = 1000
     state_size = env.observation_space.shape[0]
     n_solved = 0 
 
