@@ -36,12 +36,15 @@ class PolicyAgent():
         self.entropy_model = entropy
         self.value_model = value
         beta = 0.01 if self.args.a2c else 0.0
-        loss = self.logp_loss(self.get_entropy(self.state))
+        loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
         self.logp_model.compile(loss=loss,
                                    optimizer=Adam(lr=1e-3))
+        lr = 1e-6
+        if args.actor_critic:
+            lr = 1e-4
         loss = 'mse' if self.args.a2c else self.value_loss
         self.value_model.compile(loss=loss,
-                                 optimizer=Adam(lr=1e-5))
+                                 optimizer=Adam(lr=lr))
 
 
     def reset_memory(self):
@@ -54,13 +57,13 @@ class PolicyAgent():
 
     def logp_loss(self, entropy, beta=0.0):
         def loss(y_true, y_pred):
-            return K.mean((-y_pred * y_true) - (beta * entropy), axis=-1)
+            return -K.mean((y_pred * y_true) + (beta * entropy), axis=-1)
 
         return loss
 
 
     def value_loss(self, y_true, y_pred):
-        return K.mean(-y_pred * y_true, axis=-1)
+        return -K.mean(y_pred * y_true, axis=-1)
 
 
     def action(self, args):
@@ -96,18 +99,19 @@ class PolicyAgent():
         x = Dense(256,
                   activation='relu',
                   kernel_initializer=kernel_initializer)(x)
-        x = Dense(256,
-                  activation='relu',
-                  kernel_initializer=kernel_initializer)(x)
+
+        shared_model = Model(inputs, x, name='shared')
+        shared_model.trainable = False
+        value = shared_model(inputs)
 
         value = Dense(128,
                       activation='relu',
-                      kernel_initializer=kernel_initializer)(x)
+                      kernel_initializer=kernel_initializer)(value)
         value = Dense(1,
                       activation='linear',
                       name='value',
                       kernel_initializer=kernel_initializer)(value)
-        value_model = Model(inputs, value)
+        value_model = Model(inputs, value, name='value')
         value_model.summary()
 
         mean = Dense(1,
@@ -121,19 +125,19 @@ class PolicyAgent():
         action = Lambda(self.action,
                         output_shape=(1,),
                         name='action')([mean, stddev])
-        actor_model = Model(inputs, action)
+        actor_model = Model(inputs, action, name='action')
         actor_model.summary()
 
         logp = Lambda(self.logp,
                          output_shape=(1,),
                          name='logp')([mean, stddev, action])
-        logp_model = Model(inputs, logp)
+        logp_model = Model(inputs, logp, name='logp')
         logp_model.summary()
 
         entropy = Lambda(self.entropy,
                          output_shape=(1,),
                          name='entropy')([mean, stddev])
-        entropy_model = Model(inputs, entropy)
+        entropy_model = Model(inputs, entropy, name='entropy')
         entropy_model.summary()
 
         return actor_model, logp_model, entropy_model, value_model
@@ -163,22 +167,28 @@ class PolicyAgent():
 
 
     def train_by_episode(self, last_value=0):
-        gamma = 1.0
-        r = last_value
-        i = len(self.memory) - 1 
-        for item in self.memory[::-1]:
-            step, state, next_state, reward, done = item
-            r = reward + gamma*r 
-            discounted_item = (step, state, next_state, r, done)
-            self.memory[i] = item
-            i -= 1
+        if self.args.actor_critic:
+            for item in self.memory:
+                self.train(item)
+            return 
+
+        rewards = []
+        for item in self.memory:
+            [_, _, _, reward, _] = item
+            rewards.append(reward)
+
+        # compute return per step
+        # return is the sum of rewards from t til end of episode
+        # return replaces reward in the list
+        for i in range(len(rewards)):
+            self.memory[i][3] = np.sum(rewards[i:])
 
         for item in self.memory:
             self.train(item)
 
 
     def train(self, item):
-        step, state, next_state, reward, done = item
+        [step, state, next_state, reward, done] = item
         self.state = state
         gamma = 1.0
         discount_factor = gamma**step
@@ -194,25 +204,31 @@ class PolicyAgent():
             else:
                 next_value = self.value(next_state)[0]
             delta += gamma*next_value
+            target_value = delta
             # if actor-critic,
-            # delta is a multiplier to loss not a target
-            if self.args.actor_critic:
-                delta -= self.value(state)[0] 
+            # delta is a multiplier of loss not a target
+            delta -= self.value(state)[0] 
 
         discounted_delta = delta * discount_factor
         discounted_delta = np.reshape(discounted_delta, [-1, 1])
         verbose = 1 if done else 0
+
+        self.logp_model.fit(np.array(state),
+                            discounted_delta,
+                            batch_size=1,
+                            epochs=1,
+                            verbose=verbose)
+
+        if self.args.a2c:
+            discounted_delta = target_value
+            discounted_delta = np.reshape(discounted_delta, [-1, 1])
+
         if critic:
             self.value_model.fit(np.array(state),
                                  discounted_delta,
                                  batch_size=1,
                                  epochs=1,
                                  verbose=verbose)
-        self.logp_model.fit(np.array(state),
-                            discounted_delta,
-                            batch_size=1,
-                            epochs=1,
-                            verbose=verbose)
 
 
 
@@ -220,6 +236,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('env_id',
                         nargs='?',
+                        #default='Pendulum-v0',
                         default='MountainCarContinuous-v0',
                         help='Select the environment to run')
     parser.add_argument("-b",
@@ -238,10 +255,6 @@ if __name__ == '__main__':
                         "--random",
                         action='store_true',
                         help="Random action policy")
-    parser.add_argument("-e",
-                        "--train_by_episode",
-                        action='store_true',
-                        help="Complete 1 episode before training")
     parser.add_argument("-w",
                         "--weights",
                         help="Load pre-trained actor model weights")
@@ -259,12 +272,6 @@ if __name__ == '__main__':
         postfix = "a2c"
     elif args.random:
         postfix = "random"
-
-    by_episode = False
-    if args.train_by_episode:
-        print("Train by episode.....")
-        postfix += "-episode" 
-        by_episode = True
 
     filename = "actor_weights-%s-%s.h5" % (postfix, args.env_id)
     outdir = "/tmp/%s-%s" % (postfix, args.env_id)
@@ -289,7 +296,7 @@ if __name__ == '__main__':
         train = False
 
     # should be solved in this number of episodes
-    episode_count = 1000
+    episode_count = 100
     state_size = env.observation_space.shape[0]
     n_solved = 0 
 
@@ -301,8 +308,7 @@ if __name__ == '__main__':
         step = 0
         total_reward = 0
         done = False
-        if by_episode:
-            agent.reset_memory()
+        agent.reset_memory()
         while not done:
             # [min, max] action = [-1.0, 1.0]
             if args.random:
@@ -312,16 +318,12 @@ if __name__ == '__main__':
             env.render()
             next_state, reward, done, _ = env.step(action)
             next_state = np.reshape(next_state, [1, state_size])
-            item = (step, state, next_state, reward, done)
-            if by_episode:
-                agent.remember(item)
+            item = [step, state, next_state, reward, done]
+            agent.remember(item)
             total_reward += reward
-            if not args.random and train:
-                if by_episode and done:
-                    v = 0 if reward > 0 else agent.value(next_state)[0]
-                    agent.train_by_episode(last_value=v)
-                else:
-                    agent.train(item)
+            if not args.random and train and done:
+                v = 0 if reward > 0 else agent.value(next_state)[0]
+                agent.train_by_episode(last_value=v)
             state = next_state
             step += 1
 
