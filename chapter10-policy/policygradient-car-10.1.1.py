@@ -39,11 +39,12 @@ class PolicyAgent():
         self.value_model = value
         beta = 0.01 if self.args.a2c else 0.0
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
+        lr = 1e-3
         self.logp_model.compile(loss=loss,
-                                   optimizer=Adam(lr=1e-3))
+                                   optimizer=Adam(lr=lr))
         lr = 1e-5
         if args.actor_critic:
-            lr = 1e-4
+            lr = 1e-6
         loss = 'mse' if self.args.a2c else self.value_loss
         self.value_model.compile(loss=loss,
                                  optimizer=Adam(lr=lr))
@@ -198,7 +199,7 @@ class PolicyAgent():
     def train(self, item):
         [step, state, next_state, reward, done] = item
         self.state = state
-        gamma = 1.0
+        gamma = 0.99
         discount_factor = gamma**step
         delta = reward
         critic = False
@@ -349,11 +350,15 @@ if __name__ == '__main__':
             next_state, reward, done, _ = env.step(action)
             next_state = np.reshape(next_state, [1, state_size])
             item = [step, state, next_state, reward, done]
-            agent.remember(item)
-            total_reward += reward
-            if not args.random and done:
+
+            if args.actor_critic:
+                agent.train(item)
+            elif not args.random and done:
+                agent.remember(item)
                 v = 0 if reward > 0 else agent.value(next_state)[0]
                 agent.train_by_episode(last_value=v)
+
+            total_reward += reward
             state = next_state
             step += 1
 
