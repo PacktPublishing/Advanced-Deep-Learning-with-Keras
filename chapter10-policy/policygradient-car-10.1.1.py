@@ -40,11 +40,16 @@ class PolicyAgent():
         beta = 0.01 if self.args.a2c else 0.0
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
         lr = 1e-3
+        if args.a2c:
+            lr = 1e-3
         self.logp_model.compile(loss=loss,
                                    optimizer=Adam(lr=lr))
         lr = 1e-5
         if args.actor_critic:
             lr = .1e-6
+        elif args.a2c:
+            lr = 1e-5
+
         loss = 'mse' if self.args.a2c else self.value_loss
         self.value_model.compile(loss=loss,
                                  optimizer=Adam(lr=lr))
@@ -176,10 +181,24 @@ class PolicyAgent():
 
 
     def train_by_episode(self, last_value=0):
+        gamma = 0.99
         if self.args.actor_critic:
-            for item in self.memory:
+            print("Actor-Critic must be trained per step")
+            return
+        elif self.args.a2c:
+            i = 1
+            max_step = len(self.memory)
+            r = last_value
+            for item in self.memory[::-1]:
+                [step, state, next_state, reward, done] = item
+                step = max_step - i
+                r = reward + gamma*r
+                item = [step, state, next_state, r, done]
                 self.train(item)
-            return 
+                i += 1
+
+            return
+
 
         rewards = []
         for item in self.memory:
@@ -198,25 +217,36 @@ class PolicyAgent():
 
     def train(self, item):
         [step, state, next_state, reward, done] = item
+
+        # must save state for entropy computation
         self.state = state
         gamma = 0.99
+
+        # a2c reward has been discounted in the train_per_episode
+        if self.args.a2c:
+            gamma = 1.0
+
         discount_factor = gamma**step
-        delta = reward
+
+        # reinforce-baseline, delta = return - value
+        # actor-critic, delta = reward - value + discounted_next_value
+        # a2c, delta = discounted_reward - value
+        delta = reward - self.value(state)[0] 
+
         critic = False
         if self.args.baseline:
             critic = True
-            delta -= self.value(state)[0] 
-        elif self.args.actor_critic or self.args.a2c:
+        elif self.args.actor_critic:
             critic = True
             if done:
                 next_value = 0.0
             else:
                 next_value = self.value(next_state)[0]
             delta += gamma*next_value
-            target_value = delta
-            # if actor-critic,
-            # delta is a multiplier of loss not a target
-            delta -= self.value(state)[0] 
+        elif self.args.a2c:
+            critic = True
+        else:
+            delta = reward
 
         discounted_delta = delta * discount_factor
         discounted_delta = np.reshape(discounted_delta, [-1, 1])
@@ -229,7 +259,7 @@ class PolicyAgent():
                             verbose=verbose)
 
         if self.args.a2c:
-            discounted_delta = target_value
+            discounted_delta = reward
             discounted_delta = np.reshape(discounted_delta, [-1, 1])
 
         if critic:
@@ -350,11 +380,11 @@ if __name__ == '__main__':
             next_state, reward, done, _ = env.step(action)
             next_state = np.reshape(next_state, [1, state_size])
             item = [step, state, next_state, reward, done]
+            agent.remember(item)
 
             if args.actor_critic:
                 agent.train(item)
             elif not args.random and done:
-                agent.remember(item)
                 v = 0 if reward > 0 else agent.value(next_state)[0]
                 agent.train_by_episode(last_value=v)
 
