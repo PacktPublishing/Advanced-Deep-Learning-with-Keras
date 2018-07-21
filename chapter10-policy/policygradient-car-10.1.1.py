@@ -6,7 +6,7 @@ MountainCarCountinuous-v0 problem
 
 from keras.layers import Dense, Input, Lambda
 from keras.models import Model
-from keras.optimizers import Adam, RMSprop
+from keras.optimizers import Adam
 from keras import backend as K
 
 import tensorflow as tf
@@ -42,7 +42,7 @@ class PolicyAgent():
         lr = 1e-3
         decay = lr*1/200.0
         self.logp_model.compile(loss=loss,
-                                   optimizer=RMSprop(lr=lr, decay=decay))
+                                   optimizer=Adam(lr=lr, decay=decay))
         lr = 1e-5
         if args.actor_critic:
             lr = 1e-7
@@ -50,7 +50,7 @@ class PolicyAgent():
 
         loss = 'mse' if self.args.a2c else self.value_loss
         self.value_model.compile(loss=loss,
-                                 optimizer=RMSprop(lr=lr, decay=decay))
+                                 optimizer=Adam(lr=lr, decay=decay))
 
 
     def reset_memory(self):
