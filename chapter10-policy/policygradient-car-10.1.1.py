@@ -44,7 +44,7 @@ class PolicyAgent():
                                    optimizer=Adam(lr=lr))
         lr = 1e-5
         if args.actor_critic:
-            lr = 1e-6
+            lr = .1e-6
         loss = 'mse' if self.args.a2c else self.value_loss
         self.value_model.compile(loss=loss,
                                  optimizer=Adam(lr=lr))
