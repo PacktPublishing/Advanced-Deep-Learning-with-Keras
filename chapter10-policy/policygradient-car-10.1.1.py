@@ -40,6 +40,7 @@ class PolicyAgent():
         beta = 0.01 if self.args.a2c else 0.0
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
         lr = 1e-3
+        decay = 0.0
         if args.a2c:
             decay = 1e-6
         self.logp_model.compile(loss=loss,
