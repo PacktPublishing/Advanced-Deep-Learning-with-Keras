@@ -17,6 +17,8 @@ import gym
 from gym import wrappers, logger
 import sys
 import csv
+import time
+import os
 
 
 class PolicyAgent():
@@ -39,7 +41,7 @@ class PolicyAgent():
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
         self.logp_model.compile(loss=loss,
                                    optimizer=Adam(lr=1e-3))
-        lr = 1e-6
+        lr = 1e-5
         if args.actor_critic:
             lr = 1e-4
         loss = 'mse' if self.args.a2c else self.value_loss
@@ -97,22 +99,8 @@ class PolicyAgent():
                   activation='relu',
                   kernel_initializer=kernel_initializer)(inputs)
         x = Dense(256,
-                  activation='relu',
+                  activation='tanh',
                   kernel_initializer=kernel_initializer)(x)
-
-        shared_model = Model(inputs, x, name='shared')
-        shared_model.trainable = False
-        value = shared_model(inputs)
-
-        value = Dense(128,
-                      activation='relu',
-                      kernel_initializer=kernel_initializer)(value)
-        value = Dense(1,
-                      activation='linear',
-                      name='value',
-                      kernel_initializer=kernel_initializer)(value)
-        value_model = Model(inputs, value, name='value')
-        value_model.summary()
 
         mean = Dense(1,
                      activation='linear',
@@ -140,15 +128,35 @@ class PolicyAgent():
         entropy_model = Model(inputs, entropy, name='entropy')
         entropy_model.summary()
 
+        # shared_model = Model(inputs, x, name='shared')
+        # shared_model.trainable = False
+        # value = shared_model(inputs)
+        x = Dense(256,
+                  activation='relu',
+                  kernel_initializer=kernel_initializer)(inputs)
+        x = Dense(256,
+                  activation='tanh',
+                  kernel_initializer=kernel_initializer)(x)
+        value = Dense(1,
+                      activation='linear',
+                      name='value',
+                      kernel_initializer=kernel_initializer)(x)
+        value_model = Model(inputs, value, name='value')
+        value_model.summary()
+
         return actor_model, logp_model, entropy_model, value_model
 
 
-    def save_actor_weights(self, filename):
-        self.actor_model.save_weights(filename)
+    def save_weights(self, actor_weights, value_weights=None):
+        self.actor_model.save_weights(actor_weights)
+        if value_weights is not None:
+            self.value_model.save_weights(value_weights)
 
 
-    def load_actor_weights(self, filename):
-        self.actor_model.load_weights(filename)
+    def load_weights(self, actor_weights, value_weights=None):
+        self.actor_model.load_weights(actor_weights)
+        if value_weights is not None:
+            self.value_model.load_weights(value_weights)
 
 
     def act(self, state):
@@ -256,26 +264,46 @@ if __name__ == '__main__':
                         action='store_true',
                         help="Random action policy")
     parser.add_argument("-w",
-                        "--weights",
+                        "--actor_weights",
                         help="Load pre-trained actor model weights")
+    parser.add_argument("-y",
+                        "--value_weights",
+                        help="Load pre-trained value model weights")
     args = parser.parse_args()
 
     logger.setLevel(logger.ERROR)
     env = gym.make(args.env_id)
 
     postfix = 'reinforce'
+    has_value_model = False
     if args.baseline:
         postfix = "reinforce-baseline"
+        has_value_model = True
     elif args.actor_critic:
         postfix = "actor-critic"
+        has_value_model = True
     elif args.a2c:
         postfix = "a2c"
+        has_value_model = True
     elif args.random:
         postfix = "random"
 
-    filename = "actor_weights-%s-%s.h5" % (postfix, args.env_id)
-    outdir = "/tmp/%s-%s" % (postfix, args.env_id)
-    csvfilename = "%s.csv" % postfix
+    try:
+        os.mkdir(postfix)
+    except FileExistsError:
+        print(postfix, " folder exists")
+
+    fileid = "%s-%d" % (postfix, int(time.time()))
+    actor_weights = "actor_weights-%s.h5" % fileid
+    actor_weights = os.path.join(postfix, actor_weights)
+    value_weights = None
+    if has_value_model:
+        value_weights = "value_weights-%s.h5" % fileid
+        value_weights = os.path.join(postfix, value_weights)
+
+    outdir = "/tmp/%s" % postfix
+    csvfilename = "%s.csv" % fileid
+    csvfilename = os.path.join(postfix, csvfilename)
     csvfile = open(csvfilename, 'w', 1)
     writer = csv.writer(csvfile,
                         delimiter=',',
@@ -290,10 +318,12 @@ if __name__ == '__main__':
     
     # instantiate agent
     agent = PolicyAgent(env, args)
-    train = True
-    if args.weights:
-        agent.load_actor_weights(args.weights)
-        train = False
+    if args.actor_weights:
+        if args.value_weights:
+            agent.load_weights(args.actor_weights,
+                               args.value_weights)
+        else:
+            agent.load_weights(args.actor_weights)
 
     # should be solved in this number of episodes
     episode_count = 100
@@ -321,7 +351,7 @@ if __name__ == '__main__':
             item = [step, state, next_state, reward, done]
             agent.remember(item)
             total_reward += reward
-            if not args.random and train and done:
+            if not args.random and done:
                 v = 0 if reward > 0 else agent.value(next_state)[0]
                 agent.train_by_episode(last_value=v)
             state = next_state
@@ -333,8 +363,11 @@ if __name__ == '__main__':
         print(fmt % (episode, step, action[0], reward, total_reward))
         writer.writerow([episode, step, total_reward, n_solved])
 
-    if not args.weights and not args.random:
-        agent.save_actor_weights(filename)
+    if not args.random:
+        if has_value_model:
+            agent.save_weights(actor_weights, value_weights)
+        else:
+            agent.save_weights(actor_weights)
 
     # close the env and write monitor result info to disk
     csvfile.close()
