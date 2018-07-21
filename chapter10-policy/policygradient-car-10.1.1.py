@@ -40,18 +40,17 @@ class PolicyAgent():
         beta = 0.01 if self.args.a2c else 0.0
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
         lr = 1e-3
-        decay = 0.0
-        if args.a2c:
-            decay = 1e-6
+        decay = lr*1e-3
         self.logp_model.compile(loss=loss,
                                    optimizer=RMSprop(lr=lr, decay=decay))
         lr = 1e-5
         if args.actor_critic:
             lr = 1e-7
+        decay = lr*1e-3
 
         loss = 'mse' if self.args.a2c else self.value_loss
         self.value_model.compile(loss=loss,
-                                 optimizer=RMSprop(lr=lr))
+                                 optimizer=RMSprop(lr=lr, decay=decay))
 
 
     def reset_memory(self):
