@@ -187,7 +187,7 @@ class PolicyAgent():
             print("Actor-Critic must be trained per step")
             return
         elif self.args.a2c:
-            gamma = 0.95
+            gamma = 0.99
             i = 1
             max_step = len(self.memory)
             r = last_value
@@ -222,7 +222,7 @@ class PolicyAgent():
 
         # must save state for entropy computation
         self.state = state
-        gamma = 0.95
+        gamma = 0.99
 
         # a2c reward has been discounted in the train_per_episode
         if self.args.a2c:
