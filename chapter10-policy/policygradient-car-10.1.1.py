@@ -143,9 +143,6 @@ class PolicyAgent():
         entropy_model = Model(inputs, entropy, name='entropy')
         entropy_model.summary()
 
-        # shared_model = Model(inputs, x, name='shared')
-        # shared_model.trainable = False
-        # value = shared_model(inputs)
         x = Dense(256,
                   activation='relu',
                   kernel_initializer=kernel_initializer)(inputs)
@@ -229,7 +226,7 @@ class PolicyAgent():
 
         # must save state for entropy computation
         self.state = state
-        gamma = 0.99
+        gamma = 0.95
 
         # a2c reward has been discounted in the train_per_episode
         if self.args.a2c:
