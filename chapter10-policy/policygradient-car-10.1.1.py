@@ -44,15 +44,15 @@ class PolicyAgent():
         self.value_model = value
         beta = 0.5 if self.args.a2c else 0.0
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
-        lr = 1e-3
-        decay = 0.0 # lr*1e-2
+        lr = 1e-4
+        decay = 0.0 # lr*1e-6
 
         self.logp_model.compile(loss=loss,
                                    optimizer=Adam(lr=lr, decay=decay))
         lr = 1e-5
         if args.actor_critic:
             lr = 1e-7
-        decay = 0.0 # lr*1e-2
+        decay = 0.0 # lr*1e-6
 
         loss = 'mse' if self.args.a2c else self.value_loss
         self.value_model.compile(loss=loss,
@@ -117,10 +117,10 @@ class PolicyAgent():
                      kernel_initializer=kernel_initializer,
                      name='mean')(x)
         stddev = Dense(1,
-                       # activation='softplus',
+                       activation='softplus',
                        kernel_initializer=kernel_initializer,
                        name='stddev')(x)
-        stddev = Activation('softplusk')(stddev)
+        # stddev = Activation('softplusk')(stddev)
         action = Lambda(self.action,
                         output_shape=(1,),
                         name='action')([mean, stddev])
