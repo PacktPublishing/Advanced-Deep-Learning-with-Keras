@@ -4,10 +4,11 @@ MountainCarCountinuous-v0 problem
 
 """
 
-from keras.layers import Dense, Input, Lambda
+from keras.layers import Dense, Input, Lambda, Activation
 from keras.models import Model
 from keras.optimizers import Adam
 from keras import backend as K
+from keras.utils.generic_utils import get_custom_objects
 
 import tensorflow as tf
 
@@ -19,6 +20,10 @@ import sys
 import csv
 import time
 import os
+
+
+def softplusk(x):
+    return K.softplus(x) + 1e-3
 
 
 class PolicyAgent():
@@ -39,19 +44,19 @@ class PolicyAgent():
         self.value_model = value
         beta = 0.5 if self.args.a2c else 0.0
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
-        lr = 1e-3
-        decay = lr*1/1e3
-        if args.actor_critic:
-            decay = lr*1/50.0
+        lr = 1e-4
+        decay = lr*1e-2
+        # if args.actor_critic:
+        #    decay = lr*1/50.0
 
         self.logp_model.compile(loss=loss,
                                    optimizer=Adam(lr=lr, decay=decay))
         lr = 1e-5
         if args.actor_critic:
             lr = 1e-7
-        decay = lr*1/1e3
-        if args.actor_critic:
-            decay = lr*1/50.0
+        decay = lr*1e-2
+        # if args.actor_critic:
+        #    decay = lr*1/50.0
 
         loss = 'mse' if self.args.a2c else self.value_loss
         self.value_model.compile(loss=loss,
@@ -116,9 +121,10 @@ class PolicyAgent():
                      kernel_initializer=kernel_initializer,
                      name='mean')(x)
         stddev = Dense(1,
-                       activation='softplus',
+                       # activation='softplus',
                        kernel_initializer=kernel_initializer,
                        name='stddev')(x)
+        stddev = Activation('softplusk')(stddev)
         action = Lambda(self.action,
                         output_shape=(1,),
                         name='action')([mean, stddev])
@@ -184,11 +190,11 @@ class PolicyAgent():
 
 
     def train_by_episode(self, last_value=0):
-        gamma = 0.99
         if self.args.actor_critic:
             print("Actor-Critic must be trained per step")
             return
         elif self.args.a2c:
+            gamma = 0.95
             i = 1
             max_step = len(self.memory)
             r = last_value
@@ -349,6 +355,8 @@ if __name__ == '__main__':
 
     env = wrappers.Monitor(env, directory=outdir, force=True)
     env.seed(0)
+
+    get_custom_objects().update({'softplusk':Activation(softplusk)})
     
     # instantiate agent
     agent = PolicyAgent(env, args)
@@ -360,7 +368,7 @@ if __name__ == '__main__':
             agent.load_weights(args.actor_weights)
 
     # should be solved in this number of episodes
-    episode_count = 1000
+    episode_count = 200
     state_size = env.observation_space.shape[0]
     n_solved = 0 
 
