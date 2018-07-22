@@ -44,19 +44,15 @@ class PolicyAgent():
         self.value_model = value
         beta = 0.5 if self.args.a2c else 0.0
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
-        lr = 1e-4
-        decay = lr*1e-2
-        # if args.actor_critic:
-        #    decay = lr*1/50.0
+        lr = 1e-3
+        decay = 0.0 # lr*1e-2
 
         self.logp_model.compile(loss=loss,
                                    optimizer=Adam(lr=lr, decay=decay))
         lr = 1e-5
         if args.actor_critic:
             lr = 1e-7
-        decay = lr*1e-2
-        # if args.actor_critic:
-        #    decay = lr*1/50.0
+        decay = 0.0 # lr*1e-2
 
         loss = 'mse' if self.args.a2c else self.value_loss
         self.value_model.compile(loss=loss,
