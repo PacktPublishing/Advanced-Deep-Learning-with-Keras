@@ -456,8 +456,10 @@ if __name__ == '__main__':
     
     # instantiate agent
     agent = PolicyAgent(env, args)
+    train = True
     # if weights are given, lets load them
     if args.actor_weights:
+        train = False
         if args.value_weights:
             agent.load_weights(args.actor_weights,
                                args.value_weights)
@@ -497,11 +499,11 @@ if __name__ == '__main__':
             item = [step, state, next_state, reward, done]
             agent.remember(item)
 
-            if args.actor_critic:
+            if args.actor_critic and train:
                 # only actor-critic performs online training
                 # train every step as it happens
                 agent.train(item)
-            elif not args.random and done:
+            elif not args.random and done and train:
                 # for REINFORCE, REINFORCE with baseline, and A2C
                 # we wait for the completion of the episode before 
                 # training the network(s)
@@ -523,7 +525,7 @@ if __name__ == '__main__':
         writer.writerow([episode, step, total_reward, n_solved])
 
     # after training, save the actor and value models weights
-    if not args.random:
+    if not args.random and train:
         if has_value_model:
             agent.save_weights(actor_weights, value_weights)
         else:
