@@ -1,5 +1,18 @@
-"""Trains a policy network to solve
-MountainCarCountinuous-v0 problem
+"""Code implementation of Policy Gradient Methods as solution
+to MountainCarCountinuous-v0 problem
+
+Methods implemented:
+    1) REINFORCE
+    2) REINFORCE with Baseline
+    3) Actor-Critic
+    4) A2C
+
+References:
+    1) Sutton and Barto, Reinforcement Learning: An Introduction
+    (2017)
+
+    2) Mnih, et al. Asynchronous Methods for Deep Reinforcement
+    Learning. Intl Conf on Machine Learning. 2016
 
 
 """
@@ -22,13 +35,15 @@ import time
 import os
 
 
-# some implementation uses a modified softplus to ensure that
+# some implementations use a modified softplus to ensure that
 # the stddev is never zero
 # added here just for curious readers
 def softplusk(x):
     return K.softplus(x) + 1e-3
 
 
+# implements the models and training of Policy Gradient
+# Methods
 class PolicyAgent():
     def __init__(self, env, args):
 
@@ -58,7 +73,7 @@ class PolicyAgent():
         # logp loss of policy network
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
 
-        # learning rate, no decay
+        # learning rate
         lr = 1e-3
 
         # adjust decay for future optimizations
@@ -66,11 +81,11 @@ class PolicyAgent():
 
         # apply logp loss
         self.logp_model.compile(loss=loss,
-                                   optimizer=Adam(lr=lr, decay=decay))
+                                optimizer=Adam(lr=lr, decay=decay))
 
         # smaller value learning rate allows the policy to explore
-        # bigger values results to too early optimization of policy
-        # network missing the flag on mountain top
+        # bigger value results to too early optimization of policy
+        # network missing the flag on the mountain top
         lr = 1e-5
         if args.actor_critic:
             lr = 1e-7
@@ -104,13 +119,13 @@ class PolicyAgent():
         return loss
 
 
-    # typical loss function structure that accepts 2 arguments only
-    # this will be used by value loss of all methods except A2C
+    # typical loss function structure that accepts 2 arguments only.
+    # this will be used by value loss of all methods except A2C.
     def value_loss(self, y_true, y_pred):
         return -K.mean(y_pred * y_true, axis=-1)
 
 
-    # given mean and stddev, sample an action, clip it are return
+    # given mean and stddev, sample an action, clip it and return
     # we assume Gaussian distribution of probability of selecting an
     # action given a state
     def action(self, args):
@@ -122,8 +137,9 @@ class PolicyAgent():
                         self.env.action_space.high[0])
         return action
 
-    # given the mean, tddev, and action compute
-    # the log probability of the Gaussian dist
+
+    # given the mean, stddev, and action compute
+    # the log probability of the Gaussian distribution
     def logp(self, args):
         mean, stddev, action = args
         dist = tf.distributions.Normal(loc=mean, scale=stddev)
@@ -139,15 +155,16 @@ class PolicyAgent():
         return entropy
 
 
-    # 4 models are built but 3 models share the same parameters
+    # 4 models are built but 3 models share the same parameters.
     # hence training one, trains the rest.
     # the 3 models that share the same parameters are action, logp,
-    # and entropy model. entropy model is used by A2C only.
+    # and entropy models. entropy model is used by A2C only.
     # each model has the same MLP structure:
-    # Input(2)-Dense(256)-Dense(256)-Output(1)
+    # Input(2)-Dense(256)-Dense(256)-Output(1).
     # the output activation depends on the nature of the output.
     def build_models(self, n_inputs):
         inputs = Input(shape=(n_inputs, ), name='state')
+        # all parameters are initially set to zero
         kernel_initializer = 'zeros'
         x = Dense(256,
                   activation='relu',
@@ -174,8 +191,8 @@ class PolicyAgent():
         actor_model.summary()
 
         logp = Lambda(self.logp,
-                         output_shape=(1,),
-                         name='logp')([mean, stddev, action])
+                      output_shape=(1,),
+                      name='logp')([mean, stddev, action])
         logp_model = Model(inputs, logp, name='logp')
         logp_model.summary()
 
@@ -245,6 +262,7 @@ class PolicyAgent():
         elif self.args.a2c:
             # implements A2C training from the last state
             # to the first state
+            # discount factor
             gamma = 0.99
             i = 1
             max_step = len(self.memory)
@@ -289,6 +307,8 @@ class PolicyAgent():
 
         # must save state for entropy computation
         self.state = state
+
+        # discount factor
         gamma = 0.99
 
         # a2c reward has been discounted in the train_per_episode
@@ -356,7 +376,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('env_id',
                         nargs='?',
-                        #default='Pendulum-v0',
                         default='MountainCarContinuous-v0',
                         help='Select the environment to run')
     parser.add_argument("-b",
@@ -401,6 +420,7 @@ if __name__ == '__main__':
     elif args.random:
         postfix = "random"
 
+    # create the folder for log files
     try:
         os.mkdir(postfix)
     except FileExistsError:
@@ -416,7 +436,7 @@ if __name__ == '__main__':
 
     outdir = "/tmp/%s" % postfix
 
-    # we dump episode, step, total reward and 
+    # we dump episode num, step, total reward, and 
     # number of episodes solved in a csv file for analysis
     csvfilename = "%s.csv" % fileid
     csvfilename = os.path.join(postfix, csvfilename)
@@ -473,7 +493,7 @@ if __name__ == '__main__':
             next_state, reward, done, _ = env.step(action)
             next_state = np.reshape(next_state, [1, state_size])
             # save the experience unit in memory for training
-            # Actor-Critic does need this. 
+            # Actor-Critic does not need this but we keep it anyway.
             item = [step, state, next_state, reward, done]
             agent.remember(item)
 
@@ -483,13 +503,15 @@ if __name__ == '__main__':
                 agent.train(item)
             elif not args.random and done:
                 # for REINFORCE, REINFORCE with baseline, and A2C
-                # we wait for the completion of episode before 
+                # we wait for the completion of the episode before 
                 # training the network(s)
                 # last value as used by A2C
                 v = 0 if reward > 0 else agent.value(next_state)[0]
                 agent.train_by_episode(last_value=v)
 
+            # accumulate reward
             total_reward += reward
+            # next state is the new state
             state = next_state
             step += 1
 
