@@ -14,7 +14,6 @@ References:
     2) Mnih, et al. Asynchronous Methods for Deep Reinforcement
     Learning. Intl Conf on Machine Learning. 2016
 
-
 """
 
 from keras.layers import Dense, Input, Lambda, Activation
@@ -119,13 +118,13 @@ class PolicyAgent():
         return loss
 
 
-    # typical loss function structure that accepts 2 arguments only.
-    # this will be used by value loss of all methods except A2C.
+    # typical loss function structure that accepts 2 arguments only
+    # this will be used by value loss of all methods except A2C
     def value_loss(self, y_true, y_pred):
         return -K.mean(y_pred * y_true, axis=-1)
 
 
-    # given mean and stddev, sample an action, clip it and return
+    # given mean and stddev, sample an action, clip and return
     # we assume Gaussian distribution of probability of selecting an
     # action given a state
     def action(self, args):
@@ -254,7 +253,7 @@ class PolicyAgent():
 
     # train by episode (REINFORCE, REINFORCE with baseline
     # and A2C use this routine to prepare the dataset before
-    # the step by step training
+    # the step by step training)
     def train_by_episode(self, last_value=0):
         if self.args.actor_critic:
             print("Actor-Critic must be trained per step")
@@ -265,13 +264,11 @@ class PolicyAgent():
             # discount factor
             gamma = 0.99
             i = 1
-            max_step = len(self.memory)
             r = last_value
             # the memory is visited in reverse as shown
             # in Algorithm 10.5.1
             for item in self.memory[::-1]:
                 [step, state, next_state, reward, done] = item
-                step = max_step - i
                 # compute the return
                 r = reward + gamma*r
                 item = [step, state, next_state, r, done]
@@ -311,15 +308,15 @@ class PolicyAgent():
         # discount factor
         gamma = 0.99
 
-        # a2c reward has been discounted in the train_per_episode
+        # a2c reward has been discounted in the train_by_episode
         if self.args.a2c:
             gamma = 1.0
 
         discount_factor = gamma**step
 
-        # reinforce-baseline, delta = return - value
-        # actor-critic, delta = reward - value + discounted_next_value
-        # a2c, delta = discounted_reward - value
+        # reinforce-baseline: delta = return - value
+        # actor-critic: delta = reward - value + discounted_next_value
+        # a2c: delta = discounted_reward - value
         delta = reward - self.value(state)[0] 
 
         # only REINFORCE does not use a critic (value network)
@@ -389,7 +386,7 @@ if __name__ == '__main__':
     parser.add_argument("-c",
                         "--a2c",
                         action='store_true',
-                        help="Advantage-Actor-Critic")
+                        help="Advantage-Actor-Critic (A2C)")
     parser.add_argument("-r",
                         "--random",
                         action='store_true',
@@ -451,7 +448,9 @@ if __name__ == '__main__':
 
     env = wrappers.Monitor(env, directory=outdir, force=True)
     env.seed(0)
-
+    
+    # register softplusk activation. just in case the reader wants
+    # to use this activation
     get_custom_objects().update({'softplusk':Activation(softplusk)})
     
     # instantiate agent
@@ -501,7 +500,7 @@ if __name__ == '__main__':
 
             if args.actor_critic and train:
                 # only actor-critic performs online training
-                # train every step as it happens
+                # train at every step as it happens
                 agent.train(item)
             elif not args.random and done and train:
                 # for REINFORCE, REINFORCE with baseline, and A2C
