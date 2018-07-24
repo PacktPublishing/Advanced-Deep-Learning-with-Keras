@@ -21,6 +21,7 @@ from keras.models import Model
 from keras.optimizers import Adam
 from keras import backend as K
 from keras.utils.generic_utils import get_custom_objects
+from keras.utils import plot_model
 
 import tensorflow as tf
 
@@ -188,18 +189,21 @@ class PolicyAgent():
                         name='action')([mean, stddev])
         actor_model = Model(inputs, action, name='action')
         actor_model.summary()
+        plot_model(actor_model, to_file='actor_model.png', show_shapes=True)
 
         logp = Lambda(self.logp,
                       output_shape=(1,),
                       name='logp')([mean, stddev, action])
         logp_model = Model(inputs, logp, name='logp')
         logp_model.summary()
+        plot_model(logp_model, to_file='logp_model.png', show_shapes=True)
 
         entropy = Lambda(self.entropy,
                          output_shape=(1,),
                          name='entropy')([mean, stddev])
         entropy_model = Model(inputs, entropy, name='entropy')
         entropy_model.summary()
+        plot_model(entropy_model, to_file='entropy_model.png', show_shapes=True)
 
         x = Dense(256,
                   activation='relu',
@@ -213,6 +217,7 @@ class PolicyAgent():
                       kernel_initializer=kernel_initializer)(x)
         value_model = Model(inputs, value, name='value')
         value_model.summary()
+        plot_model(value_model, to_file='value_model.png', show_shapes=True)
 
         return actor_model, logp_model, entropy_model, value_model
 
