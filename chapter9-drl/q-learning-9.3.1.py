@@ -21,7 +21,7 @@ import time
 from termcolor import colored
 
 
-class QWorld(object):
+class QWorld():
     def __init__(self):
         # 4 actions
         # 0 - Left, 1 - Down, 2 - Right, 3 - Up
@@ -120,9 +120,13 @@ class QWorld(object):
     
     # execute the action on the environment
     def step(self, action):
+        # determine the next_state given state and action
         next_state = self.transition_table[self.state, action]
-        done = True if (next_state == 2 or next_state == 5) else False
+        # done is True if next_state is Goal or Hole
+        done = next_state == 2 or next_state == 5
+        # reward given the state and action
         reward = self.reward_table[self.state, action]
+        # the enviroment is now in new state
         self.state = next_state
         return next_state, reward, done
 
@@ -130,17 +134,19 @@ class QWorld(object):
     # determine the next action
     def act(self):
         # 0 - Left, 1 - Down, 2 - Right, 3 - Up
+        # action is from exploration
         if np.random.rand() <= self.epsilon:
             # explore - do random action
             self.is_explore = True
             return np.random.choice(4,1)[0]
 
+        # or action is from exploitation
         # exploit - choose action with max Q-value
         self.is_explore = False
         return np.argmax(self.q_table[self.state])
 
 
-    # Q-Learning - update the table
+    # Q-Learning - update the Q Table using Q(s, a)
     def update_q_table(self, state, action, reward, next_state):
         # Q(s, a) = reward + gamma * max_a' Q(s', a')
         q_value = self.gamma * np.amax(self.q_table[next_state])
@@ -265,7 +271,7 @@ if __name__ == '__main__':
             q_world.update_q_table(state, action, reward, next_state)
             print_status(q_world, done, step, delay=delay)
             state = next_state
-            # if episoe is done, perform housekeeping
+            # if episode is done, perform housekeeping
             if done:
                 if q_world.is_in_win_state():
                     wins += 1

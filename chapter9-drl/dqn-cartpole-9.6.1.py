@@ -14,7 +14,7 @@ import gym
 from gym import wrappers, logger
 
 
-class DQNAgent(object):
+class DQNAgent():
     def __init__(self, state_space, action_space, args, episodes=500):
 
         self.action_space = action_space

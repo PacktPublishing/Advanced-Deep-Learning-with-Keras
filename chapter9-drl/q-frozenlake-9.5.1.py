@@ -11,7 +11,7 @@ import time
 import gym
 from gym import wrappers, logger
 
-class QAgent(object):
+class QAgent():
     def __init__(self,
                  observation_space,
                  action_space,
