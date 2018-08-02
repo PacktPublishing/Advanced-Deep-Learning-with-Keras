@@ -44,6 +44,7 @@ def sampling(args):
     """
 
     z_mean, z_log_var = args
+    # K is the keras backend
     batch = K.shape(z_mean)[0]
     dim = K.int_shape(z_mean)[1]
     # by default, random_normal has mean=0 and std=1.0
