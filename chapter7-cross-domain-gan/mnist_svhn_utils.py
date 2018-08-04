@@ -16,10 +16,26 @@ from __future__ import division
 from __future__ import print_function
 
 from keras.datasets import mnist
+from keras.utils.data_utils import get_file
 
 import numpy as np
 from scipy import io
 import other_utils
+import os
+
+
+def get_datadir():
+    cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
+    cache_subdir = 'datasets'
+    datadir_base = os.path.expanduser(cache_dir)
+    if not os.access(datadir_base, os.W_OK):
+        datadir_base = os.path.join('/tmp', '.keras')
+
+    datadir = os.path.join(datadir_base, cache_subdir)
+    if not os.path.exists(datadir):
+        os.makedirs(datadir)
+
+    return datadir
 
 
 def load_data():
@@ -56,8 +72,15 @@ def load_data():
                                                 channels)
 
     # load SVHN data
-    target_data = loadmat("datasets/train_32x32.mat")
-    test_target_data = loadmat("datasets/test_32x32.mat")
+    datadir = get_datadir()
+    get_file('train_32x32.mat',
+             origin='http://ufldl.stanford.edu/housenumbers/train_32x32.mat')
+    get_file('test_32x32.mat',
+             'http://ufldl.stanford.edu/housenumbers/test_32x32.mat')
+    path = os.path.join(datadir, 'train_32x32.mat')
+    target_data = loadmat(path)
+    path = os.path.join(datadir, 'test_32x32.mat')
+    test_target_data = loadmat(path)
 
     # source data, target data, test_source data
     data = (source_data, target_data, test_source_data, test_target_data)

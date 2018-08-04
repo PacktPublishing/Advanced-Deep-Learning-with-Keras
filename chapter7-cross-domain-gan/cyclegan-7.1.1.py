@@ -28,7 +28,7 @@ References:
 Cycle-Consistent Adversarial Networks." 2017 IEEE International
 Conference on Computer Vision (ICCV). IEEE, 2017.
 
-[2]1Ronneberger, Olaf, Philipp Fischer, and Thomas Brox. "U-net:
+[2]Ronneberger, Olaf, Philipp Fischer, and Thomas Brox. "U-net:
 Convolutional networks for biomedical image segmentation."
 International Conference on Medical image computing and
 computer-assisted intervention. Springer, Cham, 2015.
@@ -95,6 +95,11 @@ def decoder_layer(inputs,
                   instance_norm=True):
     """Builds a generic decoder layer made of Conv2D-IN-LeakyReLU
     IN is optional, LeakyReLU may be replaced by ReLU
+    Arguments: (partial)
+    inputs (tensor): the decoder layer input
+    paired_inputs (tensor): the encoder layer output 
+          provided by U-Net skip connection &
+          concatenated to inputs.
 
     """
 
