@@ -474,7 +474,9 @@ def graycifar10_cross_colorcifar10(g_models=None):
     data, shapes = cifar10_utils.load_data()
     source_data, _, test_source_data, test_target_data = data
     titles = ('CIFAR10 predicted source images.',
-             'CIFAR10 predicted target images.')
+              'CIFAR10 predicted target images.',
+              'CIFAR10 reconstructed source images.',
+              'CIFAR10 reconstructed target images.')
     dirs = ('cifar10_source-%s' % postfix, 'cifar10_target-%s' % postfix)
 
     # generate predicted target(color) and source(gray) images
