@@ -96,11 +96,17 @@ def test_generator(generators,
     # predict the output from test data
     g_source, g_target = generators
     test_source_data, test_target_data = test_data
-    title_pred_source, title_pred_target = titles
+    t1, t2, t3, t4 = titles
+    title_pred_source = t1
+    title_pred_target = t2
+    title_reco_source = t3
+    title_reco_target = t4
     dir_pred_source, dir_pred_target = dirs
 
     pred_target_data = g_target.predict(test_source_data)
     pred_source_data = g_source.predict(test_target_data)
+    reco_source_data = g_source.predict(pred_target_data)
+    reco_target_data = g_target.predict(pred_source_data)
 
     # display the 1st todisplay images
     imgs = pred_target_data[:todisplay]
@@ -114,10 +120,28 @@ def test_generator(generators,
                    show=show)
 
     imgs = pred_source_data[:todisplay]
-    title = title_pred_source + step
+    title = title_pred_source
     display_images(imgs,
                    filename=filename,
                    imgs_dir=dir_pred_source,
+                   title=title,
+                   show=show)
+
+    imgs = reco_source_data[:todisplay]
+    title = title_reco_source
+    filename = "reconstructed_source.png"
+    display_images(imgs,
+                   filename=filename,
+                   imgs_dir=dir_pred_source,
+                   title=title,
+                   show=show)
+
+    imgs = reco_target_data[:todisplay]
+    title = title_reco_target
+    filename = "reconstructed_target.png"
+    display_images(imgs,
+                   filename=filename,
+                   imgs_dir=dir_pred_target,
                    title=title,
                    show=show)
 

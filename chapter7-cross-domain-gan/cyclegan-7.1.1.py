@@ -521,7 +521,9 @@ def mnist_cross_svhn(g_models=None):
     data, shapes = mnist_svhn_utils.load_data()
     source_data, _, test_source_data, test_target_data = data
     titles = ('MNIST predicted source images.',
-              'SVHN predicted target images.')
+              'SVHN predicted target images.',
+              'MNIST reconstructed source images.',
+              'SVHN reconstructed target images.')
     dirs = ('mnist_source-%s' % postfix, 'svhn_target-%s' % postfix)
 
     # generate predicted target(svhn) and source(mnist) images
