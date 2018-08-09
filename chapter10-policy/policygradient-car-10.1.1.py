@@ -18,7 +18,7 @@ References:
 
 from keras.layers import Dense, Input, Lambda, Activation
 from keras.models import Model
-from keras.optimizers import Adam
+from keras.optimizers import Adam, RMSprop
 from keras import backend as K
 from keras.utils.generic_utils import get_custom_objects
 from keras.utils import plot_model
@@ -55,50 +55,9 @@ class PolicyAgent():
 
         # for computation of input size
         self.state = env.reset()
-        state_size = env.observation_space.shape[0]
-        self.state = np.reshape(self.state, [1, state_size])
-
-        # 4 models
-        # actor, logp and entropy share the same parameters
-        # value is a separate network
-        actor, logp, entropy, value = self.build_models(state_size)
-        self.actor_model = actor
-        self.logp_model = logp
-        self.entropy_model = entropy
-        self.value_model = value
-
-        # beta of entropy used in A2C
-        beta = 0.9 if self.args.a2c else 0.0
-
-        # logp loss of policy network
-        loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
-
-        # learning rate
-        lr = 1e-3
-
-        # adjust decay for future optimizations
-        decay = 0.0 
-
-        # apply logp loss
-        self.logp_model.compile(loss=loss,
-                                optimizer=Adam(lr=lr, decay=decay))
-
-        # smaller value learning rate allows the policy to explore
-        # bigger value results to too early optimization of policy
-        # network missing the flag on the mountain top
-        lr = 1e-5
-        if args.actor_critic:
-            lr = 1e-7
-
-        # adjust decay for future optimizations
-        decay = 0.0
-
-        # loss function of A2C is mse, while the rest use their own
-        # loss function called value loss
-        loss = 'mse' if self.args.a2c else self.value_loss
-        self.value_model.compile(loss=loss,
-                                 optimizer=Adam(lr=lr, decay=decay))
-
+        self.state_dim = env.observation_space.shape[0]
+        self.state = np.reshape(self.state, [1, self.state_dim])
+        self.build_autoencoder()
 
     # clear the memory before the start of every episode
     def reset_memory(self):
@@ -155,6 +114,51 @@ class PolicyAgent():
         return entropy
 
 
+    def build_autoencoder(self):
+        # build the autoencoder model
+        # first build the encoder model
+        inputs = Input(shape=(self.state_dim, ), name='state')
+        feature_size = 32
+        x = Dense(256, activation='relu')(inputs)
+        x = Dense(128, activation='relu')(x)
+        # shape = K.int_shape(x)
+        feature = Dense(feature_size, name='feature_vector')(x)
+
+        # instantiate encoder model
+        self.encoder = Model(inputs, feature, name='encoder')
+        self.encoder.summary()
+        plot_model(self.encoder, to_file='encoder.png', show_shapes=True)
+
+        # build the decoder model
+        feature_inputs = Input(shape=(feature_size,), name='decoder_input')
+        x = Dense(128, activation='relu')(feature_inputs)
+        x = Dense(256, activation='relu')(x)
+        outputs = Dense(self.state_dim, activation='linear')(x)
+
+        # instantiate decoder model
+        self.decoder = Model(feature_inputs, outputs, name='decoder')
+        self.decoder.summary()
+        plot_model(self.decoder, to_file='decoder.png', show_shapes=True)
+
+        # autoencoder = encoder + decoder
+        # instantiate autoencoder model
+        self.autoencoder = Model(inputs, self.decoder(self.encoder(inputs)), name='autoencoder')
+        self.autoencoder.summary()
+        plot_model(self.autoencoder, to_file='autoencoder.png', show_shapes=True)
+
+        # Mean Square Error (MSE) loss function, Adam optimizer
+        self.autoencoder.compile(loss='mse', optimizer='adam')
+
+
+    def train_autoencoder(self, x_train, x_test):
+        # train the autoencoder
+        batch_size = 32
+        self.autoencoder.fit(x_train,
+                             x_train,
+                             validation_data=(x_test, x_test),
+                             epochs=10,
+                             batch_size=batch_size)
+
     # 4 models are built but 3 models share the same parameters.
     # hence training one, trains the rest.
     # the 3 models that share the same parameters are action, logp,
@@ -162,17 +166,12 @@ class PolicyAgent():
     # each model has the same MLP structure:
     # Input(2)-Dense(256)-Dense(256)-Output(1).
     # the output activation depends on the nature of the output.
-    def build_models(self, n_inputs):
-        inputs = Input(shape=(n_inputs, ), name='state')
+    def build_models(self):
+        inputs = Input(shape=(self.state_dim, ), name='state')
         # all parameters are initially set to zero
         kernel_initializer = 'zeros'
-        x = Dense(256,
-                  activation='relu',
-                  kernel_initializer=kernel_initializer)(inputs)
-        x = Dense(256,
-                  activation='tanh',
-                  kernel_initializer=kernel_initializer)(x)
-
+        self.encoder.trainable = False
+        x = self.encoder(inputs)
         mean = Dense(1,
                      activation='linear',
                      kernel_initializer=kernel_initializer,
@@ -187,45 +186,76 @@ class PolicyAgent():
         action = Lambda(self.action,
                         output_shape=(1,),
                         name='action')([mean, stddev])
-        actor_model = Model(inputs, action, name='action')
-        actor_model.summary()
-        plot_model(actor_model, to_file='actor_model.png', show_shapes=True)
+        self.actor_model = Model(inputs, action, name='action')
+        self.actor_model.summary()
+        plot_model(self.actor_model, to_file='actor_model.png', show_shapes=True)
 
         logp = Lambda(self.logp,
                       output_shape=(1,),
                       name='logp')([mean, stddev, action])
-        logp_model = Model(inputs, logp, name='logp')
-        logp_model.summary()
-        plot_model(logp_model, to_file='logp_model.png', show_shapes=True)
+        self.logp_model = Model(inputs, logp, name='logp')
+        self.logp_model.summary()
+        plot_model(self.logp_model, to_file='logp_model.png', show_shapes=True)
 
         entropy = Lambda(self.entropy,
                          output_shape=(1,),
                          name='entropy')([mean, stddev])
-        entropy_model = Model(inputs, entropy, name='entropy')
-        entropy_model.summary()
-        plot_model(entropy_model, to_file='entropy_model.png', show_shapes=True)
+        self.entropy_model = Model(inputs, entropy, name='entropy')
+        self.entropy_model.summary()
+        plot_model(self.entropy_model, to_file='entropy_model.png', show_shapes=True)
 
-        x = Dense(256,
-                  activation='relu',
-                  kernel_initializer=kernel_initializer)(inputs)
-        x = Dense(256,
-                  activation='tanh',
-                  kernel_initializer=kernel_initializer)(x)
+        # x = Dense(256,
+        #          activation='relu',
+        #          kernel_initializer=kernel_initializer)(inputs)
+        x = self.encoder(inputs)
+        #x = Dense(64,
+        #          activation='relu')(x)
+        #x = Dense(64,
+        #          activation='relu')(x)
         value = Dense(1,
                       activation='linear',
                       name='value',
                       kernel_initializer=kernel_initializer)(x)
-        value_model = Model(inputs, value, name='value')
-        value_model.summary()
-        plot_model(value_model, to_file='value_model.png', show_shapes=True)
+        self.value_model = Model(inputs, value, name='value')
+        self.value_model.summary()
+        plot_model(self.value_model, to_file='value_model.png', show_shapes=True)
 
-        return actor_model, logp_model, entropy_model, value_model
+        # beta of entropy used in A2C
+        beta = 0.9 if self.args.a2c else 0.0
+
+        # logp loss of policy network
+        loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
+
+        # learning rate
+        lr = 1e-3
+
+        # adjust decay for future optimizations
+        decay = 0.0 
+
+        # apply logp loss
+        self.logp_model.compile(loss=loss,
+                                optimizer=RMSprop(lr=lr, decay=decay))
+
+        # smaller value learning rate allows the policy to explore
+        # bigger value results to too early optimization of policy
+        # network missing the flag on the mountain top
+        lr = 1e-3
+
+        # adjust decay for future optimizations
+        decay = 0.0
+
+        # loss function of A2C is mse, while the rest use their own
+        # loss function called value loss
+        loss = 'mse' if self.args.a2c else self.value_loss
+        self.value_model.compile(loss=loss,
+                                 optimizer=Adam(lr=lr, decay=decay))
 
 
     # save the actor and critic (if applicable) weights
     # useful for restoring the trained models
-    def save_weights(self, actor_weights, value_weights=None):
+    def save_weights(self, actor_weights, encoder_weights, value_weights=None):
         self.actor_model.save_weights(actor_weights)
+        self.encoder.save_weights(encoder_weights)
         if value_weights is not None:
             self.value_model.save_weights(value_weights)
 
@@ -267,7 +297,7 @@ class PolicyAgent():
             # implements A2C training from the last state
             # to the first state
             # discount factor
-            gamma = 0.99
+            gamma = 0.95
             i = 1
             r = last_value
             # the memory is visited in reverse as shown
@@ -311,7 +341,7 @@ class PolicyAgent():
         self.state = state
 
         # discount factor
-        gamma = 0.99
+        gamma = 0.999
 
         # a2c reward has been discounted in the train_by_episode
         if self.args.a2c:
@@ -431,6 +461,8 @@ if __name__ == '__main__':
     fileid = "%s-%d" % (postfix, int(time.time()))
     actor_weights = "actor_weights-%s.h5" % fileid
     actor_weights = os.path.join(postfix, actor_weights)
+    encoder_weights = "encoder_weights-%s.h5" % fileid
+    encoder_weights = os.path.join(postfix, encoder_weights)
     value_weights = None
     if has_value_model:
         value_weights = "value_weights-%s.h5" % fileid
@@ -471,15 +503,23 @@ if __name__ == '__main__':
             agent.load_weights(args.actor_weights)
 
     # number of episodes we run the training
-    episode_count = 200
-    state_size = env.observation_space.shape[0]
+    episode_count = 10000
+    state_dim = env.observation_space.shape[0]
     n_solved = 0 
+
+    x_train = np.array([env.observation_space.sample() for x in range(200000)])
+    x_test = np.array([env.observation_space.sample() for x in range(20000)])
+
+    agent.train_autoencoder(x_train, x_test)
+    agent.build_models()
+
+    print(x_train.shape)
 
     # sampling and fitting
     for episode in range(episode_count):
         state = env.reset()
         # state is car [position, speed]
-        state = np.reshape(state, [1, state_size])
+        state = np.reshape(state, [1, state_dim])
         # reset all variables and memory before the start of
         # every episode
         step = 0
@@ -497,7 +537,7 @@ if __name__ == '__main__':
             env.render()
             # after executing the action, get s', r, done
             next_state, reward, done, _ = env.step(action)
-            next_state = np.reshape(next_state, [1, state_size])
+            next_state = np.reshape(next_state, [1, state_dim])
             # save the experience unit in memory for training
             # Actor-Critic does not need this but we keep it anyway.
             item = [step, state, next_state, reward, done]
@@ -531,9 +571,9 @@ if __name__ == '__main__':
     # after training, save the actor and value models weights
     if not args.random and train:
         if has_value_model:
-            agent.save_weights(actor_weights, value_weights)
+            agent.save_weights(actor_weights, encoder_weights, value_weights)
         else:
-            agent.save_weights(actor_weights)
+            agent.save_weights(actor_weights, encoder_weights)
 
     # close the env and write monitor result info to disk
     csvfile.close()
