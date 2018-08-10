@@ -33,6 +33,7 @@ import sys
 import csv
 import time
 import os
+import datetime
 
 
 # some implementations use a modified softplus to ensure that
@@ -222,7 +223,9 @@ class PolicyAgent():
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
 
         # learning rate
-        lr = 1e-3
+        lr = 1e-4
+        if self.args.a2c:
+            lr = 1e-3
 
         # adjust decay for future optimizations
         decay = 0.0 
@@ -554,6 +557,7 @@ if __name__ == '__main__':
     episode_count = 10000
     state_dim = env.observation_space.shape[0]
     n_solved = 0 
+    start_time = datetime.datetime.now()
     # sampling and fitting
     for episode in range(episode_count):
         state = env.reset()
@@ -602,18 +606,26 @@ if __name__ == '__main__':
 
         if reward > 0:
             n_solved += 1
-        fmt = "Episode=%d, Step=%d. Action=%f, Reward=%f, Total_Reward=%f"
-        print(fmt % (episode, step, action[0], reward, total_reward))
+        elapsed = datetime.datetime.now() - start_time
+        fmt = "Episode=%d, Step=%d, Action=%f, Reward=%f"
+        fmt = fmt + ", Total_Reward=%f, Elapsed=%s"
+        msg = (episode, step, action[0], reward, total_reward, elapsed)
+        print(fmt % msg)
         # log the data on the opened csv file for analysis
         if train:
             writer.writerow([episode, step, total_reward, n_solved])
 
+
+
     # after training, save the actor and value models weights
     if not args.random and train:
         if has_value_model:
-            agent.save_weights(actor_weights, encoder_weights, value_weights)
+            agent.save_weights(actor_weights,
+                               encoder_weights,
+                               value_weights)
         else:
-            agent.save_weights(actor_weights, encoder_weights)
+            agent.save_weights(actor_weights,
+                               encoder_weights)
 
     # close the env and write monitor result info to disk
     if train:
