@@ -204,12 +204,7 @@ class PolicyAgent():
         self.entropy_model.summary()
         plot_model(self.entropy_model, to_file='entropy_model.png', show_shapes=True)
 
-        # x = Dense(256,
-        #          activation='relu',
-        #          kernel_initializer=kernel_initializer)(inputs)
         x = self.encoder(inputs)
-        #x = Dense(64,
-        #          activation='relu')(x)
         #x = Dense(64,
         #          activation='relu')(x)
         value = Dense(1,
@@ -266,6 +261,12 @@ class PolicyAgent():
         self.actor_model.load_weights(actor_weights)
         if value_weights is not None:
             self.value_model.load_weights(value_weights)
+
+    
+    # load encoder trained weights
+    # useful if we are interested in using the network right away
+    def load_encoder_weights(self, encoder_weights):
+        self.encoder.load_weights(encoder_weights)
 
     
     # call the policy network to sample an action
@@ -341,7 +342,7 @@ class PolicyAgent():
         self.state = state
 
         # discount factor
-        gamma = 0.999
+        gamma = 0.95
 
         # a2c reward has been discounted in the train_by_episode
         if self.args.a2c:
@@ -403,8 +404,7 @@ class PolicyAgent():
                                  verbose=verbose)
 
 
-
-if __name__ == '__main__':
+def setup_parser():
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('env_id',
                         nargs='?',
@@ -432,11 +432,18 @@ if __name__ == '__main__':
     parser.add_argument("-y",
                         "--value_weights",
                         help="Load pre-trained value model weights")
+    parser.add_argument("-e",
+                        "--encoder_weights",
+                        help="Load pre-trained encoder model weights")
+    parser.add_argument("-t",
+                        "--train",
+                        help="Enable training",
+                        action='store_true')
     args = parser.parse_args()
+    return args
 
-    logger.setLevel(logger.ERROR)
-    env = gym.make(args.env_id)
 
+def setup_files(args):
     # housekeeping to keep the output logs in separate folders
     postfix = 'reinforce'
     has_value_model = False
@@ -470,28 +477,27 @@ if __name__ == '__main__':
 
     outdir = "/tmp/%s" % postfix
 
-    # we dump episode num, step, total reward, and 
-    # number of episodes solved in a csv file for analysis
-    csvfilename = "%s.csv" % fileid
-    csvfilename = os.path.join(postfix, csvfilename)
-    csvfile = open(csvfilename, 'w', 1)
-    writer = csv.writer(csvfile,
-                        delimiter=',',
-                        quoting=csv.QUOTE_NONNUMERIC)
-    writer.writerow(['Episode',
-                    'Step',
-                    'Total Reward',
-                    'Number of Episodes Solved'])
+    misc = (postfix, fileid, outdir, has_value_model)
+    weights = (actor_weights, encoder_weights, value_weights)
 
-    env = wrappers.Monitor(env, directory=outdir, force=True)
-    env.seed(0)
-    
-    # register softplusk activation. just in case the reader wants
-    # to use this activation
-    get_custom_objects().update({'softplusk':Activation(softplusk)})
-    
+    return weights, misc
+
+
+
+def setup_agent(env, args):
     # instantiate agent
     agent = PolicyAgent(env, args)
+    # if weights are given, lets load them
+    if args.encoder_weights:
+        agent.load_encoder_weights(args.encoder_weights)
+    else:
+        x_train = [env.observation_space.sample() for x in range(200000)]
+        x_train = np.array(x_train)
+        x_test = [env.observation_space.sample() for x in range(20000)]
+        x_test = np.array(x_test)
+        agent.train_autoencoder(x_train, x_test)
+
+    agent.build_models()
     train = True
     # if weights are given, lets load them
     if args.actor_weights:
@@ -502,19 +508,52 @@ if __name__ == '__main__':
         else:
             agent.load_weights(args.actor_weights)
 
+    return agent, train
+
+
+def setup_writer(fileid, postfix):
+    # we dump episode num, step, total reward, and 
+    # number of episodes solved in a csv file for analysis
+    csvfilename = "%s.csv" % fileid
+    csvfilename = os.path.join(postfix, csvfilename)
+    csvfile = open(csvfilename, 'w', 1)
+    writer = csv.writer(csvfile,
+                        delimiter=',',
+                        quoting=csv.QUOTE_NONNUMERIC)
+    writer.writerow(['Episode',
+                     'Step',
+                     'Total Reward',
+                     'Number of Episodes Solved'])
+
+    return csvfile, writer
+
+
+if __name__ == '__main__':
+    args = setup_parser()
+    logger.setLevel(logger.ERROR)
+
+    weights, misc = setup_files(args)
+    actor_weights, encoder_weights, value_weights = weights
+    postfix, fileid, outdir, has_value_model = misc
+
+    env = gym.make(args.env_id)
+    env = wrappers.Monitor(env, directory=outdir, force=True)
+    env.seed(0)
+    
+    # register softplusk activation. just in case the reader wants
+    # to use this activation
+    get_custom_objects().update({'softplusk':Activation(softplusk)})
+   
+    agent, train = setup_agent(env, args)
+
+    if args.train or train:
+        train = True
+        csvfile, writer = setup_writer(fileid, postfix)
+
     # number of episodes we run the training
     episode_count = 10000
     state_dim = env.observation_space.shape[0]
     n_solved = 0 
-
-    x_train = np.array([env.observation_space.sample() for x in range(200000)])
-    x_test = np.array([env.observation_space.sample() for x in range(20000)])
-
-    agent.train_autoencoder(x_train, x_test)
-    agent.build_models()
-
-    print(x_train.shape)
-
     # sampling and fitting
     for episode in range(episode_count):
         state = env.reset()
@@ -566,7 +605,8 @@ if __name__ == '__main__':
         fmt = "Episode=%d, Step=%d. Action=%f, Reward=%f, Total_Reward=%f"
         print(fmt % (episode, step, action[0], reward, total_reward))
         # log the data on the opened csv file for analysis
-        writer.writerow([episode, step, total_reward, n_solved])
+        if train:
+            writer.writerow([episode, step, total_reward, n_solved])
 
     # after training, save the actor and value models weights
     if not args.random and train:
@@ -576,5 +616,6 @@ if __name__ == '__main__':
             agent.save_weights(actor_weights, encoder_weights)
 
     # close the env and write monitor result info to disk
-    csvfile.close()
+    if train:
+        csvfile.close()
     env.close() 
