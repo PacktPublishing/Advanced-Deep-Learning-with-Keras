@@ -237,11 +237,11 @@ class PolicyAgent():
         # smaller value learning rate allows the policy to explore
         # bigger value results to too early optimization of policy
         # network missing the flag on the mountain top
-        lr = 1e-3
-        if self.args.a2c:
-            lr = 1e-3
+        #lr = 1e-3
+        #if self.args.a2c:
+        #    lr = 1e-3
 
-        optimizer = Adam(lr=lr)
+        # optimizer = Adam(lr=lr)
         # if not self.args.a2c:
         #    optimizer = Adam(lr=lr, clipnorm=0.5)
 
