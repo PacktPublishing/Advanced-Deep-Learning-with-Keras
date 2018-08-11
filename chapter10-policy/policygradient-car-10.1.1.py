@@ -228,8 +228,8 @@ class PolicyAgent():
             lr = 1e-3
 
         optimizer = RMSprop(lr=lr)
-        if not self.args.a2c:
-            optimizer = RMSprop(lr=lr, clipnorm=0.5)
+        # if not self.args.a2c:
+        #    optimizer = RMSprop(lr=lr, clipnorm=0.5)
 
         # apply logp loss
         self.logp_model.compile(loss=loss, optimizer=optimizer)
@@ -242,8 +242,8 @@ class PolicyAgent():
             lr = 1e-3
 
         optimizer = Adam(lr=lr)
-        if not self.args.a2c:
-            optimizer = Adam(lr=lr, clipnorm=0.5)
+        # if not self.args.a2c:
+        #    optimizer = Adam(lr=lr, clipnorm=0.5)
 
         # loss function of A2C is mse, while the rest use their own
         # loss function called value loss
