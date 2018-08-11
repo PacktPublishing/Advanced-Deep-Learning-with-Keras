@@ -34,6 +34,7 @@ import csv
 import time
 import os
 import datetime
+import math
 
 
 # some implementations use a modified softplus to ensure that
@@ -160,6 +161,7 @@ class PolicyAgent():
                              epochs=10,
                              batch_size=batch_size)
 
+
     # 4 models are built but 3 models share the same parameters.
     # hence training one, trains the rest.
     # the 3 models that share the same parameters are action, logp,
@@ -167,7 +169,7 @@ class PolicyAgent():
     # each model has the same MLP structure:
     # Input(2)-Dense(256)-Dense(256)-Output(1).
     # the output activation depends on the nature of the output.
-    def build_models(self):
+    def build_actor_critic(self):
         inputs = Input(shape=(self.state_dim, ), name='state')
         # all parameters are initially set to zero
         kernel_initializer = 'zeros'
@@ -205,9 +207,7 @@ class PolicyAgent():
         self.entropy_model.summary()
         plot_model(self.entropy_model, to_file='entropy_model.png', show_shapes=True)
 
-        x = self.encoder(inputs)
-        #x = Dense(64,
-        #          activation='relu')(x)
+        # x = self.encoder(inputs)
         value = Dense(1,
                       activation='linear',
                       name='value',
@@ -223,7 +223,7 @@ class PolicyAgent():
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
 
         # learning rate
-        lr = 1e-4
+        lr = 1e-3
         if self.args.a2c:
             lr = 1e-3
 
@@ -321,15 +321,21 @@ class PolicyAgent():
         # use the ff codes
         # convert the rewards to returns
         rewards = []
-        for item in self.memory:
-            [_, _, _, reward, _] = item
-            rewards.append(reward)
+        gamma = 0.95
+        # for item in self.memory:
+        #    [_, _, _, reward, _] = item
+        #    rewards.append(reward)
+        rewards = np.array(self.memory)[:,3].tolist()
 
         # compute return per step
         # return is the sum of rewards from t til end of episode
         # return replaces reward in the list
         for i in range(len(rewards)):
-            self.memory[i][3] = np.sum(rewards[i:])
+            reward = rewards[i:]
+            horizon = len(reward)
+            discount =  [math.pow(gamma, t) for t in range(horizon)]
+            return_ = np.dot(reward, discount]
+            self.memory[i][3] = return_
 
         # train every step
         for item in self.memory:
@@ -500,7 +506,7 @@ def setup_agent(env, args):
         x_test = np.array(x_test)
         agent.train_autoencoder(x_train, x_test)
 
-    agent.build_models()
+    agent.build_actor_critic()
     train = True
     # if weights are given, lets load them
     if args.actor_weights:
