@@ -217,7 +217,7 @@ class PolicyAgent():
         plot_model(self.value_model, to_file='value_model.png', show_shapes=True)
 
         # beta of entropy used in A2C
-        beta = 0.9 if self.args.a2c else 0.0
+        beta = 0.1 if self.args.a2c else 0.0
 
         # logp loss of policy network
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
@@ -322,10 +322,10 @@ class PolicyAgent():
         # convert the rewards to returns
         rewards = []
         gamma = 0.95
-        # for item in self.memory:
-        #    [_, _, _, reward, _] = item
-        #    rewards.append(reward)
-        rewards = np.array(self.memory)[:,3].tolist()
+        for item in self.memory:
+            [_, _, _, reward, _] = item
+            rewards.append(reward)
+        # rewards = np.array(self.memory)[:,3].tolist()
 
         # compute return per step
         # return is the sum of rewards from t til end of episode
@@ -372,12 +372,10 @@ class PolicyAgent():
             # since this function is called by Actor-Critic
             # directly, evaluate the value function here
             critic = True
-            if done:
-                next_value = 0.0
-            else:
+            if not done:
                 next_value = self.value(next_state)[0]
-            # add  the discounted next value
-            delta += gamma*next_value
+                # add  the discounted next value
+                delta += gamma*next_value
         elif self.args.a2c:
             critic = True
         else:
