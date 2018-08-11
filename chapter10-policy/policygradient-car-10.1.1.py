@@ -334,7 +334,7 @@ class PolicyAgent():
             reward = rewards[i:]
             horizon = len(reward)
             discount =  [math.pow(gamma, t) for t in range(horizon)]
-            return_ = np.dot(reward, discount]
+            return_ = np.dot(reward, discount)
             self.memory[i][3] = return_
 
         # train every step
