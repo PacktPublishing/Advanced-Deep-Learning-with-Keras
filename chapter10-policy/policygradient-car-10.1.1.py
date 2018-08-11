@@ -41,7 +41,7 @@ import math
 # the stddev is never zero
 # added here just for curious readers
 def softplusk(x):
-    return K.softplus(x) + 1e-3
+    return K.softplus(x) + 1e-10
 
 
 # implements the models and training of Policy Gradient
@@ -180,12 +180,12 @@ class PolicyAgent():
                      kernel_initializer=kernel_initializer,
                      name='mean')(x)
         stddev = Dense(1,
-                       activation='softplus',
+        #                activation='softplus',
                        kernel_initializer=kernel_initializer,
                        name='stddev')(x)
         # in case the reader is curious on how to use the softplusk
         # comment out the softplus in stddev and uncomment this line
-        # stddev = Activation('softplusk')(stddev)
+        stddev = Activation('softplusk')(stddev)
         action = Lambda(self.action,
                         output_shape=(1,),
                         name='action')([mean, stddev])
@@ -217,36 +217,38 @@ class PolicyAgent():
         plot_model(self.value_model, to_file='value_model.png', show_shapes=True)
 
         # beta of entropy used in A2C
-        beta = 0.1 if self.args.a2c else 0.0
+        beta = 0.9 if self.args.a2c else 0.0
 
         # logp loss of policy network
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
 
         # learning rate
-        lr = 1e-3
+        lr = 5e-4
         if self.args.a2c:
             lr = 1e-3
 
-        # adjust decay for future optimizations
-        decay = 0.0 
+        optimizer = RMSprop(lr=lr)
+        if not self.args.a2c:
+            optimizer = RMSprop(lr=lr, clipnorm=0.5)
 
         # apply logp loss
-        self.logp_model.compile(loss=loss,
-                                optimizer=RMSprop(lr=lr, decay=decay))
+        self.logp_model.compile(loss=loss, optimizer=optimizer)
 
         # smaller value learning rate allows the policy to explore
         # bigger value results to too early optimization of policy
         # network missing the flag on the mountain top
         lr = 1e-3
+        if self.args.a2c:
+            lr = 1e-3
 
-        # adjust decay for future optimizations
-        decay = 0.0
+        optimizer = Adam(lr=lr)
+        if not self.args.a2c:
+            optimizer = Adam(lr=lr, clipnorm=0.5)
 
         # loss function of A2C is mse, while the rest use their own
         # loss function called value loss
         loss = 'mse' if self.args.a2c else self.value_loss
-        self.value_model.compile(loss=loss,
-                                 optimizer=Adam(lr=lr, decay=decay))
+        self.value_model.compile(loss=loss, optimizer=optimizer)
 
 
     # save the actor and critic (if applicable) weights
@@ -558,7 +560,7 @@ if __name__ == '__main__':
         csvfile, writer = setup_writer(fileid, postfix)
 
     # number of episodes we run the training
-    episode_count = 10000
+    episode_count = 1000
     state_dim = env.observation_space.shape[0]
     n_solved = 0 
     start_time = datetime.datetime.now()
