@@ -223,9 +223,9 @@ class PolicyAgent():
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
 
         # learning rate
-        lr = 5e-4
-        if self.args.a2c:
-            lr = 1e-3
+        lr = 1e-3
+        # if self.args.a2c:
+        #    lr = 1e-3
 
         optimizer = RMSprop(lr=lr)
         # if not self.args.a2c:
