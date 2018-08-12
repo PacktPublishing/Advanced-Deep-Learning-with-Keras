@@ -157,7 +157,7 @@ class PolicyAgent():
     def build_actor_critic(self):
         inputs = Input(shape=(self.state_dim, ), name='state')
         # all parameters are initially set to zero
-        kernel_initializer = 'zeros'
+        kernel_initializer = 'glorot_uniform'
         self.encoder.trainable = False
         x = self.encoder(inputs)
         mean = Dense(1,
@@ -304,7 +304,7 @@ class PolicyAgent():
             # to the first state
             # discount factor
             gamma = 0.95
-            i = 1
+            # i = 1
             r = last_value
             # the memory is visited in reverse as shown
             # in Algorithm 10.5.1
@@ -315,7 +315,7 @@ class PolicyAgent():
                 item = [step, state, next_state, r, done]
                 # train per step
                 self.train(item)
-                i += 1
+                # i += 1
 
             return
 
@@ -398,7 +398,7 @@ class PolicyAgent():
                             epochs=1,
                             verbose=verbose)
 
-        # in A2C, the target value is the return (which is
+        # in A2C, the target value is the return (reward
         # replaced by return in the train_by_episode function)
         if self.args.a2c:
             discounted_delta = reward
