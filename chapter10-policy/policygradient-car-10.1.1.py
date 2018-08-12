@@ -71,21 +71,6 @@ class PolicyAgent():
         self.memory.append(item)
 
 
-    # logp loss, the 3rd and 4th variables (entropy and beta) are needed
-    # by A2C so we have a different loss function structure
-    def logp_loss(self, entropy, beta=0.0):
-        def loss(y_true, y_pred):
-            return -K.mean((y_pred * y_true) + (beta * entropy), axis=-1)
-
-        return loss
-
-
-    # typical loss function structure that accepts 2 arguments only
-    # this will be used by value loss of all methods except A2C
-    def value_loss(self, y_true, y_pred):
-        return -K.mean(y_pred * y_true, axis=-1)
-
-
     # given mean and stddev, sample an action, clip and return
     # we assume Gaussian distribution of probability of selecting an
     # action given a state
@@ -237,11 +222,11 @@ class PolicyAgent():
         # smaller value learning rate allows the policy to explore
         # bigger value results to too early optimization of policy
         # network missing the flag on the mountain top
-        #lr = 1e-3
-        #if self.args.a2c:
+        lr = 1e-3
+        # if self.args.a2c:
         #    lr = 1e-3
 
-        # optimizer = Adam(lr=lr)
+        optimizer = Adam(lr=lr)
         # if not self.args.a2c:
         #    optimizer = Adam(lr=lr, clipnorm=0.5)
 
@@ -249,6 +234,21 @@ class PolicyAgent():
         # loss function called value loss
         loss = 'mse' if self.args.a2c else self.value_loss
         self.value_model.compile(loss=loss, optimizer=optimizer)
+
+
+    # logp loss, the 3rd and 4th variables (entropy and beta) are needed
+    # by A2C so we have a different loss function structure
+    def logp_loss(self, entropy, beta=0.0):
+        def loss(y_true, y_pred):
+            return -K.mean((y_pred * y_true) + (beta * entropy), axis=-1)
+
+        return loss
+
+
+    # typical loss function structure that accepts 2 arguments only
+    # this will be used by value loss of all methods except A2C
+    def value_loss(self, y_true, y_pred):
+        return K.mean(y_pred * y_true, axis=-1)
 
 
     # save the actor and critic (if applicable) weights
