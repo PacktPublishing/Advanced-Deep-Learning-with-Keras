@@ -51,7 +51,7 @@ class PolicyAgent():
 
         self.env = env
         self.args = args
-
+        
         # s,a,r,s' are stored in memory
         self.memory = []
 
@@ -156,20 +156,16 @@ class PolicyAgent():
     # the output activation depends on the nature of the output.
     def build_actor_critic(self):
         inputs = Input(shape=(self.state_dim, ), name='state')
-        # all parameters are initially set to zero
-        kernel_initializer = 'glorot_uniform'
         self.encoder.trainable = False
         x = self.encoder(inputs)
         mean = Dense(1,
                      activation='linear',
-                     kernel_initializer=kernel_initializer,
+                     kernel_initializer='zero',
                      name='mean')(x)
         stddev = Dense(1,
-        #                activation='softplus',
-                       kernel_initializer=kernel_initializer,
+                       kernel_initializer='zero',
                        name='stddev')(x)
-        # in case the reader is curious on how to use the softplusk
-        # comment out the softplus in stddev and uncomment this line
+        # use of softplusk avoids stddev = 0
         stddev = Activation('softplusk')(stddev)
         action = Lambda(self.action,
                         output_shape=(1,),
@@ -192,11 +188,10 @@ class PolicyAgent():
         self.entropy_model.summary()
         plot_model(self.entropy_model, to_file='entropy_model.png', show_shapes=True)
 
-        # x = self.encoder(inputs)
         value = Dense(1,
                       activation='linear',
-                      name='value',
-                      kernel_initializer=kernel_initializer)(x)
+                      kernel_initializer='zero',
+                      name='value')(x)
         self.value_model = Model(inputs, value, name='value')
         self.value_model.summary()
         plot_model(self.value_model, to_file='value_model.png', show_shapes=True)
@@ -208,7 +203,7 @@ class PolicyAgent():
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
 
         # learning rate
-        lr = 1e-3
+        lr = 1e-4
         # if self.args.a2c:
         #    lr = 1e-3
 
@@ -218,13 +213,6 @@ class PolicyAgent():
 
         # apply logp loss
         self.logp_model.compile(loss=loss, optimizer=optimizer)
-
-        # smaller value learning rate allows the policy to explore
-        # bigger value results to too early optimization of policy
-        # network missing the flag on the mountain top
-        lr = 1e-3
-        # if self.args.a2c:
-        #    lr = 1e-3
 
         optimizer = Adam(lr=lr)
         # if not self.args.a2c:
@@ -248,7 +236,7 @@ class PolicyAgent():
     # typical loss function structure that accepts 2 arguments only
     # this will be used by value loss of all methods except A2C
     def value_loss(self, y_true, y_pred):
-        return K.mean(y_pred * y_true, axis=-1)
+        return -K.mean(y_pred * y_true, axis=-1)
 
 
     # save the actor and critic (if applicable) weights
@@ -304,7 +292,6 @@ class PolicyAgent():
             # to the first state
             # discount factor
             gamma = 0.95
-            # i = 1
             r = last_value
             # the memory is visited in reverse as shown
             # in Algorithm 10.5.1
@@ -314,8 +301,8 @@ class PolicyAgent():
                 r = reward + gamma*r
                 item = [step, state, next_state, r, done]
                 # train per step
+                # a2c reward has been discounted
                 self.train(item)
-                # i += 1
 
             return
 
@@ -341,23 +328,16 @@ class PolicyAgent():
 
         # train every step
         for item in self.memory:
-            self.train(item)
+            self.train(item, gamma=gamma)
 
 
     # main routine for training as used by all 4 policy gradient
     # methods
-    def train(self, item):
+    def train(self, item, gamma=1.0):
         [step, state, next_state, reward, done] = item
 
         # must save state for entropy computation
         self.state = state
-
-        # discount factor
-        gamma = 0.95
-
-        # a2c reward has been discounted in the train_by_episode
-        if self.args.a2c:
-            gamma = 1.0
 
         discount_factor = gamma**step
 
@@ -560,7 +540,7 @@ if __name__ == '__main__':
         csvfile, writer = setup_writer(fileid, postfix)
 
     # number of episodes we run the training
-    episode_count = 1000
+    episode_count = 5000
     state_dim = env.observation_space.shape[0]
     n_solved = 0 
     start_time = datetime.datetime.now()
@@ -595,7 +575,7 @@ if __name__ == '__main__':
             if args.actor_critic and train:
                 # only actor-critic performs online training
                 # train at every step as it happens
-                agent.train(item)
+                agent.train(item, gamma=0.99)
             elif not args.random and done and train:
                 # for REINFORCE, REINFORCE with baseline, and A2C
                 # we wait for the completion of the episode before 
