@@ -197,13 +197,13 @@ class PolicyAgent():
         plot_model(self.value_model, to_file='value_model.png', show_shapes=True)
 
         # beta of entropy used in A2C
-        beta = 0.9 if self.args.a2c else 0.0
+        beta = 0.01 if self.args.a2c else 0.0
 
         # logp loss of policy network
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
 
         # learning rate
-        lr = 1e-4
+        lr = 1e-3
         # if self.args.a2c:
         #    lr = 1e-3
 
@@ -310,7 +310,7 @@ class PolicyAgent():
         # use the ff codes
         # convert the rewards to returns
         rewards = []
-        gamma = 0.95
+        gamma = 0.99
         for item in self.memory:
             [_, _, _, reward, _] = item
             rewards.append(reward)
@@ -540,7 +540,7 @@ if __name__ == '__main__':
         csvfile, writer = setup_writer(fileid, postfix)
 
     # number of episodes we run the training
-    episode_count = 5000
+    episode_count = 1000
     state_dim = env.observation_space.shape[0]
     n_solved = 0 
     start_time = datetime.datetime.now()
