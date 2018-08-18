@@ -61,6 +61,7 @@ class PolicyAgent():
         self.state = np.reshape(self.state, [1, self.state_dim])
         self.build_autoencoder()
 
+
     # clear the memory before the start of every episode
     def reset_memory(self):
         self.memory = []
@@ -84,7 +85,7 @@ class PolicyAgent():
         return action
 
 
-    # given the mean, stddev, and action compute
+    # given mean, stddev, and action compute
     # the log probability of the Gaussian distribution
     def logp(self, args):
         mean, stddev, action = args
@@ -101,14 +102,13 @@ class PolicyAgent():
         return entropy
 
 
+    # autoencoder to convert states into features
     def build_autoencoder(self):
-        # build the autoencoder model
         # first build the encoder model
         inputs = Input(shape=(self.state_dim, ), name='state')
         feature_size = 32
         x = Dense(256, activation='relu')(inputs)
         x = Dense(128, activation='relu')(x)
-        # shape = K.int_shape(x)
         feature = Dense(feature_size, name='feature_vector')(x)
 
         # instantiate encoder model
@@ -137,6 +137,8 @@ class PolicyAgent():
         self.autoencoder.compile(loss='mse', optimizer='adam')
 
 
+    # training the autoencoder using randomly sampled
+    # states from the environment
     def train_autoencoder(self, x_train, x_test):
         # train the autoencoder
         batch_size = 32
@@ -152,7 +154,7 @@ class PolicyAgent():
     # the 3 models that share the same parameters are action, logp,
     # and entropy models. entropy model is used by A2C only.
     # each model has the same MLP structure:
-    # Input(2)-Dense(256)-Dense(256)-Output(1).
+    # Input(2)-Encoder-Output(1).
     # the output activation depends on the nature of the output.
     def build_actor_critic(self):
         inputs = Input(shape=(self.state_dim, ), name='state')
@@ -197,30 +199,17 @@ class PolicyAgent():
         plot_model(self.value_model, to_file='value_model.png', show_shapes=True)
 
         # beta of entropy used in A2C
-        beta = 0.01 if self.args.a2c else 0.0
+        beta = 0.9 if self.args.a2c else 0.0
 
         # logp loss of policy network
         loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
-
-        # learning rate
-        lr = 1e-3
-        # if self.args.a2c:
-        #    lr = 1e-3
-
-        optimizer = RMSprop(lr=lr)
-        # if not self.args.a2c:
-        #    optimizer = RMSprop(lr=lr, clipnorm=0.5)
-
-        # apply logp loss
+        optimizer = RMSprop(lr=1e-3)
         self.logp_model.compile(loss=loss, optimizer=optimizer)
-
-        optimizer = Adam(lr=lr)
-        # if not self.args.a2c:
-        #    optimizer = Adam(lr=lr, clipnorm=0.5)
 
         # loss function of A2C is mse, while the rest use their own
         # loss function called value loss
         loss = 'mse' if self.args.a2c else self.value_loss
+        optimizer = Adam(lr=1e-3)
         self.value_model.compile(loss=loss, optimizer=optimizer)
 
 
@@ -239,7 +228,7 @@ class PolicyAgent():
         return -K.mean(y_pred * y_true, axis=-1)
 
 
-    # save the actor and critic (if applicable) weights
+    # save the actor, critic and encoder weights
     # useful for restoring the trained models
     def save_weights(self, actor_weights, encoder_weights, value_weights=None):
         self.actor_model.save_weights(actor_weights)
