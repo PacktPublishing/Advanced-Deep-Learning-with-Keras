@@ -39,7 +39,6 @@ import math
 
 # some implementations use a modified softplus to ensure that
 # the stddev is never zero
-# added here just for curious readers
 def softplusk(x):
     return K.softplus(x) + 1e-10
 
@@ -168,7 +167,7 @@ class PolicyAgent():
                        kernel_initializer='zero',
                        name='stddev')(x)
         # use of softplusk avoids stddev = 0
-        stddev = Activation('softplusk')(stddev)
+        stddev = Activation('softplusk', name='softplus')(stddev)
         action = Lambda(self.action,
                         output_shape=(1,),
                         name='action')([mean, stddev])
