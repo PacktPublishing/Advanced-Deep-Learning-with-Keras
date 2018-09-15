@@ -115,14 +115,28 @@ Generated MNIST by navigating the latent space:
 ## [Chapter 9 - Deep Reinforcement Learning](chapter9-drl)
 
 1. [Q-Learning](chapter9-drl/q-learning-9.3.1.py)
-2. [Q-Learning Frozen Lake Environment](chapter9-drl/q-frozenlake-9.5.1.py)
-3. [DQN and DDQN on Cartpole Environment](chapter9-drl/dqn-cartpole-9.6.1.py)
+2. [Q-Learning on Frozen Lake Environment](chapter9-drl/q-frozenlake-9.5.1.py)
+3. [DQN and DDQN Cartpole Environment](chapter9-drl/dqn-cartpole-9.6.1.py)
 
 Mnih, Volodymyr, et al. "Human-level control through deep reinforcement learning." Nature 518.7540 (2015): 529
 
-DQN on Cartpole:
+DQN on Cartpole Environment:
 
 ![Cartpole](chapter9-drl/images/cartpole.gif)
+
+## [Chapter 10 - Policy Gradient Methods](chapter10-policy)
+
+1. [REINFORCE, REINFORCE with Baseline, Actor-Critic, A2C](chapter10-policy/policygradient-car-10.1.1.py)
+
+[Sutton and Barto, Reinforcement Learning: An Introduction ](http://incompleteideas.net/book/bookdraft2017nov5.pdf)
+
+[Mnih, Volodymyr, et al. "Asynchronous methods for deep reinforcement learning." International conference on machine learning. 2016.](http://proceedings.mlr.press/v48/mniha16.pdf)
+
+
+Policy Gradient on MountainCar Continuous Environment:
+
+![Car](chapter10-policy/images/car.gif)
+
 
 ## Citation
 If you find this work useful, please cite:
