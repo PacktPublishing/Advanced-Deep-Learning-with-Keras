@@ -1,4 +1,5 @@
-# :construction_worker: This repo is under development :construction_worker:
+
+# Keras codes in the [Advanced Deep Learning with Keras]{http://a.co/d/45NPFvY} book
 
 
 ## Chapter 3 - AutoEncoders
