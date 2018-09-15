@@ -1,5 +1,5 @@
 
-# Keras codes in the [Advanced Deep Learning with Keras]{http://a.co/d/45NPFvY} book
+# Keras codes in the [Advanced Deep Learning with Keras](http://a.co/d/45NPFvY) book
 
 
 ## Chapter 3 - AutoEncoders
