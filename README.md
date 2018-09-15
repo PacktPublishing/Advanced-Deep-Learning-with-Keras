@@ -1,5 +1,5 @@
 
-# [Advanced Deep Learning with Keras](http://a.co/d/45NPFvY) book Keras code
+# [Advanced Deep Learning with Keras](http://a.co/d/45NPFvY) sample code used in the book
 
 ## [Chapter 1 - Introduction](chapter1-keras-quick-tour)
 1. [MLP on MNIST](chapter1-keras-quick-tour/mlp-mnist-1.3.2.py)
