@@ -1,5 +1,6 @@
 # :construction_worker: This repo is under development :construction_worker:
 
+
 ## Chapter 3 - AutoEncoders
 ### [Denoising AutoEncoders](chapter3-autoencoders/denoising-autoencoder-mnist-3.3.1.py)
 
@@ -65,4 +66,16 @@ Sample outputs for digits 0 to 9:
 Sample outputs for digits 0 to 9:
 
 ![Zero to Nine](chapter6-disentangled-gan/images/stackedgan_mnist.gif)
+
+## Citation
+If you find this work useful, please cite:
+
+```
+@book{atienza2018advanced,
+  title={Advanced Deep Learning with Keras},
+  author={Atienza, Rowel},
+  year={2018},
+  publisher={Packt Publishing Ltd}
+}
+```
 
