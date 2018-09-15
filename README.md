@@ -18,6 +18,7 @@
 Sample outputs for random digits:
 
 ![Random Digits](chapter3-autoencoders/saved_images/corrupted_and_denoised.png)
+
 2. [Colorization AutoEncoder](chapter3-autoencoders/colorization-autoencoder-cifar10-3.4.1.py)
 
 
@@ -32,6 +33,7 @@ Sample outputs for random cifar10 images:
 Sample outputs for random digits:
 
 ![Random Digits](chapter4-gan/images/dcgan_mnist.gif)
+
 2. [Conditional (GAN)](chapter4-gan/cgan-mnist-4.3.1.py)
 
 [Mirza, Mehdi, and Simon Osindero. "Conditional generative adversarial nets." arXiv preprint arXiv:1411.1784 (2014).](https://arxiv.org/pdf/1411.1784)
@@ -47,6 +49,7 @@ Sample outputs for digits 0 to 9:
 Sample outputs for random digits:
 
 ![Random Digits](chapter5-improved-gan/images/wgan_mnist.gif)
+
 2. [Least Squares GAN (LSGAN)](chapter5-improved-gan/lsgan-mnist-5.2.1.py)
 
 [Mao, Xudong, et al. "Least squares generative adversarial networks." 2017 IEEE International Conference on Computer Vision (ICCV). IEEE, 2017.](http://openaccess.thecvf.com/content_ICCV_2017/papers/Mao_Least_Squares_Generative_ICCV_2017_paper.pdf)
@@ -54,6 +57,7 @@ Sample outputs for random digits:
 Sample outputs for random digits:
 
 ![Random Digits](chapter5-improved-gan/images/lsgan_mnist.gif)
+
 3. [Auxiliary Classfier GAN (ACGAN)](chapter5-improved-gan/acgan-mnist-5.3.1.py)
 
 [Odena, Augustus, Christopher Olah, and Jonathon Shlens. "Conditional image synthesis with auxiliary classifier GANs. Proceedings of the 34th International Conference on Machine Learning, Sydney, Australia, PMLR 70, 2017."](http://proceedings.mlr.press/v70/odena17a.html)
@@ -70,6 +74,7 @@ Advances in Neural Information Processing Systems. 2016.](http://papers.nips.cc/
 Sample outputs for digits 0 to 9:
 
 ![Zero to Nine](chapter6-disentangled-gan/images/infogan_mnist.gif)
+
 2. [Stacked GAN](chapter6-disentangled-gan/stackedgan-mnist-6.2.1.py)
 
 [Huang, Xun, et al. "Stacked generative adversarial networks." IEEE Conference on Computer Vision and Pattern Recognition (CVPR). Vol. 2. 2017](http://openaccess.thecvf.com/content_cvpr_2017/papers/Huang_Stacked_Generative_Adversarial_CVPR_2017_paper.pdf)
@@ -80,6 +85,7 @@ Sample outputs for digits 0 to 9:
 
 ## [Chapter 7 - Cross-Domain GAN](chapter7-cross-domain-gan)
 1. [CycleGAN](chapter7-cross-domain-gan/cyclegan-7.1.1.py)
+
 [Zhu, Jun-Yan, et al. "Unpaired Image-to-Image Translation Using Cycle-Consistent Adversarial Networks." 2017 IEEE International Conference on Computer Vision (ICCV). IEEE, 2017.](http://openaccess.thecvf.com/content_ICCV_2017/papers/Zhu_Unpaired_Image-To-Image_Translation_ICCV_2017_paper.pdf)
 
 Sample outputs for random cifar10 images:
