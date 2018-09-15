@@ -96,6 +96,23 @@ Sample outputs for MNIST to SVHN:
 
 ![MNIST2SVHN](chapter7-cross-domain-gan/images/MNIST2SVHN.png)
 
+## [Chapter 8 - Variational Autoencoders (VAE)](chapter8-vae)
+
+1. [VAE MLP MNIST](chapter8-vae/vae-mlp-mnist-8.1.1.py)
+2. [VAE CNN MNIST](chapter8-vae/cvae-cnn-mnist-8.2.1.py)
+3. [Conditional VAE and Beta VAE](chapter8-vae/cvae-cnn-mnist-8.2.1.py)
+
+[Kingma, Diederik P., and Max Welling. "Auto-encoding Variational Bayes." arXiv preprint arXiv:1312.6114 (2013).](https://arxiv.org/pdf/1312.6114.pdf)
+
+[Sohn, Kihyuk, Honglak Lee, and Xinchen Yan. "Learning structured output representation using deep conditional generative models." Advances in Neural Information Processing Systems. 2015.](http://papers.nips.cc/paper/5775-learning-structured-output-representation-using-deep-conditional-generative-models.pdf)
+
+[I. Higgins, L. Matthey, A. Pal, C. Burgess, X. Glorot, M. Botvinick, S. Mohamed, and A. Lerchner. β-VAE: Learning basic visual concepts with a constrained variational framework. ICLR, 2017.](https://openreview.net/pdf?id=Sy2fzU9gl)
+
+Generated MNIST by navigating the latent space:
+
+![MNIST](chapter8-vae/images/digits_over_latent.png)
+
+
 ## Citation
 If you find this work useful, please cite:
 
