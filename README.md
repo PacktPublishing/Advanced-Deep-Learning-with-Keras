@@ -6,7 +6,7 @@
 ### [CNN on MNIST](chapter1-keras-quick-tour/cnn-mnist-1.4.1.py)
 ### [RNN on MNIST](chapter1-keras-quick-tour/rnn-mnist-1.5.1.py)
 
-# [Chapter 2 - Deep Networks](chapter2-deep-networks)
+## [Chapter 2 - Deep Networks](chapter2-deep-networks)
 ### [Functional API on MNIST](chapter2-deep-networks/cnn-functional-2.1.1.py)
 ### [Y-Network on MNIST](chapter2-deep-networks/cnn-y-network-2.1.2.py)
 ### [ResNet v1 and v2 on CIFAR10](chapter2-deep-networks/resnet-cifar10-2.2.1.py)
@@ -39,7 +39,7 @@ Sample outputs for random digits:
 Sample outputs for digits 0 to 9:
 
 ![Zero to Nine](chapter4-gan/images/cgan_mnist.gif)
-## Chapter 5 - Improved GAN
+## [Chapter 5 - Improved GAN](chapter5-improved-gan)
 ### [Wasserstein GAN (WGAN)](chapter5-improved-gan/wgan-mnist-5.1.2.py)
 
 [Arjovsky, Martin, Soumith Chintala, and Léon Bottou. "Wasserstein GAN." arXiv preprint arXiv:1701.07875 (2017).](https://arxiv.org/pdf/1701.07875)
@@ -61,7 +61,7 @@ Sample outputs for random digits:
 Sample outputs for digits 0 to 9:
 
 ![Zero to Nine](chapter5-improved-gan/images/acgan_mnist.gif)
-## Chapter 6 - GAN with Disentangled Latent Representations
+## [Chapter 6 - GAN with Disentangled Latent Representations](chapter6-disentangled-gan)
 ### [Information Maximizing GAN (InfoGAN)](chapter6-disentangled-gan/infogan-mnist-6.1.1.py)
 
 [Chen, Xi, et al. "Infogan: Interpretable representation learning by information maximizing generative adversarial nets." 
