@@ -116,7 +116,7 @@ Generated MNIST by navigating the latent space:
 
 1. [Q-Learning](chapter9-drl/q-learning-9.3.1.py)
 2. [Q-Learning on Frozen Lake Environment](chapter9-drl/q-frozenlake-9.5.1.py)
-3. [DQN and DDQN Cartpole Environment](chapter9-drl/dqn-cartpole-9.6.1.py)
+3. [DQN and DDQN on Cartpole Environment](chapter9-drl/dqn-cartpole-9.6.1.py)
 
 Mnih, Volodymyr, et al. "Human-level control through deep reinforcement learning." Nature 518.7540 (2015): 529
 
