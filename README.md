@@ -87,6 +87,7 @@ Sample outputs for random cifar10 images:
 ![Colorized Images](chapter7-cross-domain-gan/images/cifar10_colorization.gif)
 
 Sample outputs for MNIST to SVHN:
+
 ![MNIST2SVHN](chapter7-cross-domain-gan/images/MNIST2SVHN.png)
 
 ## Citation
