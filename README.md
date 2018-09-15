@@ -1,8 +1,18 @@
 
 # Keras example code in the [Advanced Deep Learning with Keras](http://a.co/d/45NPFvY) book
 
+## [Chapter 1 - Introduction](chapter1-keras-quick-tour)
+### [MLP on MNIST](chapter1-keras-quick-tour/mlp-mnist-1.3.2.py)
+### [CNN on MNIST](chapter1-keras-quick-tour/cnn-mnist-1.4.1.py)
+### [RNN on MNIST](chapter1-keras-quick-tour/rnn-mnist-1.5.1.py)
 
-## Chapter 3 - AutoEncoders
+# [Chapter 2 - Deep Networks](chapter2-deep-networks)
+### [Functional API on MNIST](chapter2-deep-networks/cnn-functional-2.1.1.py)
+### [Y-Network on MNIST](chapter2-deep-networks/cnn-y-network-2.1.2.py)
+### [ResNet v1 and v2 on CIFAR10](chapter2-deep-networks/resnet-cifar10-2.2.1.py)
+### [DenseNet on CIFAR10](chapter2-deep-networks/densenet-cifar10-2.4.1.py)
+
+## [Chapter 3 - AutoEncoders](chapter3-autoencoders)
 ### [Denoising AutoEncoders](chapter3-autoencoders/denoising-autoencoder-mnist-3.3.1.py)
 
 Sample outputs for random digits:
@@ -14,7 +24,7 @@ Sample outputs for random digits:
 Sample outputs for random cifar10 images:
 
 ![Random Digits](chapter3-autoencoders/saved_images/colorized_images.png)
-## Chapter 4 - Generative Adversarial Network (GAN)
+## [Chapter 4 - Generative Adversarial Network (GAN)](chapter4-gan)
 ### [Deep Convolutional GAN (DCGAN)](chapter4-gan/dcgan-mnist-4.2.1.py)
 
 [Radford, Alec, Luke Metz, and Soumith Chintala. "Unsupervised representation learning with deep convolutional generative adversarial networks." arXiv preprint arXiv:1511.06434 (2015).](https://arxiv.org/pdf/1511.06434.pdf%C3%AF%C2%BC%E2%80%B0)
