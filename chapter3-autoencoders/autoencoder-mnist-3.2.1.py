@@ -51,9 +51,12 @@ for filters in layer_filters:
                strides=2,
                padding='same')(x)
 
-# shape info needed to build decoder model so we don't do hand computation
-# the input to the decoder's first Conv2DTranspose will have this shape
-# shape is (7, 7, 64) which is processed by the decoder back to (28, 28, 1)
+# shape info needed to build decoder model
+# so we don't do hand computation
+# the input to the decoder's first
+# Conv2DTranspose will have this shape
+# shape is (7, 7, 64) which is processed by
+# the decoder back to (28, 28, 1)
 shape = K.int_shape(x)
 
 # generate latent vector
@@ -61,9 +64,13 @@ x = Flatten()(x)
 latent = Dense(latent_dim, name='latent_vector')(x)
 
 # instantiate encoder model
-encoder = Model(inputs, latent, name='encoder')
+encoder = Model(inputs,
+                latent,
+                name='encoder')
 encoder.summary()
-plot_model(encoder, to_file='encoder.png', show_shapes=True)
+plot_model(encoder,
+           to_file='encoder.png',
+           show_shapes=True)
 
 # build the decoder model
 latent_inputs = Input(shape=(latent_dim,), name='decoder_input')
@@ -94,9 +101,13 @@ plot_model(decoder, to_file='decoder.png', show_shapes=True)
 
 # autoencoder = encoder + decoder
 # instantiate autoencoder model
-autoencoder = Model(inputs, decoder(encoder(inputs)), name='autoencoder')
+autoencoder = Model(inputs,
+                    decoder(encoder(inputs)),
+                    name='autoencoder')
 autoencoder.summary()
-plot_model(autoencoder, to_file='autoencoder.png', show_shapes=True)
+plot_model(autoencoder,
+           to_file='autoencoder.png',
+           show_shapes=True)
 
 # Mean Square Error (MSE) loss function, Adam optimizer
 autoencoder.compile(loss='mse', optimizer='adam')
