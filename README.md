@@ -5,7 +5,7 @@ This is the code repository for [Advanced Deep Learning with Keras](https://www.
 This book covers advanced deep learning techniques to create successful AI. Using MLPs, CNNs, and RNNs as building blocks to more advanced techniques, you’ll study deep neural network architectures, Autoencoders, Generative Adversarial Networks (GANs), Variational AutoEncoders (VAEs), and Deep Reinforcement Learning (DRL) critical to many cutting-edge AI results.
 
 ## Instructions and Navigation
-All of the code is organized into folders. Each folder starts with a number followed by the application name. For example, Chapter02.
+All of the code is organized into folders. Each folder starts with a number followed by the application name. For example, chapter2-deep-networks.
 
 
 
