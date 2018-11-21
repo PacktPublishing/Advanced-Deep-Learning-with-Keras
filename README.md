@@ -1,3 +1,38 @@
+# Advanced Deep Learning with Keras
+This is the code repository for [Advanced Deep Learning with Keras](https://www.packtpub.com/big-data-and-business-intelligence/advanced-deep-learning-keras?utm_source=github&utm_medium=repository&utm_campaign=9781788629416), published by [Packt](https://www.packtpub.com/?utm_source=github). It contains all the supporting project files necessary to work through the book from start to finish.
+
+## About the Book
+This book covers advanced deep learning techniques to create successful AI. Using MLPs, CNNs, and RNNs as building blocks to more advanced techniques, you’ll study deep neural network architectures, Autoencoders, Generative Adversarial Networks (GANs), Variational AutoEncoders (VAEs), and Deep Reinforcement Learning (DRL) critical to many cutting-edge AI results.
+
+## Instructions and Navigation
+All of the code is organized into folders. Each folder starts with a number followed by the application name. For example, Chapter02.
+
+
+
+The code will look like the following:
+```
+def encoder_layer(inputs,
+                  filters=16,
+                  kernel_size=3,
+                  strides=2,
+                  activation='relu',
+                  instance_norm=True):
+"""Builds a generic encoder layer made of Conv2D-IN-LeakyReLU 
+IN is optional, LeakyReLU may be replaced by ReLU
+"""
+conv = Conv2D(filters=filters,
+              kernel_size=kernel_size,
+              strides=strides,
+              padding='same')
+```
+
+## Related Products
+* [Deep Reinforcement Learning Hands-On](https://www.packtpub.com/big-data-and-business-intelligence/deep-reinforcement-learning-hands?utm_source=github&utm_medium=repository&utm_campaign=9781788834247)
+
+* [Deep Learning with Keras](https://www.packtpub.com/big-data-and-business-intelligence/deep-learning-keras?utm_source=github&utm_medium=repository&utm_campaign=9781787128422)
+
+* [Reinforcement Learning with TensorFlow](https://www.packtpub.com/big-data-and-business-intelligence/reinforcement-learning-tensorflow?utm_source=github&utm_medium=repository&utm_campaign=9781788835725)
+
 
 # [Advanced Deep Learning with Keras](http://a.co/d/e55mrQc) sample code used in the book
 
