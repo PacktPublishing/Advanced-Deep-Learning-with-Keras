@@ -29,7 +29,7 @@ import numpy as np
 import os
 
 # training parameters
-batch_size = 32  # orig paper trained all networks with batch_size=128
+batch_size = 32 # orig paper trained all networks with batch_size=128
 epochs = 200
 data_augmentation = True
 num_classes = 10
@@ -408,6 +408,7 @@ else:
     model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),
                         validation_data=(x_test, y_test),
                         epochs=epochs, verbose=1, workers=4,
+                        steps_per_epoch=len(x_train)//batch_size,
                         callbacks=callbacks)
 
 # score trained model
