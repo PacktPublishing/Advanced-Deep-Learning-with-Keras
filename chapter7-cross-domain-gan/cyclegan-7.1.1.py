@@ -49,7 +49,8 @@ from keras.models import Model
 from keras.models import load_model
 from keras.layers.merge import concatenate
 
-from keras_contrib.layers.normalization import InstanceNormalization
+# from keras_contrib.layers.normalization import InstanceNormalization
+from keras_contrib.layers.normalization.instancenormalization import InstanceNormalization
 
 import numpy as np
 import argparse
