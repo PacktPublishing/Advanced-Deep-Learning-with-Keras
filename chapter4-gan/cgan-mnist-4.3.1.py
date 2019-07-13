@@ -2,7 +2,7 @@
 
 CGAN is Conditional Generative Adversarial Nets.
 This version of CGAN is similar to DCGAN. The difference mainly
-is that the z-vector of geneerator is conditioned by a one-hot label
+is that the z-vector of generator is conditioned by a one-hot label
 to produce specific fake images. The discriminator is trained to
 discriminate real from fake images that are conditioned on
 specific one-hot labels.
