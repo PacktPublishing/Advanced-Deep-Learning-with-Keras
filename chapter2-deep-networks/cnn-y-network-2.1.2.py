@@ -9,13 +9,13 @@ from __future__ import print_function
 
 import numpy as np
 
-from keras.layers import Dense, Dropout, Input
-from keras.layers import Conv2D, MaxPooling2D, Flatten
-from keras.models import Model
-from keras.layers.merge import concatenate
-from keras.datasets import mnist
-from keras.utils import to_categorical
-from keras.utils import plot_model
+from tensorflow.keras.layers import Dense, Dropout, Input
+from tensorflow.keras.layers import Conv2D, MaxPooling2D
+from tensorflow.keras.layers import Flatten, concatenate
+from tensorflow.keras.models import Model
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.utils import plot_model
 
 # load MNIST dataset
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
@@ -72,7 +72,7 @@ for i in range(3):
 
 # merge left and right branches outputs
 y = concatenate([x, y])
-# feature maps to vector in preparation to connecting to Dense layer
+# feature maps to vector before connecting to Dense 
 y = Flatten()(y)
 y = Dropout(dropout)(y)
 outputs = Dense(num_labels, activation='softmax')(y)
@@ -97,5 +97,8 @@ model.fit([x_train, x_train],
           batch_size=batch_size)
 
 # model accuracy on test dataset
-score = model.evaluate([x_test, x_test], y_test, batch_size=batch_size)
+score = model.evaluate([x_test, x_test],
+                       y_test,
+                       batch_size=batch_size,
+                       verbose=0)
 print("\nTest accuracy: %.1f%%" % (100.0 * score[1]))

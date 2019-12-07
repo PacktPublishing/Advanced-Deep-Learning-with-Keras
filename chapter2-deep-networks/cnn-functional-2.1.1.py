@@ -8,11 +8,11 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from keras.layers import Dense, Dropout, Input
-from keras.layers import Conv2D, MaxPooling2D, Flatten
-from keras.models import Model
-from keras.datasets import mnist
-from keras.utils import to_categorical
+from tensorflow.keras.layers import Dense, Dropout, Input
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten
+from tensorflow.keras.models import Model
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
 
 
 # load MNIST dataset
@@ -74,5 +74,8 @@ model.fit(x_train,
           batch_size=batch_size)
 
 # model accuracy on test dataset
-score = model.evaluate(x_test, y_test, batch_size=batch_size)
+score = model.evaluate(x_test,
+                       y_test,
+                       batch_size=batch_size,
+                       verbose=0)
 print("\nTest accuracy: %.1f%%" % (100.0 * score[1]))

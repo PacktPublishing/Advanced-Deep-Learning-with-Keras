@@ -15,18 +15,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from keras.layers import Dense, Conv2D, BatchNormalization, Activation
-from keras.layers import MaxPooling2D, AveragePooling2D
-from keras.layers import Input, Flatten, Dropout
-from keras.layers.merge import concatenate
-from keras.optimizers import RMSprop
-from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
-from keras.callbacks import LearningRateScheduler
-from keras.preprocessing.image import ImageDataGenerator
-from keras.models import Model
-from keras.datasets import cifar10
-from keras.utils import plot_model
-from keras.utils import to_categorical
+from tensorflow.keras.layers import Dense, Conv2D, BatchNormalization
+from tensorflow.keras.layers import MaxPooling2D, AveragePooling2D
+from tensorflow.keras.layers import Input, Flatten, Dropout
+from tensorflow.keras.layers import concatenate, Activation
+from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
+from tensorflow.keras.callbacks import LearningRateScheduler
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Model
+from tensorflow.keras.datasets import cifar10
+from tensorflow.keras.utils import plot_model
+from tensorflow.keras.utils import to_categorical
 import os
 import numpy as np
 
@@ -171,7 +171,7 @@ filepath = os.path.join(save_dir, model_name)
 
 # prepare callbacks for model saving and for learning rate reducer
 checkpoint = ModelCheckpoint(filepath=filepath,
-                             monitor='val_acc',
+                             monitor='val_accuracy',
                              verbose=1,
                              save_best_only=True)
 
@@ -216,7 +216,7 @@ else:
     model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),
                         steps_per_epoch=x_train.shape[0] // batch_size,
                         validation_data=(x_test, y_test),
-                        epochs=epochs, verbose=1, workers=4,
+                        epochs=epochs, verbose=1,
                         callbacks=callbacks)
 
 # score trained model
