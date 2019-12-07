@@ -94,7 +94,7 @@ class DQNAgent():
 
     # compute Q_max
     # use of target Q Network solves the non-stationarity problem
-    def get_target_q_value(self, next_state):
+    def get_target_q_value(self, next_state, reward):
         # max Q value among next state's actions
         if self.ddqn:
             # DDQN
@@ -129,7 +129,7 @@ class DQNAgent():
             q_values = self.q_model.predict(state)
 
             # get Q_max
-            q_value = self.get_target_q_value(next_state)
+            q_value = self.get_target_q_value(next_state, reward)
 
             # correction on the Q value for the action used
             q_values[0][action] = reward if done else q_value
