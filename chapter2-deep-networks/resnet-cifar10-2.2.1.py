@@ -52,11 +52,12 @@ subtract_pixel_mean = True
 # ResNet164 |27(18)| -----     | 94.07     | -----     | 94.54     | ---(---)
 # ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| ---(---)
 # ---------------------------------------------------------------------------
-n = 3
+n = 12
 
 # model version
-# orig paper: version = 1 (ResNet v1), Improved ResNet: version = 2 (ResNet v2)
-version = 1
+# orig paper: version = 1 (ResNet v1), 
+# improved ResNet: version = 2 (ResNet v2)
+version = 2
 
 # computed depth from supplied model parameter n
 if version == 1:
@@ -168,9 +169,10 @@ def resnet_v1(input_shape, depth, num_classes=10):
 
     Stacks of 2 x (3 x 3) Conv2D-BN-ReLU
     Last ReLU is after the shortcut connection.
-    At the beginning of each stage, the feature map size is halved (downsampled)
-    by a convolutional layer with strides=2, while the number of filters is
-    doubled. Within each stage, the layers have the same number filters and the
+    At the beginning of each stage, the feature map size is halved
+    (downsampled) by a convolutional layer with strides=2, while 
+    the number of filters is doubled. Within each stage, 
+    the layers have the same number filters and the
     same number of filters.
     Features maps sizes:
     stage 0: 32x32, 16
@@ -192,18 +194,19 @@ def resnet_v1(input_shape, depth, num_classes=10):
         model (Model): Keras model instance
     """
     if (depth - 2) % 6 != 0:
-        raise ValueError('depth should be 6n+2 (eg 20, 32, 44 in [a])')
-    # Start model definition.
+        raise ValueError('depth should be 6n+2 (eg 20, 32, in [a])')
+    # start model definition.
     num_filters = 16
     num_res_blocks = int((depth - 2) / 6)
 
     inputs = Input(shape=input_shape)
     x = resnet_layer(inputs=inputs)
-    # Instantiate the stack of residual units
+    # instantiate the stack of residual units
     for stack in range(3):
         for res_block in range(num_res_blocks):
             strides = 1
-            if stack > 0 and res_block == 0:  # first layer but not first stack
+            # first layer but not first stack
+            if stack > 0 and res_block == 0:  
                 strides = 2  # downsample
             y = resnet_layer(inputs=x,
                              num_filters=num_filters,
@@ -211,9 +214,10 @@ def resnet_v1(input_shape, depth, num_classes=10):
             y = resnet_layer(inputs=y,
                              num_filters=num_filters,
                              activation=None)
-            if stack > 0 and res_block == 0:  # first layer but not first stack
-                # linear projection residual shortcut connection to match
-                # changed dims
+            # first layer but not first stack
+            if stack > 0 and res_block == 0:
+                # linear projection residual shortcut
+                # connection to match changed dims
                 x = resnet_layer(inputs=x,
                                  num_filters=num_filters,
                                  kernel_size=1,
@@ -224,7 +228,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
             x = Activation('relu')(x)
         num_filters *= 2
 
-    # Add classifier on top.
+    # add classifier on top.
     # v1 does not use BN after last shortcut connection-ReLU
     x = AveragePooling2D(pool_size=8)(x)
     y = Flatten()(x)
@@ -232,7 +236,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
                     activation='softmax',
                     kernel_initializer='he_normal')(y)
 
-    # Instantiate model.
+    # instantiate model.
     model = Model(inputs=inputs, outputs=outputs)
     return model
 
@@ -240,14 +244,16 @@ def resnet_v1(input_shape, depth, num_classes=10):
 def resnet_v2(input_shape, depth, num_classes=10):
     """ResNet Version 2 Model builder [b]
 
-    Stacks of (1 x 1)-(3 x 3)-(1 x 1) BN-ReLU-Conv2D or also known as
-    bottleneck layer
+    Stacks of (1 x 1)-(3 x 3)-(1 x 1) BN-ReLU-Conv2D or 
+    also known as bottleneck layer.
     First shortcut connection per layer is 1 x 1 Conv2D.
     Second and onwards shortcut connection is identity.
-    At the beginning of each stage, the feature map size is halved (downsampled)
-    by a convolutional layer with strides=2, while the number of filter maps is
-    doubled. Within each stage, the layers have the same number filters and the
-    same filter map sizes.
+    At the beginning of each stage, 
+    the feature map size is halved (downsampled)
+    by a convolutional layer with strides=2, 
+    while the number of filter maps is
+    doubled. Within each stage, the layers have 
+    the same number filters and the same filter map sizes.
     Features maps sizes:
     conv1  : 32x32,  16
     stage 0: 32x32,  64
@@ -263,18 +269,19 @@ def resnet_v2(input_shape, depth, num_classes=10):
         model (Model): Keras model instance
     """
     if (depth - 2) % 9 != 0:
-        raise ValueError('depth should be 9n+2 (eg 56 or 110 in [b])')
-    # Start model definition.
+        raise ValueError('depth should be 9n+2 (eg 110 in [b])')
+    # start model definition.
     num_filters_in = 16
     num_res_blocks = int((depth - 2) / 9)
 
     inputs = Input(shape=input_shape)
-    # v2 performs Conv2D with BN-ReLU on input before splitting into 2 paths
+    # v2 performs Conv2D with BN-ReLU
+    # on input before splitting into 2 paths
     x = resnet_layer(inputs=inputs,
                      num_filters=num_filters_in,
                      conv_first=True)
 
-    # Instantiate the stack of residual units
+    # instantiate the stack of residual units
     for stage in range(3):
         for res_block in range(num_res_blocks):
             activation = 'relu'
@@ -282,13 +289,16 @@ def resnet_v2(input_shape, depth, num_classes=10):
             strides = 1
             if stage == 0:
                 num_filters_out = num_filters_in * 4
-                if res_block == 0:  # first layer and first stage
+                # first layer and first stage
+                if res_block == 0:  
                     activation = None
                     batch_normalization = False
             else:
                 num_filters_out = num_filters_in * 2
-                if res_block == 0:  # first layer but not first stage
-                    strides = 2    # downsample
+                # first layer but not first stage
+                if res_block == 0:
+                    # downsample
+                    strides = 2 
 
             # bottleneck residual unit
             y = resnet_layer(inputs=x,
@@ -306,8 +316,8 @@ def resnet_v2(input_shape, depth, num_classes=10):
                              kernel_size=1,
                              conv_first=False)
             if res_block == 0:
-                # linear projection residual shortcut connection to match
-                # changed dims
+                # linear projection residual shortcut connection
+                # to match changed dims
                 x = resnet_layer(inputs=x,
                                  num_filters=num_filters_out,
                                  kernel_size=1,
@@ -413,6 +423,9 @@ else:
                         callbacks=callbacks)
 
 # score trained model
-scores = model.evaluate(x_test, y_test, verbose=1)
+scores = model.evaluate(x_test,
+                        y_test,
+                        batch_size=batch_size,
+                        verbose=0)
 print('Test loss:', scores[0])
 print('Test accuracy:', scores[1])
