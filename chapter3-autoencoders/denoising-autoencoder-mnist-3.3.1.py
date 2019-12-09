@@ -2,12 +2,12 @@
 
 Denoising is one of the classic applications of autoencoders.
 The denoising process removes unwanted noise that corrupted the
-true signal.
+true data.
 
 Noise + Data ---> Denoising Autoencoder ---> Data
 
 Given a training dataset of corrupted data as input and
-true signal as output, a denoising autoencoder can recover the
+true data as output, a denoising autoencoder can recover the
 hidden structure to generate clean data.
 
 This example has modular design. The encoder, decoder and autoencoder
@@ -20,12 +20,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from keras.layers import Dense, Input
-from keras.layers import Conv2D, Flatten
-from keras.layers import Reshape, Conv2DTranspose
-from keras.models import Model
-from keras import backend as K
-from keras.datasets import mnist
+from tensorflow.keras.layers import Dense, Input
+from tensorflow.keras.layers import Conv2D, Flatten
+from tensorflow.keras.layers import Reshape, Conv2DTranspose
+from tensorflow.keras.models import Model
+from tensorflow.keras import backend as K
+from tensorflow.keras.datasets import mnist
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
