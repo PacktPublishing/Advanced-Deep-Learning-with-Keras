@@ -52,12 +52,12 @@ subtract_pixel_mean = True
 # ResNet164 |27(18)| -----     | 94.07     | -----     | 94.54     | ---(---)
 # ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| ---(---)
 # ---------------------------------------------------------------------------
-n = 12
+n = 3
 
 # model version
 # orig paper: version = 1 (ResNet v1), 
 # improved ResNet: version = 2 (ResNet v2)
-version = 2
+version = 1
 
 # computed depth from supplied model parameter n
 if version == 1:
