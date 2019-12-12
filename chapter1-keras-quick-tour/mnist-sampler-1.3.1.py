@@ -9,7 +9,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from keras.datasets import mnist
+from tensorflow.keras.datasets import mnist
 import matplotlib.pyplot as plt
 
 # load dataset

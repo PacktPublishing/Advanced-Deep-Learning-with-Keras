@@ -17,11 +17,11 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from keras.models import Sequential
-from keras.layers import Activation, Dense, Dropout
-from keras.layers import Conv2D, MaxPooling2D, Flatten
-from keras.utils import to_categorical, plot_model
-from keras.datasets import mnist
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Activation, Dense, Dropout
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten
+from tensorflow.keras.utils import to_categorical, plot_model
+from tensorflow.keras.datasets import mnist
 
 # load mnist dataset
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
@@ -82,5 +82,8 @@ model.compile(loss='categorical_crossentropy',
 # train the network
 model.fit(x_train, y_train, epochs=10, batch_size=batch_size)
 
-loss, acc = model.evaluate(x_test, y_test, batch_size=batch_size)
+_, acc = model.evaluate(x_test,
+                        y_test,
+                        batch_size=batch_size,
+                        verbose=0)
 print("\nTest accuracy: %.1f%%" % (100.0 * acc))
