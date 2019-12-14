@@ -17,12 +17,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from keras.layers import Input
-from keras.optimizers import RMSprop
-from keras.models import Model
-from keras.datasets import mnist
-from keras import backend as K
-from keras.models import load_model
+from tensorflow.keras.layers import Input
+from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.models import Model
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras import backend as K
+from tensorflow.keras.models import load_model
 
 import numpy as np
 import argparse
@@ -34,16 +34,19 @@ from lib import gan
 def train(models, x_train, params):
     """Train the Discriminator and Adversarial Networks
 
-    Alternately train Discriminator and Adversarial networks by batch.
-    Discriminator is trained first with properly labelled real and fake images
-    for n_critic times.
-    Discriminator weights are clipped as a requirement of Lipschitz constraint.
-    Generator is trained next (via Adversarial) with fake images
-    pretending to be real.
+    Alternately train Discriminator and Adversarial
+    networks by batch.
+    Discriminator is trained first with properly labelled
+    real and fake images for n_critic times.
+    Discriminator weights are clipped as a requirement 
+    of Lipschitz constraint.
+    Generator is trained next (via Adversarial) with 
+    fake images pretending to be real.
     Generate sample images per save_interval
 
-    # Arguments
-        models (list): Generator, Discriminator, Adversarial models
+    Arguments:
+        models (list): Generator, Discriminator,
+            Adversarial models
         x_train (tensor): Train images
         params (list) : Networks parameters
 
@@ -55,8 +58,11 @@ def train(models, x_train, params):
             clip_value, train_steps, model_name) = params
     # the generator image is saved every 500 steps
     save_interval = 500
-    # noise vector to see how the generator output evolves during training
-    noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
+    # noise vector to see how the 
+    # generator output evolves during training
+    noise_input = np.random.uniform(-1.0,
+                                    1.0, 
+                                    size=[16, latent_size])
     # number of elements in train dataset
     train_size = x_train.shape[0]
     # labels for real data
@@ -67,9 +73,12 @@ def train(models, x_train, params):
         acc = 0
         for _ in range(n_critic):
             # train the discriminator for 1 batch
-            # 1 batch of real (label=1.0) and fake images (label=-1.0)
+            # 1 batch of real (label=1.0) and 
+            # fake images (label=-1.0)
             # randomly pick real images from dataset
-            rand_indexes = np.random.randint(0, train_size, size=batch_size)
+            rand_indexes = np.random.randint(0,
+                                             train_size, 
+                                             size=batch_size)
             real_images = x_train[rand_indexes]
             # generate fake images from noise using generator
             # generate noise using uniform distribution
@@ -83,13 +92,16 @@ def train(models, x_train, params):
             # instead of 1 combined batch of real and fake images,
             # train with 1 batch of real data first, then 1 batch
             # of fake images.
-            # this tweak prevents the gradient from vanishing due to opposite
+            # this tweak prevents the gradient 
+            # from vanishing due to opposite
             # signs of real and fake data labels (i.e. +1 and -1) and 
             # small magnitude of weights due to clipping.
-            real_loss, real_acc = discriminator.train_on_batch(real_images,
-                                                               real_labels)
-            fake_loss, fake_acc = discriminator.train_on_batch(fake_images,
-                                                               -real_labels)
+            real_loss, real_acc = \
+                discriminator.train_on_batch(real_images,
+                                             real_labels)
+            fake_loss, fake_acc = \
+                discriminator.train_on_batch(fake_images,
+                                             -real_labels)
             # accumulate average loss and accuracy
             loss += 0.5 * (real_loss + fake_loss)
             acc += 0.5 * (real_acc + fake_acc)
@@ -109,35 +121,33 @@ def train(models, x_train, params):
 
         # train the adversarial network for 1 batch
         # 1 batch of fake images with label=1.0
-        # since the discriminator weights are frozen in adversarial network
-        # only the generator is trained
+        # since the discriminator weights are frozen in 
+        # adversarial network only the generator is trained
         # generate noise using uniform distribution
-        noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
+        noise = np.random.uniform(-1.0,
+                                  1.0,
+                                  size=[batch_size, latent_size])
         # train the adversarial network
         # note that unlike in discriminator training,
         # we do not save the fake images in a variable
-        # the fake images go to the discriminator input of the adversarial
-        # for classification
+        # the fake images go to the discriminator 
+        # input of the adversarial for classification
         # fake images are labelled as real
         # log the loss and accuracy
         loss, acc = adversarial.train_on_batch(noise, real_labels)
         log = "%s [adversarial loss: %f, acc: %f]" % (log, loss, acc)
         print(log)
         if (i + 1) % save_interval == 0:
-            if (i + 1) == train_steps:
-                show = True
-            else:
-                show = False
-
             # plot generator images on a periodic basis
             gan.plot_images(generator,
                             noise_input=noise_input,
-                            show=show,
+                            show=False,
                             step=(i + 1),
                             model_name=model_name)
 
     # save the model after training the generator
-    # the trained generator can be reloaded for future MNIST digit generation
+    # the trained generator can be reloaded 
+    # for future MNIST digit generation
     generator.save(model_name + ".h5")
 
 

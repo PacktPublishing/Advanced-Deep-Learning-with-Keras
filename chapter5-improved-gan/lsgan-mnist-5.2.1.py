@@ -15,11 +15,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from keras.layers import Input
-from keras.optimizers import RMSprop
-from keras.models import Model
-from keras.datasets import mnist
-from keras.models import load_model
+from tensorflow.keras.layers import Input
+from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.models import Model
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.models import load_model
 
 import numpy as np
 import argparse
@@ -35,7 +35,8 @@ def build_and_train_models():
 
     # reshape data for CNN as (28, 28, 1) and normalize
     image_size = x_train.shape[1]
-    x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
+    x_train = np.reshape(x_train, 
+                         [-1, image_size, image_size, 1])
     x_train = x_train.astype('float32') / 255
 
     model_name = "lsgan_mnist"
@@ -51,7 +52,8 @@ def build_and_train_models():
     # build discriminator model
     inputs = Input(shape=input_shape, name='discriminator_input')
     discriminator = gan.discriminator(inputs, activation=None)
-    # [1] uses Adam, but discriminator converges easily with RMSprop
+    # [1] uses Adam, but discriminator easily 
+    # converges with RMSprop
     optimizer = RMSprop(lr=lr, decay=decay)
     # LSGAN uses MSE loss [2]
     discriminator.compile(loss='mse',
@@ -67,7 +69,8 @@ def build_and_train_models():
 
     # build adversarial model = generator + discriminator
     optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
-    # freeze the weights of discriminator during adversarial training
+    # freeze the weights of discriminator 
+    # during adversarial training
     discriminator.trainable = False
     adversarial = Model(inputs,
                         discriminator(generator(inputs)),

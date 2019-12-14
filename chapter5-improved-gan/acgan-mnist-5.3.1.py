@@ -19,12 +19,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from keras.layers import Input
-from keras.optimizers import RMSprop
-from keras.models import Model
-from keras.datasets import mnist
-from keras.utils import to_categorical
-from keras.models import load_model
+from tensorflow.keras.layers import Input
+from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.models import Model
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.models import load_model
 
 import numpy as np
 import argparse
@@ -37,15 +37,17 @@ from lib import gan
 def train(models, data, params):
     """Train the discriminator and adversarial Networks
 
-    Alternately train discriminator and adversarial networks by batch.
-    Discriminator is trained first with real and fake images and
-    corresponding one-hot labels.
-    Adversarial is trained next with fake images pretending to be real and 
-    corresponding one-hot labels.
+    Alternately train discriminator and adversarial 
+    networks by batch.
+    Discriminator is trained first with real and fake 
+    images and corresponding one-hot labels.
+    Adversarial is trained next with fake images pretending 
+    to be real and corresponding one-hot labels.
     Generate sample images per save_interval.
 
     # Arguments
-        models (list): Generator, Discriminator, Adversarial models
+        models (list): Generator, Discriminator,
+            Adversarial models
         data (list): x_train, y_train data
         params (list): Network parameters
 
@@ -55,12 +57,17 @@ def train(models, data, params):
     # images and their one-hot labels
     x_train, y_train = data
     # network parameters
-    batch_size, latent_size, train_steps, num_labels, model_name = params
+    batch_size, latent_size, train_steps, num_labels, model_name \
+            = params
     # the generator image is saved every 500 steps
     save_interval = 500
-    # noise vector to see how the generator output evolves during training
-    noise_input = np.random.uniform(-1.0, 1.0, size=[16, latent_size])
-    # class labels are 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5
+    # noise vector to see how the generator 
+    # output evolves during training
+    noise_input = np.random.uniform(-1.0,
+                                    1.0, 
+                                    size=[16, latent_size])
+    # class labels are 0, 1, 2, 3, 4, 5, 
+    # 6, 7, 8, 9, 0, 1, 2, 3, 4, 5
     # the generator must produce these MNIST digits
     noise_label = np.eye(num_labels)[np.arange(0, 16) % num_labels]
     # number of elements in train dataset
@@ -72,13 +79,18 @@ def train(models, data, params):
     for i in range(train_steps):
         # train the discriminator for 1 batch
         # 1 batch of real (label=1.0) and fake images (label=0.0)
-        # randomly pick real images and corresponding labels from dataset 
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
+        # randomly pick real images and 
+        # corresponding labels from dataset 
+        rand_indexes = np.random.randint(0,
+                                         train_size,
+                                         size=batch_size)
         real_images = x_train[rand_indexes]
         real_labels = y_train[rand_indexes]
         # generate fake images from noise using generator
         # generate noise using uniform distribution
-        noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
+        noise = np.random.uniform(-1.0,
+                                  1.0,
+                                  size=[batch_size, latent_size])
         # randomly pick one-hot labels
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
@@ -95,18 +107,23 @@ def train(models, data, params):
         # fake images label is 0.0
         y[batch_size:, :] = 0
         # train discriminator network, log the loss and accuracy
-        # ['loss', 'activation_1_loss', 'label_loss', 'activation_1_acc', 'label_acc']
+        # ['loss', 'activation_1_loss', 
+        # 'label_loss', 'activation_1_acc', 'label_acc']
         metrics  = discriminator.train_on_batch(x, [y, labels])
-        fmt = "%d: [disc loss: %f, srcloss: %f, lblloss: %f, srcacc: %f, lblacc: %f]" 
-        log = fmt % (i, metrics[0], metrics[1], metrics[2], metrics[3], metrics[4])
+        fmt = "%d: [disc loss: %f, srcloss: %f," 
+        fmt += "lblloss: %f, srcacc: %f, lblacc: %f]" 
+        log = fmt % (i, metrics[0], metrics[1], \
+                metrics[2], metrics[3], metrics[4])
 
         # train the adversarial network for 1 batch
         # 1 batch of fake images with label=1.0 and
         # corresponding one-hot label or class 
-        # since the discriminator weights are frozen in adversarial network
-        # only the generator is trained
+        # since the discriminator weights are frozen 
+        # in adversarial network only the generator is trained
         # generate noise using uniform distribution
-        noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
+        noise = np.random.uniform(-1.0,
+                                  1.0, 
+                                  size=[batch_size, latent_size])
         # randomly pick one-hot labels
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
@@ -115,29 +132,28 @@ def train(models, data, params):
         # train the adversarial network 
         # note that unlike in discriminator training, 
         # we do not save the fake images in a variable
-        # the fake images go to the discriminator input of the adversarial
-        # for classification
+        # the fake images go to the discriminator input 
+        # of the adversarial for classification
         # log the loss and accuracy
-        metrics  = adversarial.train_on_batch([noise, fake_labels], [y, fake_labels])
-        fmt = "%s [advr loss: %f, srcloss: %f, lblloss: %f, srcacc: %f, lblacc: %f]" 
-        log = fmt % (log, metrics[0], metrics[1], metrics[2], metrics[3], metrics[4])
+        metrics  = adversarial.train_on_batch([noise, fake_labels],
+                                              [y, fake_labels])
+        fmt = "%s [advr loss: %f, srcloss: %f,"
+        fmt += "lblloss: %f, srcacc: %f, lblacc: %f]" 
+        log = fmt % (log, metrics[0], metrics[1],\
+                metrics[2], metrics[3], metrics[4])
         print(log)
         if (i + 1) % save_interval == 0:
-            if (i + 1) == train_steps:
-                show = True
-            else:
-                show = False
-            
             # plot generator images on a periodic basis
             gan.plot_images(generator,
                         noise_input=noise_input,
                         noise_label=noise_label,
-                        show=show,
+                        show=False,
                         step=(i + 1),
                         model_name=model_name)
 
     # save the model after training the generator
-    # the trained generator can be reloaded for future MNIST digit generation
+    # the trained generator can be reloaded 
+    # for future MNIST digit generation
     generator.save(model_name + ".h5")
 
 
@@ -147,7 +163,8 @@ def build_and_train_models():
 
     # reshape data for CNN as (28, 28, 1) and normalize
     image_size = x_train.shape[1]
-    x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
+    x_train = np.reshape(x_train, 
+                         [-1, image_size, image_size, 1])
     x_train = x_train.astype('float32') / 255
 
     # train labels
@@ -165,10 +182,14 @@ def build_and_train_models():
     label_shape = (num_labels, )
 
     # build discriminator Model
-    inputs = Input(shape=input_shape, name='discriminator_input')
-    # call discriminator builder with 2 outputs, pred source and labels
-    discriminator = gan.discriminator(inputs, num_labels=num_labels)
-    # [1] uses Adam, but discriminator converges easily with RMSprop
+    inputs = Input(shape=input_shape,
+                   name='discriminator_input')
+    # call discriminator builder 
+    # with 2 outputs, pred source and labels
+    discriminator = gan.discriminator(inputs, 
+                                      num_labels=num_labels)
+    # [1] uses Adam, but discriminator 
+    # easily converges with RMSprop
     optimizer = RMSprop(lr=lr, decay=decay)
     # 2 loss fuctions: 1) probability image is real
     # 2) class label of the image
@@ -183,12 +204,15 @@ def build_and_train_models():
     inputs = Input(shape=input_shape, name='z_input')
     labels = Input(shape=label_shape, name='labels')
     # call generator builder with input labels
-    generator = gan.generator(inputs, image_size, labels=labels)
+    generator = gan.generator(inputs,
+                              image_size,
+                              labels=labels)
     generator.summary()
 
     # build adversarial model = generator + discriminator
     optimizer = RMSprop(lr=lr*0.5, decay=decay*0.5)
-    # freeze the weights of discriminator during adversarial training
+    # freeze the weights of discriminator 
+    # during adversarial training
     discriminator.trainable = False
     adversarial = Model([inputs, labels],
                         discriminator(generator([inputs, labels])),
@@ -203,7 +227,8 @@ def build_and_train_models():
     # train discriminator and adversarial networks
     models = (generator, discriminator, adversarial)
     data = (x_train, y_train)
-    params = (batch_size, latent_size, train_steps, num_labels, model_name)
+    params = (batch_size, latent_size, \
+             train_steps, num_labels, model_name)
     train(models, data, params)
 
 
