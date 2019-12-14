@@ -18,15 +18,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from keras.layers import Activation, Dense, Input
-from keras.layers import Conv2D, Flatten
-from keras.layers import Reshape, Conv2DTranspose
-from keras.layers import LeakyReLU
-from keras.layers import BatchNormalization
-from keras.optimizers import RMSprop
-from keras.models import Model
-from keras.datasets import mnist
-from keras.models import load_model
+from tensorflow.keras.layers import Activation, Dense, Input
+from tensorflow.keras.layers import Conv2D, Flatten
+from tensorflow.keras.layers import Reshape, Conv2DTranspose
+from tensorflow.keras.layers import LeakyReLU
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.models import Model
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.models import load_model
 
 import numpy as np
 import math
@@ -42,12 +42,14 @@ def build_generator(inputs, image_size):
     Output activation is sigmoid instead of tanh in [1].
     Sigmoid converges easily.
 
-    # Arguments
-        inputs (Layer): Input layer of the generator (the z-vector)
-        image_size: Target size of one side (assuming square image)
+    Arguments:
+        inputs (Layer): Input layer of the generator 
+            the z-vector)
+        image_size (tensor): Target size of one side
+            (assuming square image)
 
-    # Returns
-        Model: Generator Model
+    Returns:
+        generator (Model): Generator Model
     """
 
     image_resize = image_size // 4
@@ -84,11 +86,11 @@ def build_discriminator(inputs):
     The network does not converge with BN so it is not used here
     unlike in [1] or original paper.
 
-    # Arguments
+    Arguments:
         inputs (Layer): Input layer of the discriminator (the image)
 
-    # Returns
-        Model: Discriminator Model
+    Returns:
+        discriminator (Model): Discriminator Model
     """
     kernel_size = 5
     layer_filters = [32, 64, 128, 256]
@@ -122,13 +124,13 @@ def train(models, x_train, params):
     Adversarial is trained next with fake images pretending to be real
     Generate sample images per save_interval.
 
-    # Arguments
+    Arguments:
         models (list): Generator, Discriminator, Adversarial models
         x_train (tensor): Train images
         params (list) : Networks parameters
 
     """
-    # the GAN models
+    # the GAN component models
     generator, discriminator, adversarial = models
     # network parameters
     batch_size, latent_size, train_steps, model_name = params
@@ -178,20 +180,16 @@ def train(models, x_train, params):
         log = "%s [adversarial loss: %f, acc: %f]" % (log, loss, acc)
         print(log)
         if (i + 1) % save_interval == 0:
-            if (i + 1) == train_steps:
-                show = True
-            else:
-                show = False
-
             # plot generator images on a periodic basis
             plot_images(generator,
                         noise_input=noise_input,
-                        show=show,
+                        show=False,
                         step=(i + 1),
                         model_name=model_name)
    
     # save the model after training the generator
-    # the trained generator can be reloaded for future MNIST digit generation
+    # the trained generator can be reloaded for 
+    # future MNIST digit generation
     generator.save(model_name + ".h5")
 
 
@@ -205,8 +203,9 @@ def plot_images(generator,
     For visualization purposes, generate fake images
     then plot them in a square grid
 
-    # Arguments
-        generator (Model): The Generator Model for fake images generation
+    Arguments:
+        generator (Model): The Generator Model for 
+            fake images generation
         noise_input (ndarray): Array of z-vectors
         show (bool): Whether to show plot or not
         step (int): Appended to filename of the save images

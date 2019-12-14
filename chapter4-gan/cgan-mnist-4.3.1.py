@@ -1,6 +1,6 @@
 '''Trains CGAN on MNIST using Keras
 
-CGAN is Conditional Generative Adversarial Nets.
+CGAN is Conditional Generative Adversarial Network.
 This version of CGAN is similar to DCGAN. The difference mainly
 is that the z-vector of geneerator is conditioned by a one-hot label
 to produce specific fake images. The discriminator is trained to
@@ -19,17 +19,17 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from keras.layers import Activation, Dense, Input
-from keras.layers import Conv2D, Flatten
-from keras.layers import Reshape, Conv2DTranspose
-from keras.layers import LeakyReLU
-from keras.layers import BatchNormalization
-from keras.layers.merge import concatenate
-from keras.optimizers import RMSprop
-from keras.models import Model
-from keras.datasets import mnist
-from keras.utils import to_categorical
-from keras.models import load_model
+from tensorflow.keras.layers import Activation, Dense, Input
+from tensorflow.keras.layers import Conv2D, Flatten
+from tensorflow.keras.layers import Reshape, Conv2DTranspose
+from tensorflow.keras.layers import LeakyReLU
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import concatenate
+from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.models import Model
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.models import load_model
 
 import numpy as np
 import math
@@ -46,14 +46,14 @@ def build_generator(inputs, labels, image_size):
     Output activation is sigmoid instead of tanh in orig DCGAN.
     Sigmoid converges easily.
 
-    # Arguments
+    Arguments:
         inputs (Layer): Input layer of the generator (the z-vector)
         labels (Layer): Input layer for one-hot vector to condition
             the inputs
         image_size: Target size of one side (assuming square image)
 
-    # Returns
-        Model: Generator Model
+    Returns:
+        generator (Model): Generator Model
     """
     image_resize = image_size // 4
     # network parameters
@@ -92,14 +92,14 @@ def build_discriminator(inputs, labels, image_size):
     The network does not converge with BN so it is not used here
     unlike in DCGAN paper.
 
-    # Arguments
+    Arguments:
         inputs (Layer): Input layer of the discriminator (the image)
         labels (Layer): Input layer for one-hot vector to condition
             the inputs
         image_size: Target size of one side (assuming square image)
 
-    # Returns
-        Model: Discriminator Model
+    Returns:
+        discriminator (Model): Discriminator Model
     """
     kernel_size = 5
     layer_filters = [32, 64, 128, 256]
@@ -142,7 +142,7 @@ def train(models, data, params):
     Adversarial inputs are conditioned by random labels.
     Generate sample images per save_interval.
 
-    # Arguments
+    Arguments:
         models (list): Generator, Discriminator, Adversarial models
         data (list): x_train, y_train data
         params (list): Network parameters
@@ -177,7 +177,9 @@ def train(models, data, params):
         real_labels = y_train[rand_indexes]
         # generate fake images from noise using generator
         # generate noise using uniform distribution
-        noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
+        noise = np.random.uniform(-1.0,
+                                  1.0,
+                                  size=[batch_size, latent_size])
         # assign random one-hot labels
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
@@ -199,41 +201,40 @@ def train(models, data, params):
         log = "%d: [discriminator loss: %f, acc: %f]" % (i, loss, acc)
 
         # train the adversarial network for 1 batch
-        # 1 batch of fake images conditioned on fake 1-hot labels w/ label=1.0
-        # since the discriminator weights are frozen in adversarial network
-        # only the generator is trained
+        # 1 batch of fake images conditioned on fake 1-hot labels 
+        # w/ label=1.0
+        # since the discriminator weights are frozen in 
+        # adversarial network only the generator is trained
         # generate noise using uniform distribution        
-        noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
+        noise = np.random.uniform(-1.0,
+                                  1.0,
+                                  size=[batch_size, latent_size])
         # assign random one-hot labels
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
-                                                           batch_size)]
+                                                          batch_size)]
         # label fake images as real or 1.0
         y = np.ones([batch_size, 1])
         # train the adversarial network 
         # note that unlike in discriminator training, 
         # we do not save the fake images in a variable
-        # the fake images go to the discriminator input of the adversarial
-        # for classification
+        # the fake images go to the discriminator input
+        # of the adversarial for classification
         # log the loss and accuracy
         loss, acc = adversarial.train_on_batch([noise, fake_labels], y)
         log = "%s [adversarial loss: %f, acc: %f]" % (log, loss, acc)
         print(log)
         if (i + 1) % save_interval == 0:
-            if (i + 1) == train_steps:
-                show = True
-            else:
-                show = False
-
             # plot generator images on a periodic basis
             plot_images(generator,
                         noise_input=noise_input,
                         noise_class=noise_class,
-                        show=show,
+                        show=False,
                         step=(i + 1),
                         model_name=model_name)
     
     # save the model after training the generator
-    # the trained generator can be reloaded for future MNIST digit generation
+    # the trained generator can be reloaded for 
+    # future MNIST digit generation
     generator.save(model_name + ".h5")
 
 
@@ -248,7 +249,7 @@ def plot_images(generator,
     For visualization purposes, generate fake images
     then plot them in a square grid
 
-    # Arguments
+    Arguments:
         generator (Model): The Generator Model for fake images generation
         noise_input (ndarray): Array of z-vectors
         show (bool): Whether to show plot or not
