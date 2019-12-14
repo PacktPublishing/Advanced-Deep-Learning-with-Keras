@@ -148,7 +148,9 @@ def train(models, x_train, params):
         real_images = x_train[rand_indexes]
         # generate fake images from noise using generator 
         # generate noise using uniform distribution
-        noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
+        noise = np.random.uniform(-1.0,
+                                  1.0,
+                                  size=[batch_size, latent_size])
         # generate fake images
         fake_images = generator.predict(noise)
         # real + fake images = 1 batch of train data
@@ -164,10 +166,13 @@ def train(models, x_train, params):
 
         # train the adversarial network for 1 batch
         # 1 batch of fake images with label=1.0
-        # since the discriminator weights are frozen in adversarial network
+        # since the discriminator weights 
+        # are frozen in adversarial network
         # only the generator is trained
         # generate noise using uniform distribution
-        noise = np.random.uniform(-1.0, 1.0, size=[batch_size, latent_size])
+        noise = np.random.uniform(-1.0,
+                                  1.0, 
+                                  size=[batch_size, latent_size])
         # label fake images as real or 1.0
         y = np.ones([batch_size, 1])
         # train the adversarial network 
