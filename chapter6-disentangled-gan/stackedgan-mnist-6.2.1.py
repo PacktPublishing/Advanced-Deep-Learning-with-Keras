@@ -23,16 +23,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from keras.layers import Activation, Dense, Input
-from keras.layers import Conv2D, Flatten, MaxPooling2D
-from keras.layers import BatchNormalization
-from keras.optimizers import RMSprop
-from keras.models import Model
-from keras.datasets import mnist
-from keras.utils import to_categorical
-from keras.models import load_model
-from keras import backend as K
-from keras.layers.merge import concatenate
+from tensorflow.keras.layers import Activation, Dense, Input
+from tensorflow.keras.layers import Conv2D, Flatten, MaxPooling2D
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.models import Model
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.models import load_model
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import concatenate
 
 import numpy as np
 import math
@@ -52,7 +52,8 @@ def build_encoder(inputs, num_labels=10, feature1_dim=256):
     2) Encoder1: feature1 to labels
 
     # Arguments
-        inputs (Layers): x - images, feature1 - feature1 layer output
+        inputs (Layers): x - images, feature1 - 
+            feature1 layer output
         num_labels (int): number of class labels
         feature1_dim (int): feature1 dimensionality
 
@@ -92,12 +93,15 @@ def build_encoder(inputs, num_labels=10, feature1_dim=256):
 def build_generator(latent_codes, image_size, feature1_dim=256):
     """Build Generator Model sub networks
 
-    Two sub networks: 1) Class and noise to feature1 (intermediate feature)
-    2) feature1 to image
+    Two sub networks: 1) Class and noise to feature1 
+        (intermediate feature)
+        2) feature1 to image
 
     # Arguments
-        latent_codes (Layers): dicrete code (labels), noise and feature1 features
-        image_size (int): Target size of one side (assuming square image)
+        latent_codes (Layers): dicrete code (labels),
+            noise and feature1 features
+        image_size (int): Target size of one side
+            (assuming square image)
         feature1_dim (int): feature1 dimensionality
 
     # Returns
@@ -147,7 +151,8 @@ def build_discriminator(inputs, z_dim=50):
 
     # first output is probability that feature1 is real
     f1_source = Dense(1)(x)
-    f1_source = Activation('sigmoid', name='feature1_source')(f1_source)
+    f1_source = Activation('sigmoid',
+                           name='feature1_source')(f1_source)
 
     # z1 reonstruction (Q1 network)
     z1_recon = Dense(z_dim)(x) 
@@ -164,12 +169,13 @@ def train(models, data, params):
     Alternately train discriminator and adversarial networks by batch.
     Discriminator is trained first with real and fake images,
     corresponding one-hot labels and latent codes.
-    Adversarial is trained next with fake images pretending to be real,
-    corresponding one-hot labels and latent codes.
+    Adversarial is trained next with fake images pretending
+    to be real, corresponding one-hot labels and latent codes.
     Generate sample images per save_interval.
 
     # Arguments
-        models (Models): Encoder, Generator, Discriminator, Adversarial models
+        models (Models): Encoder, Generator, Discriminator,
+            Adversarial models
         data (tuple): x_train, y_train data
         params (tuple): Network parameters
 
@@ -198,18 +204,22 @@ def train(models, data, params):
         # train the discriminator1 for 1 batch
         # 1 batch of real (label=1.0) and fake feature1 (label=0.0)
         # randomly pick real images from dataset
-        rand_indexes = np.random.randint(0, train_size, size=batch_size)
+        rand_indexes = np.random.randint(0, 
+                                         train_size, 
+                                         size=batch_size)
         real_images = x_train[rand_indexes]
         # real feature1 from encoder0 output
         real_feature1 = enc0.predict(real_images)
         # generate random 50-dim z1 latent code
-        real_z1 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
+        real_z1 = np.random.normal(scale=0.5,
+                                   size=[batch_size, z_dim])
         # real labels from dataset
         real_labels = y_train[rand_indexes]
 
         # generate fake feature1 using generator1 from
         # real labels and 50-dim z1 latent code
-        fake_z1 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
+        fake_z1 = np.random.normal(scale=0.5,
+                                   size=[batch_size, z_dim])
         fake_feature1 = gen1.predict([real_labels, fake_z1])
 
         # real + fake data
@@ -220,10 +230,12 @@ def train(models, data, params):
         y = np.ones([2 * batch_size, 1])
         y[batch_size:, :] = 0
 
-        # train discriminator1 to classify feature1 as real/fake and recover
-        # latent code (z1). real = from encoder1, fake = from genenerator1 
-        # joint training using discriminator part of advserial1 loss
-        # and entropy1 loss
+        # train discriminator1 to classify feature1 as 
+        # real/fake and recover
+        # latent code (z1). real = from encoder1, 
+        # fake = from genenerator1 
+        # joint training using discriminator part of 
+        # advserial1 loss and entropy1 loss
         metrics = dis1.train_on_batch(feature1, [y, z1])
         # log the overall loss only
         log = "%d: [dis1_loss: %f]" % (i, metrics[0])
@@ -240,8 +252,8 @@ def train(models, data, params):
         x = np.concatenate((real_images, fake_images))
         z0 = np.concatenate((fake_z0, fake_z0))
 
-        # train discriminator0 to classify image as real/fake and recover
-        # latent code (z0)
+        # train discriminator0 to classify image 
+        # as real/fake and recover latent code (z0)
         # joint training using discriminator part of advserial0 loss
         # and entropy0 loss
         metrics = dis0.train_on_batch(x, [y, z0])
@@ -250,7 +262,8 @@ def train(models, data, params):
 
         # adversarial training 
         # generate fake z1, labels
-        fake_z1 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
+        fake_z1 = np.random.normal(scale=0.5, 
+                                   size=[batch_size, z_dim])
         # input to generator1 is sampling fr real labels and
         # 50-dim z1 latent code
         gen1_inputs = [real_labels, fake_z1]
@@ -258,36 +271,37 @@ def train(models, data, params):
         # label fake feature1 as real
         y = np.ones([batch_size, 1])
     
-        # train generator1 (thru adversarial) by fooling the discriminator
+        # train generator1 (thru adversarial) by fooling i
+        # the discriminator
         # and approximating encoder1 feature1 generator
         # joint training: adversarial1, entropy1, conditional1
-        metrics = adv1.train_on_batch(gen1_inputs, [y, fake_z1, real_labels])
+        metrics = adv1.train_on_batch(gen1_inputs,
+                                      [y, fake_z1, real_labels])
         fmt = "%s [adv1_loss: %f, enc1_acc: %f]"
         # log the overall loss and classification accuracy
         log = fmt % (log, metrics[0], metrics[6])
 
         # input to generator0 is real feature1 and 
         # 50-dim z0 latent code
-        fake_z0 = np.random.normal(scale=0.5, size=[batch_size, z_dim])
+        fake_z0 = np.random.normal(scale=0.5,
+                                   size=[batch_size, z_dim])
         gen0_inputs = [real_feature1, fake_z0]
 
-        # train generator0 (thru adversarial) by fooling the discriminator
-        # and approximating encoder1 image source generator
-        # joint training: adversarial0, entropy0, conditional0
-        metrics = adv0.train_on_batch(gen0_inputs, [y, fake_z0, real_feature1])
+        # train generator0 (thru adversarial) by fooling 
+        # the discriminator and approximating encoder1 image 
+        # source generator joint training: 
+        # adversarial0, entropy0, conditional0
+        metrics = adv0.train_on_batch(gen0_inputs,
+                                      [y, fake_z0, real_feature1])
         # log the overall loss only
         log = "%s [adv0_loss: %f]" % (log, metrics[0])
 
         print(log)
         if (i + 1) % save_interval == 0:
-            if (i + 1) == train_steps:
-                show = True
-            else:
-                show = False
             generators = (gen0, gen1)
             plot_images(generators,
                         noise_params=noise_params,
-                        show=show,
+                        show=False,
                         step=(i + 1),
                         model_name=model_name)
 
@@ -309,8 +323,10 @@ def plot_images(generators,
     then plot them in a square grid
 
     # Arguments
-        generators (Models): gen0 and gen1 models for fake images generation
-        noise_params (list): noise parameters (label, z0 and z1 codes)
+        generators (Models): gen0 and gen1 models for 
+            fake images generation
+        noise_params (list): noise parameters 
+            (label, z0 and z1 codes)
         show (bool): Whether to show plot or not
         step (int): Appended to filename of the save images
         model_name (string): Model name
@@ -342,7 +358,10 @@ def plot_images(generators,
         plt.close('all')
 
 
-def train_encoder(model, data, model_name="stackedgan_mnist", batch_size=64):
+def train_encoder(model,
+                  data, 
+                  model_name="stackedgan_mnist", 
+                  batch_size=64):
     """ Train the Encoder Model (enc0 and enc1)
 
     # Arguments
@@ -363,7 +382,10 @@ def train_encoder(model, data, model_name="stackedgan_mnist", batch_size=64):
               batch_size=batch_size)
 
     model.save(model_name + "-encoder.h5")
-    score = model.evaluate(x_test, y_test, batch_size=batch_size)
+    score = model.evaluate(x_test,
+                           y_test, 
+                           batch_size=batch_size,
+                           verbose=0)
     print("\nTest accuracy: %.1f%%" % (100.0 * score[1]))
 
 
@@ -417,7 +439,8 @@ def build_and_train_models():
     input_shape = (feature1_dim, )
     inputs = Input(shape=input_shape, name='discriminator1_input')
     dis1 = build_discriminator(inputs, z_dim=z_dim )
-    # loss fuctions: 1) probability feature1 is real (adversarial1 loss)
+    # loss fuctions: 1) probability feature1 is real 
+    # (adversarial1 loss)
     # 2) MSE z1 recon loss (Q1 network loss or entropy1 loss)
     loss = ['binary_crossentropy', 'mse']
     loss_weights = [1.0, 1.0] 
@@ -488,7 +511,9 @@ def build_and_train_models():
     # 2) Q network 1 loss (entropy1 loss)
     # 3) conditional1 loss (classifier error)
     loss_weights = [1.0, 1.0, 1.0] 
-    loss = ['binary_crossentropy', 'mse', 'categorical_crossentropy']
+    loss = ['binary_crossentropy', 
+            'mse',
+            'categorical_crossentropy']
     adv1.compile(loss=loss,
                  loss_weights=loss_weights,
                  optimizer=optimizer,
