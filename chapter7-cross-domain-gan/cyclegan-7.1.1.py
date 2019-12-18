@@ -40,17 +40,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from keras.layers import Activation, Dense, Input
-from keras.layers import Conv2D, Flatten
-from keras.layers import Conv2DTranspose
-from keras.layers import LeakyReLU
-from keras.optimizers import RMSprop
-from keras.models import Model
-from keras.models import load_model
-from keras.layers.merge import concatenate
+from tensorflow.keras.layers import Activation, Dense, Input
+from tensorflow.keras.layers import Conv2D, Flatten
+from tensorflow.keras.layers import Conv2DTranspose
+from tensorflow.keras.layers import LeakyReLU
+from tensorflow.keras.layers import concatenate
+from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.models import Model
+from tensorflow.keras.models import load_model
 
 # from keras_contrib.layers.normalization import InstanceNormalization
-from keras_contrib.layers.normalization.instancenormalization import InstanceNormalization
+# from keras_contrib.layers.normalization.instancenormalization import InstanceNormalization
+# install: pip install tensorflow-addons
+from tensorflow_addons.layers import InstanceNormalization
 
 import numpy as np
 import argparse
@@ -78,7 +80,7 @@ def encoder_layer(inputs,
 
     x = inputs
     if instance_norm:
-        x = InstanceNormalization()(x)
+        x = InstanceNormalization(axis=3)(x)
     if activation == 'relu':
         x = Activation('relu')(x)
     else:
@@ -111,7 +113,7 @@ def decoder_layer(inputs,
 
     x = inputs
     if instance_norm:
-        x = InstanceNormalization()(x)
+        x = InstanceNormalization(axis=3)(x)
     if activation == 'relu':
         x = Activation('relu')(x)
     else:
@@ -192,7 +194,8 @@ def build_discriminator(input_shape,
     Arguments:
     input_shape (tuple): input shape
     kernel_size (int): kernel size of decoder layers
-    patchgan (bool): whether the output is a patch or just a 1-dim
+    patchgan (bool): whether the output is a patch 
+        or just a 1-dim
     name (string): name assigned to discriminator model
 
     Returns:
@@ -242,21 +245,26 @@ def build_discriminator(input_shape,
     return discriminator
 
 
-def train_cyclegan(models, data, params, test_params, test_generator):
+def train_cyclegan(models,
+                   data,
+                   params,
+                   test_params, 
+                   test_generator):
     """ Trains the CycleGAN. 
     
     1) Train the target discriminator
     2) Train the source discriminator
-    3) Train the forward and backward cyles of adversarial networks
+    3) Train the forward and backward cyles of 
+        adversarial networks
 
     Arguments:
     models (Models): Source/Target Discriminator/Generator,
-                     Adversarial Model
+        Adversarial Model
     data (tuple): source and target training data
     params (tuple): network parameters
     test_params (tuple): test parameters
-    test_generator (function): used for generating predicted target
-                    and source images
+    test_generator (function): used for generating 
+        predicted target and source images
     """
 
     # the models
@@ -264,7 +272,8 @@ def train_cyclegan(models, data, params, test_params, test_generator):
     # network parameters
     batch_size, train_steps, patch, model_name = params
     # train dataset
-    source_data, target_data, test_source_data, test_target_data = data
+    source_data, target_data, test_source_data, test_target_data\
+            = data
 
     titles, dirs = test_params
 
@@ -287,11 +296,15 @@ def train_cyclegan(models, data, params, test_params, test_generator):
 
     for step in range(train_steps):
         # sample a batch of real target data
-        rand_indexes = np.random.randint(0, target_size, size=batch_size)
+        rand_indexes = np.random.randint(0, 
+                                         target_size,
+                                         size=batch_size)
         real_target = target_data[rand_indexes]
 
         # sample a batch of real source data
-        rand_indexes = np.random.randint(0, source_size, size=batch_size)
+        rand_indexes = np.random.randint(0, 
+                                         source_size,
+                                         size=batch_size)
         real_source = source_data[rand_indexes]
         # generate a batch of fake target data fr real source data
         fake_target = g_target.predict(real_source)
@@ -310,8 +323,8 @@ def train_cyclegan(models, data, params, test_params, test_generator):
         log = "%s [d_source loss: %f]" % (log, metrics[0])
 
         # train the adversarial network using forward and backward
-        # cycles. the generated fake source and target data attempts
-        # to trick the discriminators
+        # cycles. the generated fake source and target 
+        # data attempts to trick the discriminators
         x = [real_source, real_target]
         y = [valid, valid, real_source, real_target]
         metrics = adv.train_on_batch(x, y)
@@ -320,17 +333,12 @@ def train_cyclegan(models, data, params, test_params, test_generator):
         log = fmt % (log, metrics[0], elapsed_time)
         print(log)
         if (step + 1) % save_interval == 0:
-            if (step + 1) == train_steps:
-                show = True
-            else:
-                show = False
-
             test_generator((g_source, g_target),
                            (test_source_data, test_target_data),
                            step=step+1,
                            titles=titles,
                            dirs=dirs,
-                           show=show)
+                           show=False)
 
     # save the models after training the generators
     g_source.save(model_name + "-g_source.h5")
@@ -354,13 +362,14 @@ def build_cyclegan(shapes,
     shapes (tuple): source and target shapes
     source_name (string): string to be appended on dis/gen models
     target_name (string): string to be appended on dis/gen models
-    kernel_size (int): kernel size for the encoder/decoder or dis/gen
-                       models
+    kernel_size (int): kernel size for the encoder/decoder
+        or dis/gen models
     patchgan (bool): whether to use patchgan on discriminator
     identity (bool): whether to use identity loss
 
     Returns:
-    (list): 2 generator, 2 discriminator, and 1 adversarial models 
+    (list): 2 generator, 2 discriminator, 
+        and 1 adversarial models 
 
     """
 
@@ -461,8 +470,8 @@ def build_cyclegan(shapes,
 
 
 def graycifar10_cross_colorcifar10(g_models=None):
-    """Build and train a CycleGAN that can do grayscale <--> color
-       cifar10 images
+    """Build and train a CycleGAN that can do
+        grayscale <--> color cifar10 images
     """
 
     model_name = 'cyclegan_cifar10'
@@ -470,7 +479,8 @@ def graycifar10_cross_colorcifar10(g_models=None):
     train_steps = 100000
     patchgan = True
     kernel_size = 3
-    postfix = ('%dp' % kernel_size) if patchgan else ('%d' % kernel_size)
+    postfix = ('%dp' % kernel_size) \
+            if patchgan else ('%d' % kernel_size)
 
     data, shapes = cifar10_utils.load_data()
     source_data, _, test_source_data, test_target_data = data
@@ -478,13 +488,15 @@ def graycifar10_cross_colorcifar10(g_models=None):
               'CIFAR10 predicted target images.',
               'CIFAR10 reconstructed source images.',
               'CIFAR10 reconstructed target images.')
-    dirs = ('cifar10_source-%s' % postfix, 'cifar10_target-%s' % postfix)
+    dirs = ('cifar10_source-%s' % postfix, \
+            'cifar10_target-%s' % postfix)
 
     # generate predicted target(color) and source(gray) images
     if g_models is not None:
         g_source, g_target = g_models
         other_utils.test_generator((g_source, g_target),
-                                   (test_source_data, test_target_data),
+                                   (test_source_data, \
+                                           test_target_data),
                                    step=0,
                                    titles=titles,
                                    dirs=dirs,
@@ -519,7 +531,8 @@ def mnist_cross_svhn(g_models=None):
     train_steps = 100000
     patchgan = True
     kernel_size = 5
-    postfix = ('%dp' % kernel_size) if patchgan else ('%d' % kernel_size)
+    postfix = ('%dp' % kernel_size) \
+            if patchgan else ('%d' % kernel_size)
 
     data, shapes = mnist_svhn_utils.load_data()
     source_data, _, test_source_data, test_target_data = data
@@ -527,13 +540,15 @@ def mnist_cross_svhn(g_models=None):
               'SVHN predicted target images.',
               'MNIST reconstructed source images.',
               'SVHN reconstructed target images.')
-    dirs = ('mnist_source-%s' % postfix, 'svhn_target-%s' % postfix)
+    dirs = ('mnist_source-%s' \
+            % postfix, 'svhn_target-%s' % postfix)
 
     # generate predicted target(svhn) and source(mnist) images
     if g_models is not None:
         g_source, g_target = g_models
         other_utils.test_generator((g_source, g_target),
-                                   (test_source_data, test_target_data),
+                                   (test_source_data, \
+                                           test_target_data),
                                    step=0,
                                    titles=titles,
                                    dirs=dirs,

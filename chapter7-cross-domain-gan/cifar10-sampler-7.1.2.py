@@ -7,7 +7,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from keras.datasets import cifar10
+from tensorflow.keras.datasets import cifar10
 import matplotlib.pyplot as plt
 import other_utils
 import math
