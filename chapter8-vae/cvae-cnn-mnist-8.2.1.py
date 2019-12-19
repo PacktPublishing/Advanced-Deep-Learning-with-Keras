@@ -263,7 +263,7 @@ if __name__ == '__main__':
         os.makedirs(save_dir)
     if args.weights:
         filepath = os.path.join(save_dir, args.weights)
-        cvae = vae.load_weights(filepath)
+        cvae = cvae.load_weights(filepath)
     else:
         cvae.fit([x_train, to_categorical(y_train)],
                  epochs=epochs,
