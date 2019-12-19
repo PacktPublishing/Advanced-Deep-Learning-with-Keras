@@ -3,9 +3,9 @@
 
 """
 
-from keras.layers import Dense, Input
-from keras.models import Model
-from keras.optimizers import Adam
+from tensorflow.keras.layers import Dense, Input
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
 from collections import deque
 import numpy as np
 import random
@@ -14,8 +14,12 @@ import gym
 from gym import wrappers, logger
 
 
-class DQNAgent():
-    def __init__(self, state_space, action_space, args, episodes=500):
+class DQNAgent:
+    def __init__(self,
+                 state_space, 
+                 action_space, 
+                 args, 
+                 episodes=500):
 
         self.action_space = action_space
 
@@ -27,10 +31,12 @@ class DQNAgent():
 
         # initially 90% exploration, 10% exploitation
         self.epsilon = 1.0
-        # iteratively applying decay til 10% exploration/90% exploitation
+        # iteratively applying decay til 
+        # 10% exploration/90% exploitation
         self.epsilon_min = 0.1
         self.epsilon_decay = self.epsilon_min / self.epsilon
-        self.epsilon_decay = self.epsilon_decay ** (1. / float(episodes))
+        self.epsilon_decay = self.epsilon_decay ** \
+                             (1. / float(episodes))
 
         # Q Network weights filename
         self.weights_file = 'dqn_cartpole.h5'
@@ -58,7 +64,9 @@ class DQNAgent():
         x = Dense(256, activation='relu')(inputs)
         x = Dense(256, activation='relu')(x)
         x = Dense(256, activation='relu')(x)
-        x = Dense(n_outputs, activation='linear', name='action')(x)
+        x = Dense(n_outputs,
+                  activation='linear', 
+                  name='action')(x)
         q_model = Model(inputs, x)
         q_model.summary()
         return q_model
@@ -103,12 +111,15 @@ class DQNAgent():
             action = np.argmax(self.q_model.predict(next_state)[0])
             # target Q Network evaluates the action
             # Q_max = Q_target(s', a'_max)
-            q_value = self.target_q_model.predict(next_state)[0][action]
+            q_value = self.target_q_model.predict(\
+                                          next_state)[0][action]
         else:
             # DQN chooses the max Q value among next actions
-            # selection and evaluation of action is on the target Q Network
+            # selection and evaluation of action is 
+            # on the target Q Network
             # Q_max = max_a' Q_target(s', a')
-            q_value = np.amax(self.target_q_model.predict(next_state)[0])
+            q_value = np.amax(\
+                      self.target_q_model.predict(next_state)[0])
 
         # Q_max = reward + gamma * Q_max
         q_value *= self.gamma
@@ -116,7 +127,8 @@ class DQNAgent():
         return q_value
 
 
-    # experience replay addresses the correlation issue between samples
+    # experience replay addresses the correlation issue 
+    # between samples
     def replay(self, batch_size):
         # sars = state, action, reward, state' (next_state)
         sars_batch = random.sample(self.memory, batch_size)
@@ -148,7 +160,8 @@ class DQNAgent():
         # update exploration-exploitation probability
         self.update_epsilon()
 
-        # copy new params on old target after every 10 training updates
+        # copy new params on old target after 
+        # every 10 training updates
         if self.replay_counter % 10 == 0:
             self.update_weights()
 
@@ -176,11 +189,12 @@ if __name__ == '__main__':
     # the number of trials without falling over
     win_trials = 100
 
-    # the CartPole-v0 is considered solved if for 100 consecutive trials,
-    # the cart pole has not fallen over and it has achieved an average 
-    # reward of 195.0
-    # a reward of +1 is provided for every timestep the pole remains
-    # upright
+    # the CartPole-v0 is considered solved if 
+    # for 100 consecutive trials, he cart pole has not 
+    # fallen over and it has achieved an average 
+    # reward of 195.0 
+    # a reward of +1 is provided for every timestep 
+    # the pole remains upright
     win_reward = { 'CartPole-v0' : 195.0 }
 
     # stores the reward per episode
@@ -233,14 +247,17 @@ if __name__ == '__main__':
     
         scores.append(total_reward)
         mean_score = np.mean(scores)
-        if mean_score >= win_reward[args.env_id] and episode >= win_trials:
-            print("Solved in episode %d: Mean survival = %0.2lf in %d episodes"
+        if mean_score >= win_reward[args.env_id] \
+                and episode >= win_trials:
+            print("Solved in episode %d: \
+                   Mean survival = %0.2lf in %d episodes"
                   % (episode, mean_score, win_trials))
             print("Epsilon: ", agent.epsilon)
             agent.save_weights()
             break
         if episode % win_trials == 0:
-            print("Episode %d: Mean survival = %0.2lf in %d episodes" %
+            print("Episode %d: Mean survival = \
+                   %0.2lf in %d episodes" %
                   (episode, mean_score, win_trials))
 
     # close the env and write monitor result info to disk

@@ -21,7 +21,7 @@ import time
 from termcolor import colored
 
 
-class QWorld():
+class QWorld:
     def __init__(self):
         # 4 actions
         # 0 - Left, 1 - Down, 2 - Right, 3 - Up
@@ -83,7 +83,8 @@ class QWorld():
         | 3 | 4 | 5 |
         -------------
         """
-        self.transition_table = np.zeros([self.row, self.col], dtype=int)
+        self.transition_table = np.zeros([self.row, self.col],
+                                         dtype=int)
 
         self.transition_table[0, 0] = 0
         self.transition_table[0, 1] = 3

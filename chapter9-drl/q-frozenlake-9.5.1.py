@@ -11,7 +11,7 @@ import time
 import gym
 from gym import wrappers, logger
 
-class QAgent():
+class QAgent:
     def __init__(self,
                  observation_space,
                  action_space,
@@ -32,10 +32,12 @@ class QAgent():
 
         # initially 90% exploration, 10% exploitation
         self.epsilon = 0.9
-        # iteratively applying decay til 10% exploration/90% exploitation
+        # iteratively applying decay til 
+        # 10% exploration/90% exploitation
         self.epsilon_min = 0.1
         self.epsilon_decay = self.epsilon_min / self.epsilon
-        self.epsilon_decay = self.epsilon_decay ** (1. / float(episodes))
+        self.epsilon_decay = self.epsilon_decay ** \
+                             (1. / float(episodes))
 
         # learning rate of Q-Learning
         self.learning_rate = 0.1
@@ -67,7 +69,8 @@ class QAgent():
 
     # TD(0) learning (generalized Q-Learning) with learning rate
     def update_q_table(self, state, action, reward, next_state):
-        # Q(s, a) += alpha * (reward + gamma * max_a' Q(s', a') - Q(s, a))
+        # Q(s, a) += 
+        # alpha * (reward + gamma * max_a' Q(s', a') - Q(s, a))
         q_value = self.gamma * np.amax(self.q_table[next_state])
         q_value += reward
         q_value -= self.q_table[state, action]
@@ -180,7 +183,10 @@ if __name__ == '__main__':
                     wins += 1
 
             if not args.demo:
-                agent.update_q_table(state, action, reward, next_state)
+                agent.update_q_table(state,
+                                     action, 
+                                     reward, 
+                                     next_state)
                 agent.update_epsilon()
 
             state = next_state
