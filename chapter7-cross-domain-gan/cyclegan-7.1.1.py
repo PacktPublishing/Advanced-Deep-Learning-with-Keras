@@ -80,7 +80,7 @@ def encoder_layer(inputs,
 
     x = inputs
     if instance_norm:
-        x = InstanceNormalization(axis=3)(x)
+        x = InstanceNormalization()(x)
     if activation == 'relu':
         x = Activation('relu')(x)
     else:
@@ -113,7 +113,7 @@ def decoder_layer(inputs,
 
     x = inputs
     if instance_norm:
-        x = InstanceNormalization(axis=3)(x)
+        x = InstanceNormalization()(x)
     if activation == 'relu':
         x = Activation('relu')(x)
     else:

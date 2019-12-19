@@ -16,16 +16,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import keras
-from keras.layers import Dense, Input
-from keras.layers import Conv2D, Flatten, Lambda
-from keras.layers import Reshape, Conv2DTranspose
-from keras.models import Model
-from keras.datasets import mnist
-from keras.losses import mse, binary_crossentropy
-from keras.utils import plot_model
-from keras import backend as K
-from keras.utils import to_categorical
+from tensorflow.keras.layers import Dense, Input
+from tensorflow.keras.layers import Conv2D, Flatten, Lambda
+from tensorflow.keras.layers import Reshape, Conv2DTranspose
+from tensorflow.keras.layers import concatenate
+from tensorflow.keras.models import Model
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.losses import mse, binary_crossentropy
+from tensorflow.keras.utils import plot_model
+from tensorflow.keras import backend as K
+from tensorflow.keras.utils import to_categorical
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -60,8 +60,9 @@ def plot_results(models,
                  y_label,
                  batch_size=128,
                  model_name="cvae_mnist"):
-    """Plots 2-dim mean values of Q(z|X) using labels as color gradient
-        then, plot MNIST digits as function of 2-dim latent vector
+    """Plots 2-dim mean values of Q(z|X) using labels 
+        as color gradient then, plot MNIST digits as 
+        function of 2-dim latent vector
 
     Arguments:
         models (list): encoder and decoder models
@@ -149,7 +150,7 @@ inputs = Input(shape=input_shape, name='encoder_input')
 y_labels = Input(shape=label_shape, name='class_labels')
 x = Dense(image_size * image_size)(y_labels)
 x = Reshape((image_size, image_size, 1))(x)
-x = keras.layers.concatenate([inputs, x])
+x = concatenate([inputs, x])
 for i in range(2):
     filters *= 2
     x = Conv2D(filters=filters,
@@ -168,17 +169,24 @@ z_mean = Dense(latent_dim, name='z_mean')(x)
 z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
 # use reparameterization trick to push the sampling out as input
-# note that "output_shape" isn't necessary with the TensorFlow backend
-z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
+# note that "output_shape" isn't necessary 
+# with the TensorFlow backend
+z = Lambda(sampling,
+           output_shape=(latent_dim,),
+           name='z')([z_mean, z_log_var])
 
 # instantiate encoder model
-encoder = Model([inputs, y_labels], [z_mean, z_log_var, z], name='encoder')
+encoder = Model([inputs, y_labels],
+                [z_mean, z_log_var, z], 
+                name='encoder')
 encoder.summary()
-plot_model(encoder, to_file='cvae_cnn_encoder.png', show_shapes=True)
+plot_model(encoder,
+           to_file='cvae_cnn_encoder.png', 
+           show_shapes=True)
 
 # build decoder model
 latent_inputs = Input(shape=(latent_dim,), name='z_sampling')
-x = keras.layers.concatenate([latent_inputs, y_labels])
+x = concatenate([latent_inputs, y_labels])
 x = Dense(shape[1]*shape[2]*shape[3], activation='relu')(x)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
 
@@ -197,9 +205,13 @@ outputs = Conv2DTranspose(filters=1,
                           name='decoder_output')(x)
 
 # instantiate decoder model
-decoder = Model([latent_inputs, y_labels], outputs, name='decoder')
+decoder = Model([latent_inputs, y_labels],
+                outputs, 
+                name='decoder')
 decoder.summary()
-plot_model(decoder, to_file='cvae_cnn_decoder.png', show_shapes=True)
+plot_model(decoder,
+           to_file='cvae_cnn_decoder.png', 
+           show_shapes=True)
 
 # instantiate vae model
 outputs = decoder([encoder([inputs, y_labels])[2], y_labels])
@@ -207,7 +219,7 @@ cvae = Model([inputs, y_labels], outputs, name='cvae')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    help_ = "Load h5 model trained weights"
+    help_ = "Load tf model trained weights"
     parser.add_argument("-w", "--weights", help=help_)
     help_ = "Use mse loss instead of binary cross entropy (default)"
     parser.add_argument("-m", "--mse", help=help_, action='store_true')
@@ -253,7 +265,7 @@ if __name__ == '__main__':
                  epochs=epochs,
                  batch_size=batch_size,
                  validation_data=([x_test, to_categorical(y_test)], None))
-        cvae.save_weights(model_name + '.h5')
+        cvae.save_weights(model_name + '.tf')
 
     if args.digit in range(0, num_labels):
         digit = np.array([args.digit])

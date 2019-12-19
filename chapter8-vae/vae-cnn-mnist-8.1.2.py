@@ -17,14 +17,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from keras.layers import Dense, Input
-from keras.layers import Conv2D, Flatten, Lambda
-from keras.layers import Reshape, Conv2DTranspose
-from keras.models import Model
-from keras.datasets import mnist
-from keras.losses import mse, binary_crossentropy
-from keras.utils import plot_model
-from keras import backend as K
+from tensorflow.keras.layers import Dense, Input
+from tensorflow.keras.layers import Conv2D, Flatten, Lambda
+from tensorflow.keras.layers import Reshape, Conv2DTranspose
+from tensorflow.keras.models import Model
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.losses import mse, binary_crossentropy
+from tensorflow.keras.utils import plot_model
+from tensorflow.keras import backend as K
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -36,7 +36,8 @@ import os
 # instead of sampling from Q(z|X), sample eps = N(0,I)
 # then z = z_mean + sqrt(var)*eps
 def sampling(args):
-    """Reparameterization trick by sampling fr an isotropic unit Gaussian.
+    """Reparameterization trick by sampling 
+        fr an isotropic unit Gaussian.
 
     # Arguments:
         args (tensor): mean and log of variance of Q(z|X)
@@ -57,7 +58,8 @@ def plot_results(models,
                  data,
                  batch_size=128,
                  model_name="vae_mnist"):
-    """Plots labels and MNIST digits as function of 2-dim latent vector
+    """Plots labels and MNIST digits as function 
+        of 2-dim latent vector
 
     # Arguments:
         models (tuple): encoder and decoder models
@@ -154,17 +156,23 @@ z_mean = Dense(latent_dim, name='z_mean')(x)
 z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
 # use reparameterization trick to push the sampling out as input
-# note that "output_shape" isn't necessary with the TensorFlow backend
-z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
+# note that "output_shape" isn't necessary 
+# with the TensorFlow backend
+z = Lambda(sampling,
+           output_shape=(latent_dim,), 
+           name='z')([z_mean, z_log_var])
 
 # instantiate encoder model
 encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
 encoder.summary()
-plot_model(encoder, to_file='vae_cnn_encoder.png', show_shapes=True)
+plot_model(encoder,
+           to_file='vae_cnn_encoder.png', 
+           show_shapes=True)
 
 # build decoder model
 latent_inputs = Input(shape=(latent_dim,), name='z_sampling')
-x = Dense(shape[1] * shape[2] * shape[3], activation='relu')(latent_inputs)
+x = Dense(shape[1] * shape[2] * shape[3],
+          activation='relu')(latent_inputs)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
 
 for i in range(2):
@@ -184,7 +192,9 @@ outputs = Conv2DTranspose(filters=1,
 # instantiate decoder model
 decoder = Model(latent_inputs, outputs, name='decoder')
 decoder.summary()
-plot_model(decoder, to_file='vae_cnn_decoder.png', show_shapes=True)
+plot_model(decoder,
+           to_file='vae_cnn_decoder.png', 
+           show_shapes=True)
 
 # instantiate VAE model
 outputs = decoder(encoder(inputs)[2])
@@ -192,7 +202,7 @@ vae = Model(inputs, outputs, name='vae')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    help_ = "Load h5 model trained weights"
+    help_ = "Load tf model trained weights"
     parser.add_argument("-w", "--weights", help=help_)
     help_ = "Use mse loss instead of binary cross entropy (default)"
     parser.add_argument("-m", "--mse", help=help_, action='store_true')
@@ -225,6 +235,6 @@ if __name__ == '__main__':
                 epochs=epochs,
                 batch_size=batch_size,
                 validation_data=(x_test, None))
-        vae.save_weights('vae_cnn_mnist.h5')
+        vae.save_weights('vae_cnn_mnist.tf')
 
     plot_results(models, data, batch_size=batch_size, model_name="vae_cnn")
