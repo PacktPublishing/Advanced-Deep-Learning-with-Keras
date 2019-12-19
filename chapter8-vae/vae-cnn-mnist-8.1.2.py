@@ -227,14 +227,19 @@ if __name__ == '__main__':
     vae.summary()
     plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
 
+    save_dir = "vae_cnn_weights"
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
     if args.weights:
-        vae = vae.load_weights(args.weights)
+        filepath = os.path.join(save_dir, args.weights)
+        vae = vae.load_weights(filepath)
     else:
         # train the autoencoder
         vae.fit(x_train,
                 epochs=epochs,
                 batch_size=batch_size,
                 validation_data=(x_test, None))
-        vae.save_weights('vae_cnn_mnist.tf')
+        filepath = os.path.join(save_dir, 'vae_cnn_mnist.tf')
+        vae.save_weights(filepath)
 
     plot_results(models, data, batch_size=batch_size, model_name="vae_cnn")

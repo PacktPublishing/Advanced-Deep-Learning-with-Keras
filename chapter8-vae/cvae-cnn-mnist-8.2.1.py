@@ -235,10 +235,12 @@ if __name__ == '__main__':
         beta = 1.0
         print("CVAE")
         model_name = "cvae_cnn_mnist"
+        save_dir = "cvae_weights"
     else:
         beta = args.beta
         print("Beta-CVAE with beta=", beta)
         model_name = "beta-cvae_cnn_mnist"
+        save_dir = "beta-cvae_weights"
 
     # VAE loss = mse_loss or xent_loss + kl_loss
     if args.mse:
@@ -257,15 +259,19 @@ if __name__ == '__main__':
     cvae.summary()
     plot_model(cvae, to_file='cvae_cnn.png', show_shapes=True)
 
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
     if args.weights:
-        cvae = cvae.load_weights(args.weights)
+        filepath = os.path.join(save_dir, args.weights)
+        vae = vae.load_weights(filepath)
     else:
-        # train the autoencoder
         cvae.fit([x_train, to_categorical(y_train)],
                  epochs=epochs,
                  batch_size=batch_size,
                  validation_data=([x_test, to_categorical(y_test)], None))
-        cvae.save_weights(model_name + '.tf')
+        filename = model_name + '.tf'
+        filepath = os.path.join(save_dir, filename)
+        cvae.save_weights(filepath)
 
     if args.digit in range(0, num_labels):
         digit = np.array([args.digit])

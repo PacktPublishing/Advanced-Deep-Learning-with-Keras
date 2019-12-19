@@ -1,0 +1,2 @@
+model_checkpoint_path: "cvae_cnn_mnist.tf"
+all_model_checkpoint_paths: "cvae_cnn_mnist.tf"
