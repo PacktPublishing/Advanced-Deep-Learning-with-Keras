@@ -184,6 +184,10 @@ if __name__ == '__main__':
                         "--ddqn",
                         action='store_true',
                         help="Use Double DQN")
+    parser.add_argument("-r",
+                        "--no-render",
+                        action='store_true',
+                        help="Disable rendering (for env w/o graphics")
     args = parser.parse_args()
 
     # the number of trials without falling over
@@ -207,7 +211,13 @@ if __name__ == '__main__':
     if args.ddqn:
         outdir = "/tmp/ddqn-%s" % args.env_id
 
-    env = wrappers.Monitor(env, directory=outdir, force=True)
+    if args.no_render:
+        env = wrappers.Monitor(env,
+                               directory=outdir,
+                               video_callable=False,
+                               force=True)
+    else:
+        env = wrappers.Monitor(env, directory=outdir, force=True)
     env.seed(0)
 
     # instantiate the DQN/DDQN agent
@@ -255,10 +265,10 @@ if __name__ == '__main__':
             print("Epsilon: ", agent.epsilon)
             agent.save_weights()
             break
-        if episode % win_trials == 0:
+        if (episode + 1) % win_trials == 0:
             print("Episode %d: Mean survival = \
                    %0.2lf in %d episodes" %
-                  (episode, mean_score, win_trials))
+                  ((episode + 1), mean_score, win_trials))
 
     # close the env and write monitor result info to disk
     env.close() 
