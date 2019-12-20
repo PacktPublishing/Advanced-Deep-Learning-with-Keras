@@ -16,20 +16,21 @@ References:
 
 """
 
-from keras.layers import Dense, Input, Lambda, Activation
-from keras.models import Model
-from keras.optimizers import Adam, RMSprop
-from keras import backend as K
-from keras.utils.generic_utils import get_custom_objects
-from keras.utils import plot_model
+from tensorflow.keras.layers import Dense, Input
+from tensorflow.keras.layers import Lambda, Activation
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam, RMSprop
+from tensorflow.keras import backend as K
+from tensorflow.keras.utils import get_custom_objects
+from tensorflow.keras.utils import plot_model
 
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 import numpy as np
 import argparse
 import gym
 from gym import wrappers, logger
-import sys
 import csv
 import time
 import os
@@ -45,7 +46,7 @@ def softplusk(x):
 
 # implements the models and training of Policy Gradient
 # Methods
-class PolicyAgent():
+class PolicyAgent:
     def __init__(self, env, args):
 
         self.env = env
@@ -72,11 +73,11 @@ class PolicyAgent():
 
 
     # given mean and stddev, sample an action, clip and return
-    # we assume Gaussian distribution of probability of selecting an
-    # action given a state
+    # we assume Gaussian distribution of probability 
+    # of selecting an action given a state
     def action(self, args):
         mean, stddev = args
-        dist = tf.distributions.Normal(loc=mean, scale=stddev)
+        dist = tfp.distributions.Normal(loc=mean, scale=stddev)
         action = dist.sample(1)
         action = K.clip(action,
                         self.env.action_space.low[0],
@@ -88,7 +89,7 @@ class PolicyAgent():
     # the log probability of the Gaussian distribution
     def logp(self, args):
         mean, stddev, action = args
-        dist = tf.distributions.Normal(loc=mean, scale=stddev)
+        dist = tfp.distributions.Normal(loc=mean, scale=stddev)
         logp = dist.log_prob(action)
         return logp
 
@@ -96,7 +97,7 @@ class PolicyAgent():
     # given the mean and stddev compute the Gaussian dist entropy
     def entropy(self, args):
         mean, stddev = args
-        dist = tf.distributions.Normal(loc=mean, scale=stddev)
+        dist = tfp.distributions.Normal(loc=mean, scale=stddev)
         entropy = dist.entropy()
         return entropy
 
@@ -113,24 +114,35 @@ class PolicyAgent():
         # instantiate encoder model
         self.encoder = Model(inputs, feature, name='encoder')
         self.encoder.summary()
-        plot_model(self.encoder, to_file='encoder.png', show_shapes=True)
+        plot_model(self.encoder,
+                   to_file='encoder.png', 
+                   show_shapes=True)
 
         # build the decoder model
-        feature_inputs = Input(shape=(feature_size,), name='decoder_input')
+        feature_inputs = Input(shape=(feature_size,), 
+                               name='decoder_input')
         x = Dense(128, activation='relu')(feature_inputs)
         x = Dense(256, activation='relu')(x)
         outputs = Dense(self.state_dim, activation='linear')(x)
 
         # instantiate decoder model
-        self.decoder = Model(feature_inputs, outputs, name='decoder')
+        self.decoder = Model(feature_inputs, 
+                             outputs, 
+                             name='decoder')
         self.decoder.summary()
-        plot_model(self.decoder, to_file='decoder.png', show_shapes=True)
+        plot_model(self.decoder, 
+                   to_file='decoder.png', 
+                   show_shapes=True)
 
         # autoencoder = encoder + decoder
         # instantiate autoencoder model
-        self.autoencoder = Model(inputs, self.decoder(self.encoder(inputs)), name='autoencoder')
+        self.autoencoder = Model(inputs, 
+                                 self.decoder(self.encoder(inputs)),
+                                 name='autoencoder')
         self.autoencoder.summary()
-        plot_model(self.autoencoder, to_file='autoencoder.png', show_shapes=True)
+        plot_model(self.autoencoder, 
+                   to_file='autoencoder.png', 
+                   show_shapes=True)
 
         # Mean Square Error (MSE) loss function, Adam optimizer
         self.autoencoder.compile(loss='mse', optimizer='adam')
@@ -173,21 +185,27 @@ class PolicyAgent():
                         name='action')([mean, stddev])
         self.actor_model = Model(inputs, action, name='action')
         self.actor_model.summary()
-        plot_model(self.actor_model, to_file='actor_model.png', show_shapes=True)
+        plot_model(self.actor_model, 
+                   to_file='actor_model.png', 
+                   show_shapes=True)
 
         logp = Lambda(self.logp,
                       output_shape=(1,),
                       name='logp')([mean, stddev, action])
         self.logp_model = Model(inputs, logp, name='logp')
         self.logp_model.summary()
-        plot_model(self.logp_model, to_file='logp_model.png', show_shapes=True)
+        plot_model(self.logp_model, 
+                   to_file='logp_model.png', 
+                   show_shapes=True)
 
         entropy = Lambda(self.entropy,
                          output_shape=(1,),
                          name='entropy')([mean, stddev])
         self.entropy_model = Model(inputs, entropy, name='entropy')
         self.entropy_model.summary()
-        plot_model(self.entropy_model, to_file='entropy_model.png', show_shapes=True)
+        plot_model(self.entropy_model, 
+                   to_file='entropy_model.png', 
+                   show_shapes=True)
 
         value = Dense(1,
                       activation='linear',
@@ -195,28 +213,33 @@ class PolicyAgent():
                       name='value')(x)
         self.value_model = Model(inputs, value, name='value')
         self.value_model.summary()
-        plot_model(self.value_model, to_file='value_model.png', show_shapes=True)
+        plot_model(self.value_model, 
+                   to_file='value_model.png', 
+                   show_shapes=True)
 
         # beta of entropy used in A2C
         beta = 0.9 if self.args.a2c else 0.0
 
         # logp loss of policy network
-        loss = self.logp_loss(self.get_entropy(self.state), beta=beta)
+        loss = self.logp_loss(self.get_entropy(self.state), 
+                              beta=beta)
         optimizer = RMSprop(lr=1e-3)
         self.logp_model.compile(loss=loss, optimizer=optimizer)
 
-        # loss function of A2C is mse, while the rest use their own
-        # loss function called value loss
+        # loss function of A2C is mse, while the rest use 
+        # their own loss function called value loss
         loss = 'mse' if self.args.a2c else self.value_loss
         optimizer = Adam(lr=1e-3)
         self.value_model.compile(loss=loss, optimizer=optimizer)
 
 
-    # logp loss, the 3rd and 4th variables (entropy and beta) are needed
-    # by A2C so we have a different loss function structure
+    # logp loss, the 3rd and 4th variables (entropy and beta)
+    # are needed by A2C so we have a different 
+    # loss function structure
     def logp_loss(self, entropy, beta=0.0):
         def loss(y_true, y_pred):
-            return -K.mean((y_pred * y_true) + (beta * entropy), axis=-1)
+            return -K.mean((y_pred * y_true) \
+                    + (beta * entropy), axis=-1)
 
         return loss
 
@@ -229,7 +252,10 @@ class PolicyAgent():
 
     # save the actor, critic and encoder weights
     # useful for restoring the trained models
-    def save_weights(self, actor_weights, encoder_weights, value_weights=None):
+    def save_weights(self, 
+                     actor_weights, 
+                     encoder_weights, 
+                     value_weights=None):
         self.actor_model.save_weights(actor_weights)
         self.encoder.save_weights(encoder_weights)
         if value_weights is not None:
@@ -319,8 +345,8 @@ class PolicyAgent():
             self.train(item, gamma=gamma)
 
 
-    # main routine for training as used by all 4 policy gradient
-    # methods
+    # main routine for training as used 
+    # by all 4 policy gradient methods
     def train(self, item, gamma=1.0):
         [step, state, next_state, reward, done] = item
 
@@ -330,7 +356,8 @@ class PolicyAgent():
         discount_factor = gamma**step
 
         # reinforce-baseline: delta = return - value
-        # actor-critic: delta = reward - value + discounted_next_value
+        # actor-critic: delta = reward - value 
+        #       + discounted_next_value
         # a2c: delta = discounted_reward - value
         delta = reward - self.value(state)[0] 
 
@@ -468,9 +495,11 @@ def setup_agent(env, args):
     if args.encoder_weights:
         agent.load_encoder_weights(args.encoder_weights)
     else:
-        x_train = [env.observation_space.sample() for x in range(200000)]
+        x_train = [env.observation_space.sample() \
+                   for x in range(200000)]
         x_train = np.array(x_train)
-        x_test = [env.observation_space.sample() for x in range(20000)]
+        x_test = [env.observation_space.sample() \
+                  for x in range(20000)]
         x_test = np.array(x_test)
         agent.train_autoencoder(x_train, x_test)
 

@@ -139,7 +139,7 @@ class DQNAgent:
         for state, action, reward, next_state, done in sars_batch:
             # policy prediction for a given state
             q_values = self.q_model.predict(state)
-
+            
             # get Q_max
             q_value = self.get_target_q_value(next_state, reward)
 
