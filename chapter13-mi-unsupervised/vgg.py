@@ -25,15 +25,25 @@ cfg = {
     'G': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'A'],
 }
 
-# VGG backbone class
 class VGG():
     def __init__(self, cfg, input_shape=(24, 24, 1)):
+        """VGG network model creator used to create a backbone
+            feature extractor
+
+        Arguments:
+            cfg (dict): Summarizes the network configuration
+            input_shape (list): Input image dims
+        """
         self.cfg = cfg
         self.input_shape = input_shape
         self._model = None
         self.build_model()
 
     def build_model(self):
+        """Model builder uses a helper function
+            make_layers to read the config dict and
+            create a VGG network model
+        """
         inputs = Input(shape=self.input_shape, name='x')
         x = make_layers(self.cfg, inputs)
         self._model = Model(inputs, x, name='VGG')
@@ -43,7 +53,21 @@ class VGG():
         return self._model
 
 # helper function to interpret config and make layers from it
-def make_layers(cfg, inputs, batch_norm=True, in_channels=1):
+def make_layers(cfg,
+                inputs, 
+                batch_norm=True, 
+                in_channels=1):
+    """Helper function to ease the creation of VGG
+        network model
+
+    Arguments:
+        cfg (dict): Summarizes the network configuration
+        inputs (tensor): Input from previous layer
+        batch_norm (Bool): Whether to use batch norm
+            between Conv2SD and ReLU
+        in_channel (int): Number of input channels
+
+    """
     x = inputs
     for v in cfg:
         if v == 'M':

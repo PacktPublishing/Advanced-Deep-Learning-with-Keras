@@ -21,6 +21,21 @@ class DataGenerator(Sequence):
                  siamese=False,
                  mine=False,
                  crop_size=4):
+        """Multi-threaded data generator. Each thread reads
+            a batch of images and performs image transformation
+            such that the image class is unaffected
+
+        Arguments:
+            args (argparse): User-defined options such as
+                batch_size, etc
+            shuffle (Bool): Whether to shuffle the dataset
+                before sampling or not
+            siamese (Bool): Whether to generate a pair of 
+                image (X and Xbar) or not
+            mine (Bool): Use MINE algorithm instead of IIC
+            crop_size (int): The number of pixels to crop
+                from all sides of the image
+        """
         self.args = args
         self.shuffle = shuffle
         self.siamese = siamese
@@ -29,19 +44,22 @@ class DataGenerator(Sequence):
         self._dataset()
         self.on_epoch_end()
 
-    # number of batches per epoch
     def __len__(self):
+        """Number of batches per epoch
+        """
         return int(np.floor(len(self.indexes) / self.args.batch_size))
 
 
-    # indexes for the current batch
     def __getitem__(self, index):
+        """Image sample Indexes for the current batch
+        """
         start_index = index * self.args.batch_size
         end_index = (index+1) * self.args.batch_size
         return self.__data_generation(start_index, end_index)
 
-    # load dataset and normalize it
     def _dataset(self):
+        """Load dataset and normalize it
+        """
         dataset = self.args.dataset
         if self.args.train:
             (self.data, self.label), (_, _) = dataset.load_data()
@@ -68,14 +86,22 @@ class DataGenerator(Sequence):
         self.indexes = [i for i in range(self.data.shape[0])]
 
 
-    # shuffle dataset after each epoch
     def on_epoch_end(self):
+        """If opted, shuffle dataset after each epoch
+        """
         if self.shuffle == True:
             np.random.shuffle(self.indexes)
 
 
-    # random crop, resize back to its target shape
     def random_crop(self, image, target_shape, crop_sizes):
+        """Perform random crop, resize back to its target shape
+
+        Arguments:
+            image (tensor): Image to crop and resize
+            target_shape (tensor): Output shape
+            crop_sizes (list): A list of sizes the image 
+                can be cropped
+        """
         height, width = image.shape[0], image.shape[1]
         crop_size_idx = np.random.randint(0, len(crop_sizes))
         d = crop_sizes[crop_size_idx]
@@ -93,16 +119,32 @@ class DataGenerator(Sequence):
         return image
 
 
-    # random image rotation
-    def random_rotate(self, image, deg=20, target_shape=(24, 24, 1)):
+    def random_rotate(self,
+                      image, 
+                      deg=20, 
+                      target_shape=(24, 24, 1)):
+        """Random image rotation
+
+        Arguments:
+            image (tensor): Image to crop and resize
+            deg (int): Degrees of rotation
+            target_shape (tensor): Output shape
+        """
         angle = np.random.randint(-deg, deg)
         image = rotate(image, angle)
         image = resize(image, target_shape)
         return image
 
 
-    # data generation algorithm
     def __data_generation(self, start_index, end_index):
+        """Data generation algorithm
+
+        Arguments:
+            start_index (int): Given an array of images,
+                this is the start index to retrieve a batch
+            end_index (int): Given an array of images,
+                this is the end index to retrieve a batch
+        """
 
         d = self.crop_size // 2
         crop_sizes = [self.crop_size*2 + i for i in range(0,5,2)]
@@ -134,11 +176,12 @@ class DataGenerator(Sequence):
         # for IIC, we are mostly interested in paired images
         # X and Xbar = G(X)
         if self.siamese:
+            # If MINE Algorithm is chosen, use this to generate
+            # data
             if self.mine:
                 y = np.concatenate([y1, y2], axis=0)
                 m1 = np.copy(x1)
                 m2 = np.copy(x2)
-                #np.random.shuffle(m1) 
                 np.random.shuffle(m2)
 
                 x1 =  np.concatenate((x1, m1), axis=0)
