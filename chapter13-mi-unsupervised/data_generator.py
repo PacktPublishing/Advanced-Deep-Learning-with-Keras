@@ -181,7 +181,7 @@ class DataGenerator(Sequence):
         # X and Xbar = G(X)
         if self.siamese:
             # If MINE Algorithm is chosen, use this to generate
-            # the training data (see Section 7)
+            # the training data (see Section 9)
             if self.mine:
                 y = np.concatenate([y1, y2], axis=0)
                 m1 = np.copy(x1)
