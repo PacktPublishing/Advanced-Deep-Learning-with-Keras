@@ -30,14 +30,15 @@ class IIC:
                  args,
                  backbone):
         """Contains the encoder model, the loss function,
-            loading of datasets, train and evaluation routine
-            to implement unsupervised clustering via mutual
+            loading of datasets, train and evaluation routines
+            to implement IIC unsupervised clustering via mutual
             information maximization
 
         Arguments:
             args : Command line arguments to indicate choice
                 of batch size, number of heads, folder to save
                 weights file, weights file name, etc
+            backbone (Model): IIC Encoder backbone (eg VGG)
         """
         self.args = args
         self.backbone = backbone
@@ -73,7 +74,7 @@ class IIC:
         Arguments:
             y_true (tensor): Not used since this is
                 unsupervised learning
-            y_pred (tensor): stack of prediction for
+            y_pred (tensor): stack of softmax predictions for
                 the Siamese latent vectors (Z and Zbar)
         """
         size = self.args.batch_size
@@ -84,13 +85,14 @@ class IIC:
         # upper half is Zbar
         Zbar = y_pred[size: y_pred.shape[0], :]
         Zbar = K.expand_dims(Zbar, axis=1)
-        # compute joint distribution
+        # compute joint distribution (Eq 10.3.2 & .3)
         P = K.batch_dot(Z, Zbar)
         P = K.sum(P, axis=0)
-        # enforce symmetric joint distribution
+        # enforce symmetric joint distribution (Eq 10.3.4)
         P = (P + K.transpose(P)) / 2.0
+        # normalization of total probability to 1.0
         P = P / K.sum(P)
-        # marginal distributions
+        # marginal distributions (Eq 10.3.5 & .6)
         Pi = K.expand_dims(K.sum(P, axis=1), axis=1)
         Pj = K.expand_dims(K.sum(P, axis=0), axis=0)
         Pi = K.repeat_elements(Pi, rep=n_labels, axis=1)
@@ -98,7 +100,7 @@ class IIC:
         P = K.clip(P, K.epsilon(), np.finfo(float).max)
         Pi = K.clip(Pi, K.epsilon(), np.finfo(float).max)
         Pj = K.clip(Pj, K.epsilon(), np.finfo(float).max)
-        # negative MI loss
+        # negative MI loss (Eq 10.3.7)
         neg_mi = K.sum((P * (K.log(Pi) + K.log(Pj) - K.log(P))))
         # each head contribute 1/n_heads to the total loss
         return neg_mi/self.args.heads
@@ -106,7 +108,7 @@ class IIC:
 
     def train(self):
         """Train function uses the data generator,
-            accuracy computation and learning rate
+            accuracy computation, and learning rate
             scheduler callbacks
         """
         accuracy = AccuracyCallback(self)
@@ -121,8 +123,9 @@ class IIC:
                                   shuffle=True)
 
 
-    # pre-load test data for evaluation
     def load_eval_dataset(self):
+        """Pre-load test data for evaluation
+        """
         (_, _), (x_test, self.y_test) = self.args.dataset.load_data()
         image_size = x_test.shape[1]
         x_test = np.reshape(x_test,[-1, image_size, image_size, 1])
@@ -134,8 +137,9 @@ class IIC:
         self.x_test = x_eval
 
 
-    # reload model weights for evaluation
     def load_weights(self):
+        """Reload model weights for evaluation
+        """
         if self.args.restore_weights is None:
             raise ValueError("Must load model weights for evaluation")
 
@@ -147,8 +151,9 @@ class IIC:
             self._model.load_weights(path)
 
 
-    # evaluate the accuracy of the current model weights
     def eval(self):
+        """Evaluate the accuracy of the current model weights
+        """
         y_pred = self._model.predict(self.x_test)
         print("")
         # accuracy per head

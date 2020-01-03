@@ -137,7 +137,11 @@ class DataGenerator(Sequence):
 
 
     def __data_generation(self, start_index, end_index):
-        """Data generation algorithm
+        """Data generation algorithm. The method generates
+            a batch of pair of images (original image X and
+            transformed imaged Xbar). The batch of Siamese
+            images is used to trained MI-based algorithms:
+            1) IIC and 2) MINE (Section 7)
 
         Arguments:
             start_index (int): Given an array of images,
@@ -177,7 +181,7 @@ class DataGenerator(Sequence):
         # X and Xbar = G(X)
         if self.siamese:
             # If MINE Algorithm is chosen, use this to generate
-            # data
+            # the training data (see Section 7)
             if self.mine:
                 y = np.concatenate([y1, y2], axis=0)
                 m1 = np.copy(x1)
