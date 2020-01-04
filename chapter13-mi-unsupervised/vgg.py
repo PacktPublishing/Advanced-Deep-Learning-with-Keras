@@ -67,7 +67,7 @@ class VGG:
                 configuration
             inputs (tensor): Input from previous layer
             batch_norm (Bool): Whether to use batch norm
-                between Conv2SD and ReLU
+                between Conv2D and ReLU
             in_channel (int): Number of input channels
         """
         x = inputs
