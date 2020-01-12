@@ -5,17 +5,17 @@
     Pls adjust batch size depending on your GPU memory.
     For 1060 with 6GB, -b=1. For V100 with 32GB, -b=4
 
-python3 ssd.py -t -b=4
+python3 ssd-11.6.1.py -t -b=4
 
 2)  ResNet50 (v2) backbone.
     Train from a previously saved model:
 
-python3 ssd.py --restore-weights=saved_models/ResNet56v2_4-layer_weights-200.h5 -t -b=4
+python3 ssd-11.6.1.py --restore-weights=saved_models/ResNet56v2_4-layer_weights-200.h5 -t -b=4
 
 2)  ResNet50 (v2) backbone.
     Evaluate:
 
-python3 ssd.py -e --restore-weights=saved_models/ResNet56v2_4-layer_weights-200.h5 \
+python3 ssd-11.6.1.py -e --restore-weights=saved_models/ResNet56v2_4-layer_weights-200.h5 \
         --image-file=dataset/drinks/0010000.jpg
 
 """

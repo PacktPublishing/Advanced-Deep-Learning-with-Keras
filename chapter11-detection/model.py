@@ -14,7 +14,6 @@ from tensorflow.keras.layers import ELU, MaxPooling2D, Reshape
 from tensorflow.keras.models import Model
 from tensorflow.keras import backend as K
 
-import layer_utils
 import numpy as np
 
 def conv2d(inputs,
