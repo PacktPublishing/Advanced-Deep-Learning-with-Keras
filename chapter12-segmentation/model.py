@@ -1,0 +1,97 @@
+"""Utilities for building network layers are also provided
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from tensorflow.keras.layers import Activation, Input
+from tensorflow.keras.layers import Conv2D, Conv2DTranspose
+from tensorflow.keras.layers import BatchNormalization, Concatenate
+from tensorflow.keras.layers import MaxPooling2D
+from tensorflow.keras.layers import Softmax, UpSampling2D
+from tensorflow.keras.models import Model
+from tensorflow.keras import backend as K
+
+import numpy as np
+
+def conv_layer(inputs,
+               filters=32,
+               kernel_size=3,
+               strides=1,
+               use_maxpool=True,
+               postfix=None,
+               activation=None):
+
+    x = Conv2D(filters=filters,
+               kernel_size=kernel_size,
+               strides=strides,
+               kernel_initializer='he_normal',
+               name="conv_"+postfix,
+               padding='same')(inputs)
+    x = BatchNormalization(name="bn_"+postfix)(x)
+    x = Activation('relu', name='relu_'+postfix)(x)
+    if use_maxpool:
+        x = MaxPooling2D(name='pool'+postfix)(x)
+    return x
+
+
+def tconv_layer(inputs,
+                filters=32,
+                kernel_size=3,
+                strides=2,
+                postfix=None):
+
+    x = Conv2DTranspose(filters=filters,
+                        kernel_size=kernel_size,
+                        strides=strides,
+                        padding='same',
+                        kernel_initializer='he_normal',
+                        name='tconv_'+postfix)(inputs)
+    x = BatchNormalization(name="bn_"+postfix)(x)
+    x = Activation('relu', name='relu_'+postfix)(x)
+    return x
+
+
+def build_fcn(input_shape,
+              backbone,
+              n_classes=4):
+
+    inputs = Input(shape=input_shape)
+    features = backbone(inputs)
+
+    main_feature = features[0]
+    features = features[1:]
+    out_features = [main_feature]
+    feature_size = 8
+    size = 2
+    for feature in features:
+        postfix = "fcn_" + str(feature_size)
+        feature = conv_layer(feature,
+                             filters=256,
+                             use_maxpool=False,
+                             postfix=postfix)
+        postfix = postfix + "_up2d"
+        feature = UpSampling2D(size=size,
+                               interpolation='bilinear',
+                               name=postfix)(feature)
+        size = size * 2
+        feature_size = feature_size * 2
+        out_features.append(feature)
+
+    x = Concatenate()(out_features)
+    x = tconv_layer(x, 256, postfix="up_x2_")
+    x = tconv_layer(x, 256, postfix="up_x4_")
+    x = Conv2DTranspose(filters=n_classes,
+                        kernel_size=1,
+                        strides=1,
+                        padding='same',
+                        kernel_initializer='he_normal',
+                        name="pre_activation")(x)
+    x = Softmax(name="segmentation")(x)
+
+    model = Model(inputs, x, name="fcn")
+
+    return model
+
