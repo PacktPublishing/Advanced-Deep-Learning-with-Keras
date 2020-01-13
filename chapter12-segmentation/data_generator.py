@@ -40,11 +40,11 @@ class DataGenerator(Sequence):
 
     def get_dictionary(self):
         path = os.path.join(self.args.data_path, self.args.train_labels)
-        print(path)
         self.dictionary = np.load(path, allow_pickle=True).flat[0]
         #print(len(self.dictionary.keys()))
         self.keys = np.array(list(self.dictionary.keys()))
-        print(len(self.keys))
+        labels = self.dictionary[self.keys[0]]
+        self.n_classes = labels.shape[-1]
 
 
     def __len__(self):
