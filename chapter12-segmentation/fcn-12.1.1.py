@@ -233,7 +233,7 @@ class FCN:
             
             # average iou per image
             i_iou /= n_masks
-            print(filename, n_masks, i_iou)
+            print(key, n_masks, i_iou)
 
             # accumulate all image ious
             s_iou += i_iou
