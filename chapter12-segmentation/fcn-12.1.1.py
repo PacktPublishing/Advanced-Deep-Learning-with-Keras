@@ -125,11 +125,11 @@ class FCN:
 
         callbacks = [checkpoint, scheduler]
         # train the fcn network
-        self.fcn.fit_generator(generator=self.train_generator,
-                               use_multiprocessing=True,
-                               callbacks=callbacks,
-                               epochs=self.args.epochs,
-                               workers=self.args.workers)
+        self.fcn.fit(generator=self.train_generator,
+                     use_multiprocessing=True,
+                     callbacks=callbacks,
+                     epochs=self.args.epochs,
+                     workers=self.args.workers)
 
 
     def restore_weights(self):
@@ -163,7 +163,7 @@ class FCN:
             raise ValueError("--image-file must be known")
         
         image = skimage.img_as_float(imread(self.args.image_file))
-        segmentation = self.segment_objects(image)
+        segmentation = self.segment_objects(image, normalized=False)
         mask = segmentation[..., 1:]
         #bg = segmentation[..., 0]
         plt.xlabel('x')
