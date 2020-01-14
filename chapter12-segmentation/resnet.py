@@ -8,6 +8,8 @@ https://arxiv.org/pdf/1512.03385.pdf
 ResNet v2
 [b] Identity Mappings in Deep Residual Networks
 https://arxiv.org/pdf/1603.05027.pdf
+
+TODO: Merge with Object Detection code
 """
 
 from __future__ import absolute_import
@@ -278,7 +280,6 @@ def resnet_feature_maps(x, n_layers):
 
     return outputs
     
-
 
 def build_resnet(input_shape,
                  n_layers=4,

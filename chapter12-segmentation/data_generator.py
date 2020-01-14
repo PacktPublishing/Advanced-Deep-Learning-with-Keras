@@ -8,7 +8,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-#from tensorflow.python.keras.utils.data_utils import Sequence
 from tensorflow.keras.utils import Sequence
 
 import numpy as np
@@ -19,12 +18,13 @@ from model_utils import parser
 
 class DataGenerator(Sequence):
     """Multi-threaded data generator.
-    Each thread reads a batch of images and their object labels
+    Each thread reads a batch of images and their object labels.
+    A label is a pixel-wise semantic mask.
 
     Arguments:
         args : User-defined configuration
-        dictionary : Dictionary of image filenames and object labels
-        shuffle (Bool): If dataset should be shuffled bef sampling
+        shuffle (Bool): If dataset should be shuffled 
+            before sampling
     """
     def __init__(self,
                  args,
@@ -39,9 +39,13 @@ class DataGenerator(Sequence):
 
 
     def get_dictionary(self):
-        path = os.path.join(self.args.data_path, self.args.train_labels)
-        self.dictionary = np.load(path, allow_pickle=True).flat[0]
-        #print(len(self.dictionary.keys()))
+        """Load ground truth dictionary of 
+            image filename : segmentation masks
+        """
+        path = os.path.join(self.args.data_path,
+                            self.args.train_labels)
+        self.dictionary = np.load(path,
+                                  allow_pickle=True).flat[0]
         self.keys = np.array(list(self.dictionary.keys()))
         labels = self.dictionary[self.keys[0]]
         self.n_classes = labels.shape[-1]
@@ -86,7 +90,8 @@ class DataGenerator(Sequence):
         y = []
 
         for i, key in enumerate(keys):
-            # images are assumed to be stored in self.args.data_path
+            # images are assumed to be stored 
+            # in self.args.data_path
             # key is the image filename 
             image_path = os.path.join(self.args.data_path, key)
             image = skimage.img_as_float(imread(image_path))
@@ -97,7 +102,6 @@ class DataGenerator(Sequence):
             y.append(labels)
 
         return np.array(x), np.array(y)
-
 
 
 if __name__ == '__main__':

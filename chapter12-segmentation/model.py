@@ -1,4 +1,5 @@
-"""Utilities for building network layers are also provided
+"""Helper function for building FCN model.
+Utilities for building network layers are also provided.
 """
 
 from __future__ import absolute_import
@@ -23,6 +24,9 @@ def conv_layer(inputs,
                use_maxpool=True,
                postfix=None,
                activation=None):
+    """Helper function to build Conv2D-BN-ReLU layer
+        with optional MaxPooling2D.
+    """
 
     x = Conv2D(filters=filters,
                kernel_size=kernel_size,
@@ -42,7 +46,9 @@ def tconv_layer(inputs,
                 kernel_size=3,
                 strides=2,
                 postfix=None):
-
+    """Helper function to build Conv2DTranspose-BN-ReLU 
+        layer
+    """
     x = Conv2DTranspose(filters=filters,
                         kernel_size=kernel_size,
                         strides=strides,
@@ -57,6 +63,14 @@ def tconv_layer(inputs,
 def build_fcn(input_shape,
               backbone,
               n_classes=4):
+    """Helper function to build an FCN model.
+        
+    Arguments:
+        backbone (Model): A backbone network
+            such as ResNetv2 or v1
+        n_classes (int): Number of object classes
+            including background.
+    """
 
     inputs = Input(shape=input_shape)
     features = backbone(inputs)
@@ -81,8 +95,8 @@ def build_fcn(input_shape,
         out_features.append(feature)
 
     x = Concatenate()(out_features)
-    x = tconv_layer(x, 256, postfix="up_x2_")
-    x = tconv_layer(x, 256, postfix="up_x4_")
+    x = tconv_layer(x, 256, postfix="up_x2")
+    x = tconv_layer(x, 256, postfix="up_x4")
     x = Conv2DTranspose(filters=n_classes,
                         kernel_size=1,
                         strides=1,

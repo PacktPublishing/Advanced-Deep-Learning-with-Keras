@@ -1,22 +1,25 @@
-"""FCN class to build, train, eval an FCN network
+"""FCN class to build, train, eval an FCN model for semantic
+    segmentation
 
 1)  ResNet50 (v2) backbone.
     Train with 6 layers of feature maps.
     Pls adjust batch size depending on your GPU memory.
-    For 1060 with 6GB, -b=1. For V100 with 32GB, -b=4
+    For 1060 with 6GB, --batch-size=1. For V100 with 32GB, 
+    --batch-size=4
 
-python3 fcn-11.6.1.py -t -b=4
+python3 fcn-12.1.1.py --train --batch-size=4
 
 2)  ResNet50 (v2) backbone.
     Train from a previously saved model:
 
-python3 fcn-11.6.1.py --restore-weights=saved_models/ResNet56v2_4-layer_weights-200.h5 -t -b=4
+python3 fcn-12.1.1.py --restore-weights=ResNet56v2-3layer-drinks-200.h5 \
+        --train --batch-size=4
 
 2)  ResNet50 (v2) backbone.
     Evaluate:
 
-python3 fcn-11.6.1.py -e --restore-weights=saved_models/ResNet56v2_4-layer_weights-200.h5 \
-        --image-file=dataset/drinks/0010000.jpg
+python3 fcn-12.1.1.py --restore-weights=ResNet56v2-3layer-drinks-200.h5 \
+        --evaluate --image-file=dataset/drinks/0010018.jpg
 
 """
 
@@ -46,16 +49,16 @@ from skimage.io import imread
 
 
 class FCN:
-    """Made of an fcn network model and a dataset generator.
-    FCN defines functions to train and validate 
-    an fcn network model.
+    """Made of an fcn model and a dataset generator.
+    Define functions to train and validate an FCN model.
 
     Arguments:
         args: User-defined configurations
 
     Attributes:
         fcn (model): FCN network model
-        train_generator: Multi-threaded data generator for training
+        train_generator: Multi-threaded 
+            data generator for training
     """
     def __init__(self, args):
         """Copy user-defined configs.
@@ -91,7 +94,7 @@ class FCN:
 
 
     def train(self):
-        """Train an fcn network."""
+        """Train an FCN"""
         optimizer = Adam(lr=1e-3)
         loss = 'categorical_crossentropy'
         self.fcn.compile(optimizer=optimizer, loss=loss)
@@ -125,7 +128,7 @@ class FCN:
 
         callbacks = [checkpoint, scheduler]
         # train the fcn network
-        self.fcn.fit(generator=self.train_generator,
+        self.fcn.fit(x=self.train_generator,
                      use_multiprocessing=True,
                      callbacks=callbacks,
                      epochs=self.args.epochs,
@@ -143,6 +146,17 @@ class FCN:
 
 
     def segment_objects(self, image, normalized=True):
+        """Run segmentation prediction for a given image
+    
+        Arguments:
+            image (tensor): Image loaded in a numpy tensor.
+                RGB components range is [0.0, 1.0]
+            normalized (Bool): Use normalized=True for 
+                pixel-wise categorical prediction. False if 
+                segmentation will be displayed in RGB
+                image format.
+        """
+
         from tensorflow.keras.utils import to_categorical
         image = np.expand_dims(image, axis=0)
         segmentation = self.fcn.predict(image)
@@ -157,7 +171,9 @@ class FCN:
 
 
     def evaluate(self):
-        """Evaluate image based on filename"""
+        """Perform segmentation on a given image filename
+            and display the results.
+        """
         import matplotlib.pyplot as plt
         if self.args.image_file is None:
             raise ValueError("--image-file must be known")
@@ -165,7 +181,6 @@ class FCN:
         image = skimage.img_as_float(imread(self.args.image_file))
         segmentation = self.segment_objects(image, normalized=False)
         mask = segmentation[..., 1:]
-        #bg = segmentation[..., 0]
         plt.xlabel('x')
         plt.ylabel('y')
         plt.title('Input image', fontsize=14)
@@ -180,40 +195,48 @@ class FCN:
 
 
     def evaluate_test(self):
-        # test labels csv path
+        """Evaluate a trained FCN model using mean IoU
+            metric.
+        """
         path = os.path.join(self.args.data_path,
                             self.args.test_labels)
 
+        # ground truth data is stored in an npy file
         dictionary = np.load(path, allow_pickle=True).flat[0]
         keys = np.array(list(dictionary.keys()))
         s_iou = 0
+        # evaluate iou per test image
+        eps = np.finfo(float).eps
         for key in keys:
+            # load a test image
             image_path = os.path.join(self.args.data_path, key)
             image = skimage.img_as_float(imread(image_path))
             segmentation = self.segment_objects(image) 
+            # load test image ground truth labels
             gt = dictionary[key]
             i_iou = 0
             n_masks = 0
+            # compute mask for each object in the test image
+            # including background
             for i in range(self.n_classes):
-                is_mask = np.sum(gt[..., i]) > 0
-                if is_mask is False:
+                if np.sum(gt[..., i]) < eps: 
                     continue
                 mask = segmentation[..., i]
                 intersection = mask * gt[..., i]
                 union = np.ceil((mask + gt[..., i]) / 2.0)
                 intersection = np.sum(intersection) 
                 union = np.sum(union) 
-                if union > 0.0:
+                if union > eps:
                     iou = intersection / union
                     i_iou += iou
                     n_masks += 1
-            #break
             
+            # average iou per image
             i_iou /= n_masks
-            print(n_masks, i_iou)
+            print(filename, n_masks, i_iou)
+
+            # accumulate all image ious
             s_iou += i_iou
-            #print(intersection, union, iou)
-            #break
 
         n_test = len(keys)
         print_log("mIoU: %f" % (s_iou/n_test),

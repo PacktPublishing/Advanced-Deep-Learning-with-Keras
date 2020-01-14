@@ -46,7 +46,8 @@ def parser():
                         type=int,
                         help=help_)
     help_ = "Batch size during training"
-    parser.add_argument("--batch_size",
+    parser.add_argument("-b",
+                        "--batch_size",
                         default=4,
                         type=int,
                         help=help_)
@@ -65,7 +66,8 @@ def parser():
                         default=build_resnet,
                         help=help_)
     help_ = "Train the model"
-    parser.add_argument("--train",
+    parser.add_argument("-t",
+                        "--train",
                         action='store_true',
                         help=help_)
     help_ = "Print model summary (text and png)"
@@ -118,7 +120,8 @@ def parser():
     parser.add_argument("--restore-weights",
                         help=help_)
     help_ = "Evaluate model"
-    parser.add_argument("--evaluate",
+    parser.add_argument("-e",
+                        "--evaluate",
                         default=False,
                         action='store_true', 
                         help=help_)
