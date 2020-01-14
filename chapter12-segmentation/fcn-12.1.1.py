@@ -193,22 +193,30 @@ class FCN:
             segmentation = self.segment_objects(image) 
             gt = dictionary[key]
             i_iou = 0
+            n_masks = 0
             for i in range(self.n_classes):
+                is_mask = np.sum(gt[..., i]) > 0
+                if is_mask is False:
+                    continue
                 mask = segmentation[..., i]
                 intersection = mask * gt[..., i]
                 union = np.ceil((mask + gt[..., i]) / 2.0)
                 intersection = np.sum(intersection) 
                 union = np.sum(union) 
-                iou = intersection / union
-                i_iou += iou
+                if union > 0.0:
+                    iou = intersection / union
+                    i_iou += iou
+                    n_masks += 1
+            #break
             
-            i_iou /= self.n_classes
+            i_iou /= n_masks
+            print(n_masks, i_iou)
             s_iou += i_iou
             #print(intersection, union, iou)
             #break
 
         n_test = len(keys)
-        print_log("mIoU: %f" % (iou/n_test),
+        print_log("mIoU: %f" % (s_iou/n_test),
                   self.args.verbose)
 
 
