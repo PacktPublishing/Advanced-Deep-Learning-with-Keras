@@ -14,22 +14,11 @@ from resnet import build_resnet
 def lr_scheduler(epoch):
     """Learning rate scheduler - called every epoch"""
     lr = 1e-3
-    epoch_offset = 0 #config.params['epoch_offset']
-    if epoch > (200 - epoch_offset):
-        lr *= 1e-4
-    elif epoch > (180 - epoch_offset):
-        lr *= 5e-4
-    elif epoch > (160 - epoch_offset):
-        lr *= 1e-3
-    elif epoch > (140 - epoch_offset):
-        lr *= 5e-3
-    elif epoch > (120 - epoch_offset):
-        lr *= 1e-2
-    elif epoch > (100 - epoch_offset):
+    if epoch > 80:
         lr *= 5e-2
-    elif epoch > (80 - epoch_offset):
+    elif epoch > 60:
         lr *= 1e-1
-    elif epoch > (60 - epoch_offset):
+    elif epoch > 40:
         lr *= 5e-1
     print('Learning rate: ', lr)
     return lr
@@ -53,7 +42,7 @@ def parser():
                         help=help_)
     help_ = "Number of epochs to train"
     parser.add_argument("--epochs",
-                        default=200,
+                        default=100,
                         type=int,
                         help=help_)
     help_ = "Number of data generator worker threads"

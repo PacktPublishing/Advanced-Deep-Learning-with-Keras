@@ -110,6 +110,7 @@ class FCN:
         self.weights_path = os.path.join(save_dir, model_name)
         self.preload_test()
         self.miou = 0
+        self.miou_history = []
 
 
     def preload_test(self):
@@ -254,16 +255,21 @@ class FCN:
 
         n_test = len(self.test_keys)
         m_iou = (s_iou/n_test)
-        print_log("mIoU: %f" % m_iou, self.args.verbose)
+        self.miou_history.append(m_iou)
+        np.save("miou_history.npy", self.miou_history)
         if m_iou > self.miou and self.args.train:
-            log = "Old best iou=%0.4f, New best iou=%0.4f"\
-                  % (self.miou, m_iou)
+            log = "\nOld best mIoU=%0.4f, New best mIoU=%0.4f"\
+              % (self.miou, m_iou)
             print_log(log, self.args.verbose)
             self.miou = m_iou
             print_log("Saving weights... %s"\
                       % self.weights_path,\
                       self.args.verbose)
             self.fcn.save_weights(self.weights_path)
+        else:
+            log = "\nCurrent mIoU=%0.4f, Best mIoU=%0.4f"\
+              % (m_iou, self.miou)
+            print_log(log, self.args.verbose)
 
 
     def print_summary(self):
