@@ -45,7 +45,7 @@ os.sys.path.append("../lib")
 from common_utils import print_log, AccuracyCallback
 from model import build_fcn
 from skimage.io import imread
-
+from sklearn.metrics import accuracy_score
 
 
 class FCN:
@@ -111,6 +111,7 @@ class FCN:
         self.preload_test()
         self.miou = 0
         self.miou_history = []
+        self.mpla_history = []
 
 
     def preload_test(self):
@@ -146,11 +147,11 @@ class FCN:
 
         callbacks = [accuracy, scheduler]
         # train the fcn network
-        self.fcn.fit(x=self.train_generator,
-                     use_multiprocessing=True,
-                     callbacks=callbacks,
-                     epochs=self.args.epochs,
-                     workers=self.args.workers)
+        self.fcn.fit_generator(generator=self.train_generator,
+                               use_multiprocessing=True,
+                               callbacks=callbacks,
+                               epochs=self.args.epochs,
+                               workers=self.args.workers)
 
 
     def restore_weights(self):
@@ -217,6 +218,7 @@ class FCN:
             metric.
         """
         s_iou = 0
+        s_pla = 0
         # evaluate iou per test image
         eps = np.finfo(float).eps
         for key in self.test_keys:
@@ -226,6 +228,9 @@ class FCN:
             segmentation = self.segment_objects(image) 
             # load test image ground truth labels
             gt = self.test_dictionary[key]
+            i_pla = 100 * (gt == segmentation).all(axis=(2)).mean()
+            s_pla += i_pla
+            
             i_iou = 0
             n_masks = 0
             # compute mask for each object in the test image
@@ -246,20 +251,23 @@ class FCN:
             # average iou per image
             i_iou /= n_masks
             if not self.args.train:
-                log = "%s: %d objs, miou=%0.4f" \
-                      % (key, n_masks, i_iou)
+                log = "%s: %d objs, miou=%0.4f ,pla=%0.2f%%"\
+                      % (key, n_masks, i_iou, i_pla)
                 print_log(log, self.args.verbose)
 
             # accumulate all image ious
             s_iou += i_iou
 
         n_test = len(self.test_keys)
-        m_iou = (s_iou/n_test)
+        m_iou = s_iou / n_test 
         self.miou_history.append(m_iou)
         np.save("miou_history.npy", self.miou_history)
+        m_pla = s_pla / n_test
+        self.mpla_history.append(m_pla)
+        np.save("mpla_history.npy", self.mpla_history)
         if m_iou > self.miou and self.args.train:
-            log = "\nOld best mIoU=%0.4f, New best mIoU=%0.4f"\
-              % (self.miou, m_iou)
+            log = "\nOld best mIoU=%0.4f, New best mIoU=%0.4f, Pixel level accuracy=%0.2f%%"\
+                    % (self.miou, m_iou, m_pla)
             print_log(log, self.args.verbose)
             self.miou = m_iou
             print_log("Saving weights... %s"\
@@ -267,8 +275,8 @@ class FCN:
                       self.args.verbose)
             self.fcn.save_weights(self.weights_path)
         else:
-            log = "\nCurrent mIoU=%0.4f, Best mIoU=%0.4f"\
-              % (m_iou, self.miou)
+            log = "\nCurrent mIoU=%0.4f, Best mIoU=%0.4f, Pixel level accuracy=%0.2f%%"\
+                    % (m_iou, self.miou, m_pla)
             print_log(log, self.args.verbose)
 
 
@@ -299,7 +307,7 @@ if __name__ == '__main__':
 
     if args.evaluate:
         if args.image_file is None:
-            fcn.evaluate_test()
+            fcn.eval()
         else:
             fcn.evaluate()
             
