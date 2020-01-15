@@ -42,7 +42,7 @@ import numpy as np
 from data_generator import DataGenerator
 from model_utils import parser, lr_scheduler
 os.sys.path.append("../lib")
-from common_utils import print_log
+from common_utils import print_log, AccuracyCallback
 from model import build_fcn
 from skimage.io import imread
 
@@ -68,6 +68,7 @@ class FCN:
         self.fcn = None
         self.train_generator = DataGenerator(args)
         self.build_model()
+        self.eval_init()
 
 
     def build_model(self):
@@ -93,40 +94,56 @@ class FCN:
                              self.n_classes)
 
 
+    def eval_init(self):
+        """Housekeeping for trained model evaluation"""
+        # model weights are saved for future validation
+        # prepare model model saving directory.
+        save_dir = os.path.join(os.getcwd(), self.args.save_dir)
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        model_name = self.backbone.name
+        model_name += '-' + str(self.args.layers) + "layer-"
+        model_name += self.args.dataset
+        model_name += '-best-iou.h5'
+        log = "Weights filename: %s" % model_name
+        print_log(log, self.args.verbose)
+        self.weights_path = os.path.join(save_dir, model_name)
+        self.preload_test()
+        self.miou = 0
+
+
+    def preload_test(self):
+        """Pre-load test dataset to save time """
+        path = os.path.join(self.args.data_path,
+                            self.args.test_labels)
+
+        # ground truth data is stored in an npy file
+        self.test_dictionary = np.load(path,
+                                       allow_pickle=True).flat[0]
+        self.test_keys = np.array(list(self.test_dictionary.keys()))
+        print_log("Loaded %s" % path, self.args.verbose)
+
+
     def train(self):
         """Train an FCN"""
         optimizer = Adam(lr=1e-3)
         loss = 'categorical_crossentropy'
         self.fcn.compile(optimizer=optimizer, loss=loss)
 
-        # model weights are saved for future validation
-        # prepare model model saving directory.
-        save_dir = os.path.join(os.getcwd(), self.args.save_dir)
-        model_name = self.backbone.name
-        model_name += '-' + str(self.args.layers) + "layer-"
-        model_name += self.args.dataset
-        model_name += '-{epoch:03d}.h5'
-
         log = "# of classes %d" % self.n_classes
         print_log(log, self.args.verbose)
         log = "Batch size: %d" % self.args.batch_size
         print_log(log, self.args.verbose)
-        log = "Weights filename: %s" % model_name
-        print_log(log, self.args.verbose)
-        if not os.path.isdir(save_dir):
-            os.makedirs(save_dir)
-        filepath = os.path.join(save_dir, model_name)
 
         # prepare callbacks for saving model weights
         # and learning rate scheduler
+        # model weights are saved whenn test iou is highest
         # learning rate decreases by 50% every 20 epochs
-        # after 60th epoch
-        checkpoint = ModelCheckpoint(filepath=filepath,
-                                     verbose=1,
-                                     save_weights_only=True)
+        # after 40th epoch
+        accuracy = AccuracyCallback(self)
         scheduler = LearningRateScheduler(lr_scheduler)
 
-        callbacks = [checkpoint, scheduler]
+        callbacks = [accuracy, scheduler]
         # train the fcn network
         self.fcn.fit(x=self.train_generator,
                      use_multiprocessing=True,
@@ -141,7 +158,7 @@ class FCN:
             save_dir = os.path.join(os.getcwd(), self.args.save_dir)
             filename = os.path.join(save_dir, self.args.restore_weights)
             log = "Loading weights: %s" % filename
-            print(log, self.args.verbose)
+            print_log(log, self.args.verbose)
             self.fcn.load_weights(filename)
 
 
@@ -194,26 +211,20 @@ class FCN:
         plt.show()
 
 
-    def evaluate_test(self):
+    def eval(self):
         """Evaluate a trained FCN model using mean IoU
             metric.
         """
-        path = os.path.join(self.args.data_path,
-                            self.args.test_labels)
-
-        # ground truth data is stored in an npy file
-        dictionary = np.load(path, allow_pickle=True).flat[0]
-        keys = np.array(list(dictionary.keys()))
         s_iou = 0
         # evaluate iou per test image
         eps = np.finfo(float).eps
-        for key in keys:
+        for key in self.test_keys:
             # load a test image
             image_path = os.path.join(self.args.data_path, key)
             image = skimage.img_as_float(imread(image_path))
             segmentation = self.segment_objects(image) 
             # load test image ground truth labels
-            gt = dictionary[key]
+            gt = self.test_dictionary[key]
             i_iou = 0
             n_masks = 0
             # compute mask for each object in the test image
@@ -233,14 +244,26 @@ class FCN:
             
             # average iou per image
             i_iou /= n_masks
-            print(key, n_masks, i_iou)
+            if not self.args.train:
+                log = "%s: %d objs, miou=%0.4f" \
+                      % (key, n_masks, i_iou)
+                print_log(log, self.args.verbose)
 
             # accumulate all image ious
             s_iou += i_iou
 
-        n_test = len(keys)
-        print_log("mIoU: %f" % (s_iou/n_test),
-                  self.args.verbose)
+        n_test = len(self.test_keys)
+        m_iou = (s_iou/n_test)
+        print_log("mIoU: %f" % m_iou, self.args.verbose)
+        if m_iou > self.miou and self.args.train:
+            log = "Old best iou=%0.4f, New best iou=%0.4f"\
+                  % (self.miou, m_iou)
+            print_log(log, self.args.verbose)
+            self.miou = m_iou
+            print_log("Saving weights... %s"\
+                      % self.weights_path,\
+                      self.args.verbose)
+            self.fcn.save_weights(self.weights_path)
 
 
     def print_summary(self):
