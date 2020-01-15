@@ -45,7 +45,6 @@ os.sys.path.append("../lib")
 from common_utils import print_log, AccuracyCallback
 from model import build_fcn
 from skimage.io import imread
-from sklearn.metrics import accuracy_score
 
 
 class FCN:
