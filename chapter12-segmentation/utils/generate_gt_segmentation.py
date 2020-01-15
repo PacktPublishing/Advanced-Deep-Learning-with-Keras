@@ -20,27 +20,12 @@ def load_json(data_path, jsfile):
     return js
 
 
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-j",
-                        "--json",
-                        default='segmentation_train.json',
-                        help='Json filename')
-    parser.add_argument("-p",
-                        "--data-path",
-                        default='../dataset/drinks',
-                        help='Path to dataset')
-    parser.add_argument("--save-filename",
-                        default="segmentation_train.npy",
-                        help='Path to dataset')
-    args = parser.parse_args()
-
+def generate_dataset(args):
     data_dict = {}
     js = load_json(args.data_path, args.json)
     js = js["_via_img_metadata"]
     keys = js.keys()
-    rgb = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+    rgb = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
     images_no_objs = []
     for key in keys:
         entry = js[key]
@@ -64,24 +49,55 @@ if __name__ == '__main__':
             masks.append(mask)
 
         image = plt.imread(path)
-        image = np.zeros_like(image)
+        if args.show:
+            plt.xlabel('x')
+            plt.ylabel('y')
+            plt.title('Input image', fontsize=14)
+            fname = os.path.splitext(filename)[0]
+            fname = fname + "-input.png"
+            path = os.path.join("images", fname)
+            plt.imshow(image)
+            plt.savefig(path)
+            #plt.show()
+        else:
+            image = np.zeros_like(image)
+
         shape = image.shape
         shape = (shape[0], shape[1])
         bg = np.ones(shape, dtype="uint8")
         bg.fill(255)
-        #xy = []
+        #i = 0
+        #image = np.zeros_like(image)
+        #image[:] = [128, 0, 128]
         for mask in masks:
             name = list(mask)[0]
             mask = mask[name]
-            #xy.append(mask)
             cv2.fillPoly(image, mask, rgb[int(name)-1])
+            # cv2.fillPoly(image, mask, rgb[i])
+            #i += 1
             cv2.fillPoly(bg, mask, 0)
 
-        #plt.imshow(image)
-        #plt.show()
+        if args.show:
+            name = os.path.splitext(filename)[0]
 
-        #plt.imshow(bg, cmap='gray', vmin=0, vmax=255)
-        #plt.show()
+            plt.xlabel('x')
+            plt.ylabel('y')
+            plt.title('Semantic segmentation', fontsize=14)
+            fname = name + "-semantic.png"
+            path = os.path.join("images", fname)
+            plt.imshow(image)
+            plt.savefig(path)
+            #plt.show()
+
+            #plt.xlabel('x')
+            #plt.ylabel('y')
+            #plt.title('Background segmentation', fontsize=14)
+            #fname = name + "-bg.png"
+            #path = os.path.join("images", fname)
+            #plt.imshow(bg, cmap='gray', vmin=0, vmax=255)
+            #plt.savefig(path)
+            #plt.show()
+
 
         shape = (*shape, 1)
         bg = np.reshape(bg, shape)
@@ -94,6 +110,28 @@ if __name__ == '__main__':
         if len(masks) == 0:
             images_no_objs.append(filename)
 
+    if not args.show:
+        np.save(args.save_filename, data_dict)
 
-    np.save(args.save_filename, data_dict)
-    print("No objects found in:", images_no_objs)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-j",
+                        "--json",
+                        default='segmentation_train.json',
+                        help='Json filename')
+    parser.add_argument("-p",
+                        "--data-path",
+                        default='../dataset/drinks',
+                        help='Path to dataset')
+    parser.add_argument("--save-filename",
+                        default="segmentation_train.npy",
+                        help='Path to dataset')
+    help_ = "Show and save images"
+    parser.add_argument("--show",
+                        default=False,
+                        action='store_true', 
+                        help=help_)
+    args = parser.parse_args()
+
+    generate_dataset(args)
