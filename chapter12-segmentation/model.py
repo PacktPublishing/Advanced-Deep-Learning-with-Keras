@@ -80,6 +80,10 @@ def build_fcn(input_shape,
     out_features = [main_feature]
     feature_size = 8
     size = 2
+    # other half of the features pyramid
+    # including upsampling to restore the
+    # feature maps to the dimensions
+    # equal to 1/4 the image size
     for feature in features:
         postfix = "fcn_" + str(feature_size)
         feature = conv_layer(feature,
@@ -94,9 +98,13 @@ def build_fcn(input_shape,
         feature_size = feature_size * 2
         out_features.append(feature)
 
+    # concatenate all upsampled features
     x = Concatenate()(out_features)
+    # perform 2 additional feature extraction 
+    # and upsampling
     x = tconv_layer(x, 256, postfix="up_x2")
     x = tconv_layer(x, 256, postfix="up_x4")
+    # generate the pixel-wise classifier
     x = Conv2DTranspose(filters=n_classes,
                         kernel_size=1,
                         strides=1,

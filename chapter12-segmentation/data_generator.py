@@ -81,8 +81,8 @@ class DataGenerator(Sequence):
                 (key is image filename)
 
         Returns:
-            x (tensor): Batch images
-            y (tensor): Batch pixel-wise class
+            x (tensor): Batch of images
+            y (tensor): Batch of pixel-wise categories
         """
         # a batch of images
         x = []

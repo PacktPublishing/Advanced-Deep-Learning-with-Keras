@@ -7,18 +7,18 @@
     For 1060 with 6GB, --batch-size=1. For V100 with 32GB, 
     --batch-size=4
 
-python3 fcn-12.1.1.py --train --batch-size=4
+python3 fcn-12.3.1.py --train --batch-size=4
 
 2)  ResNet50 (v2) backbone.
     Train from a previously saved model:
 
-python3 fcn-12.1.1.py --restore-weights=ResNet56v2-3layer-drinks-200.h5 \
+python3 fcn-12.3.1.py --restore-weights=ResNet56v2-3layer-drinks-200.h5 \
         --train --batch-size=4
 
 2)  ResNet50 (v2) backbone.
     Evaluate:
 
-python3 fcn-12.1.1.py --restore-weights=ResNet56v2-3layer-drinks-200.h5 \
+python3 fcn-12.3.1.py --restore-weights=ResNet56v2-3layer-drinks-200.h5 \
         --evaluate --image-file=dataset/drinks/0010018.jpg
 
 """
@@ -71,7 +71,10 @@ class FCN:
 
 
     def build_model(self):
-        """Build backbone and FCN models"""
+        """Build a backbone network and use it to
+            create a semantic segmentation 
+            network based on FCN.
+        """
         
         # input shape is (480, 640, 3) by default
         self.input_shape = (self.args.height, 
@@ -79,14 +82,13 @@ class FCN:
                             self.args.channels)
 
         # build the backbone network (eg ResNet50)
-        # the number of feature layers is equal to n_layers
-        # feature layers are inputs to FCN network heads
-        # for class and offsets predictions
+        # the backbone is used for 1st set of features
+        # of the features pyramid
         self.backbone = self.args.backbone(self.input_shape,
                                            n_layers=self.args.layers)
 
         # using the backbone, build fcn network
-        # outputs of fcn are class and offsets predictions
+        # output layer is a pixel-wise classifier
         self.n_classes =  self.train_generator.n_classes
         self.fcn = build_fcn(self.input_shape,
                              self.backbone,

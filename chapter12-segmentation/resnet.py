@@ -149,7 +149,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
         num_filters *= 2
 
     # feature maps
-    outputs = resnet_feature_maps(x, n_layers)
+    outputs = features_pyramid(x, n_layers)
     
 
     # instantiate model
@@ -249,7 +249,7 @@ def resnet_v2(input_shape, depth, n_layers=4):
     # main feature maps (160, 120)
     # succeeding feature maps are scaled down by
     # 2, 4, 8
-    outputs = resnet_feature_maps(x, n_layers)
+    outputs = features_pyramid(x, n_layers)
 
     # instantiate model.
     name = 'ResNet%dv2' % (depth)
@@ -259,7 +259,17 @@ def resnet_v2(input_shape, depth, n_layers=4):
     return model
 
 
-def resnet_feature_maps(x, n_layers):
+def features_pyramid(x, n_layers):
+    """Generate features pyramid from the output of the 
+    last layer of a backbone network (e.g. ResNetv1 or v2)
+
+    Arguments:
+        x (tensor): Output feature maps of a backbone network
+        n_layers (int): Number of additional pyramid layers
+
+    Return:
+        outputs (list): Features pyramid 
+    """
     outputs = [x]
     conv = AveragePooling2D(pool_size=2, name='pool1')(x)
     outputs.append(conv)
