@@ -67,7 +67,7 @@ def generate_dataset(args):
         bg = np.ones(shape, dtype="uint8")
         bg.fill(255)
         #i = 0
-        #image = np.zeros_like(image)
+        image = np.zeros_like(image)
         #image[:] = [128, 0, 128]
         for mask in masks:
             name = list(mask)[0]
@@ -82,7 +82,7 @@ def generate_dataset(args):
 
             plt.xlabel('x')
             plt.ylabel('y')
-            plt.title('Semantic segmentation', fontsize=14)
+            plt.title('Ground truth semantic segmentation', fontsize=14)
             fname = name + "-semantic.png"
             path = os.path.join("images", fname)
             plt.imshow(image)
