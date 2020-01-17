@@ -140,7 +140,7 @@ class FCN:
 
         # prepare callbacks for saving model weights
         # and learning rate scheduler
-        # model weights are saved whenn test iou is highest
+        # model weights are saved when test iou is highest
         # learning rate decreases by 50% every 20 epochs
         # after 40th epoch
         accuracy = AccuracyCallback(self)
