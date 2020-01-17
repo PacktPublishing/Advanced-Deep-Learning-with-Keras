@@ -118,6 +118,11 @@ def parser():
     parser.add_argument("--image-file",
                         default=None,
                         help=help_)
+    help_ = "Plot prediction during evaluation"
+    parser.add_argument("--plot",
+                        default=False,
+                        action='store_true', 
+                        help=help_)
 
     # debug configuration
     help_ = "Level of verbosity for print function"

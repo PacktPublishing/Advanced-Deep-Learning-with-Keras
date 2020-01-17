@@ -190,28 +190,42 @@ class FCN:
         return segmentation
 
 
-    def evaluate(self):
+    def evaluate(self, imagefile=None, image=None):
         """Perform segmentation on a given image filename
             and display the results.
         """
         import matplotlib.pyplot as plt
-        if self.args.image_file is None:
-            raise ValueError("--image-file must be known")
-        
-        image = skimage.img_as_float(imread(self.args.image_file))
-        segmentation = self.segment_objects(image, normalized=False)
+        save_dir = "prediction"
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        if image is not None:
+            imagefile = os.path.splitext(imagefile)[0]
+        elif self.args.image_file is not None:
+            image = skimage.img_as_float(imread(self.args.image_file))
+            imagefile = os.path.splitext(self.args.image_file)[0]
+        else:
+            raise ValueError("Image file must be known")
+
+        maskfile = imagefile + "-mask.png"
+        mask_path = os.path.join(save_dir, maskfile)
+        inputfile = imagefile + "-input.png"
+        input_path = os.path.join(save_dir, inputfile)
+        segmentation = self.segment_objects(image,
+                                            normalized=False)
         mask = segmentation[..., 1:]
         plt.xlabel('x')
         plt.ylabel('y')
         plt.title('Input image', fontsize=14)
         plt.imshow(image)
-        plt.show()
+        plt.savefig(input_path)
+        #plt.show()
 
         plt.xlabel('x')
         plt.ylabel('y')
         plt.title('Semantic segmentation', fontsize=14)
         plt.imshow(mask)
-        plt.show()
+        plt.savefig(mask_path)
+        #plt.show()
 
 
     def eval(self):
@@ -258,6 +272,8 @@ class FCN:
 
             # accumulate all image ious
             s_iou += i_iou
+            if self.args.plot:
+                self.evaluate(key, image)
 
         n_test = len(self.test_keys)
         m_iou = s_iou / n_test 
@@ -276,8 +292,8 @@ class FCN:
                       self.args.verbose)
             self.fcn.save_weights(self.weights_path)
         else:
-            log = "\nCurrent mIoU=%0.4f, Best mIoU=%0.4f, Pixel level accuracy=%0.2f%%"\
-                    % (m_iou, self.miou, m_pla)
+            log = "\nCurrent mIoU=%0.4f, Pixel level accuracy=%0.2f%%"\
+                    % (m_iou, m_pla)
             print_log(log, self.args.verbose)
 
 
