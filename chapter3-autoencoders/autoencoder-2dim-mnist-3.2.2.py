@@ -33,7 +33,7 @@ def plot_results(models,
                  data,
                  batch_size=32,
                  model_name="autoencoder_2dim"):
-    """Plots 2-dim latent values as color gradient
+    """Plots 2-dim latent values as scatter plot of digits
         then, plot MNIST digits as function of 2-dim latent vector
 
     Arguments:
@@ -45,6 +45,8 @@ def plot_results(models,
 
     encoder, decoder = models
     x_test, y_test = data
+    xmin = ymin = -4
+    xmax = ymax = +4
     os.makedirs(model_name, exist_ok=True)
 
     filename = os.path.join(model_name, "latent_2dim.png")
@@ -52,8 +54,18 @@ def plot_results(models,
     z = encoder.predict(x_test,
                         batch_size=batch_size)
     plt.figure(figsize=(12, 10))
-    plt.scatter(z[:, 0], z[:, 1], c=y_test)
-    plt.colorbar()
+
+    # axes x and y ranges
+    axes = plt.gca()
+    axes.set_xlim([xmin,xmax])
+    axes.set_ylim([ymin,ymax])
+
+    # subsample to reduce density of points on the plot
+    z = z[0::2]
+    y_test = y_test[0::2]
+    plt.scatter(z[:, 0], z[:, 1], marker="")
+    for i, digit in enumerate(y_test):
+        axes.annotate(digit, (z[i, 0], z[i, 1]))
     plt.xlabel("z[0]")
     plt.ylabel("z[1]")
     plt.savefig(filename)
@@ -66,8 +78,8 @@ def plot_results(models,
     figure = np.zeros((digit_size * n, digit_size * n))
     # linearly spaced coordinates corresponding to the 2D plot
     # of digit classes in the latent space
-    grid_x = np.linspace(-4, 4, n)
-    grid_y = np.linspace(-4, 4, n)[::-1]
+    grid_x = np.linspace(xmin, xmax, n)
+    grid_y = np.linspace(ymin, ymax, n)[::-1]
 
     for i, yi in enumerate(grid_y):
         for j, xi in enumerate(grid_x):
@@ -198,4 +210,4 @@ models = (encoder, decoder)
 data = (x_test, y_test)
 plot_results(models, data,
              batch_size=batch_size,
-             model_name="autonencoder-2dim")
+             model_name="autoencoder-2dim")
