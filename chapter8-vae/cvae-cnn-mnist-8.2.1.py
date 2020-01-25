@@ -80,7 +80,7 @@ def plot_results(models,
 
     filename = os.path.join(model_name, "vae_mean.png")
     # display a 2D plot of the digit classes in the latent space
-    z, _, _ = encoder.predict(x_test,
+    z, _, _ = encoder.predict([x_test, to_categorical(y_test)],
                               batch_size=batch_size)
     plt.figure(figsize=(12, 10))
 
