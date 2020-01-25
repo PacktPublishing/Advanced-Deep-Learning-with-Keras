@@ -186,20 +186,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     help_ = "Load tf model trained weights"
     parser.add_argument("-w", "--weights", help=help_)
-    help_ = "Use mse loss instead of binary cross entropy (default)"
-    parser.add_argument("-m",
-                        "--mse",
-                        help=help_, action='store_true')
+    help_ = "Use binary cross entropy instead of mse (default)"
+    parser.add_argument("--bce", help=help_, action='store_true')
     args = parser.parse_args()
     models = (encoder, decoder)
     data = (x_test, y_test)
 
     # VAE loss = mse_loss or xent_loss + kl_loss
-    if args.mse:
-        reconstruction_loss = mse(inputs, outputs)
-    else:
+    if args.bce:
         reconstruction_loss = binary_crossentropy(inputs,
                                                   outputs)
+    else:
+        reconstruction_loss = mse(inputs, outputs)
 
     reconstruction_loss *= original_dim
     kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
