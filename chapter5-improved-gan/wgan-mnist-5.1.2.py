@@ -156,6 +156,10 @@ def wasserstein_loss(y_label, y_pred):
 
 
 def build_and_train_models():
+    """Load the dataset, build WGAN discriminator,
+    generator, and adversarial models.
+    Call the WGAN train routine.
+    """
     # load MNIST dataset
     (x_train, _), (_, _) = mnist.load_data()
 

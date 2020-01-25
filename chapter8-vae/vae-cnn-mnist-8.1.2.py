@@ -70,15 +70,27 @@ def plot_results(models,
 
     encoder, decoder = models
     x_test, y_test = data
+    xmin = ymin = -4
+    xmax = ymax = +4
     os.makedirs(model_name, exist_ok=True)
 
     filename = os.path.join(model_name, "vae_mean.png")
     # display a 2D plot of the digit classes in the latent space
-    z_mean, _, _ = encoder.predict(x_test,
-                                   batch_size=batch_size)
+    z, _, _ = encoder.predict(x_test,
+                              batch_size=batch_size)
     plt.figure(figsize=(12, 10))
-    plt.scatter(z_mean[:, 0], z_mean[:, 1], c=y_test)
-    plt.colorbar()
+
+    # axes x and y ranges
+    axes = plt.gca()
+    axes.set_xlim([xmin,xmax])
+    axes.set_ylim([ymin,ymax])
+
+    # subsample to reduce density of points on the plot
+    z = z[0::2]
+    y_test = y_test[0::2]
+    plt.scatter(z[:, 0], z[:, 1], marker="")
+    for i, digit in enumerate(y_test):
+        axes.annotate(digit, (z[i, 0], z[i, 1]))
     plt.xlabel("z[0]")
     plt.ylabel("z[1]")
     plt.savefig(filename)

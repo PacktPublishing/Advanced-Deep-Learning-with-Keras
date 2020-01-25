@@ -390,6 +390,10 @@ def train_encoder(model,
 
 
 def build_and_train_models():
+    """Load the dataset, build StackedGAN discriminator,
+    generator, and adversarial models.
+    Call the StackedGAN train routine.
+    """
     # load MNIST dataset
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
 

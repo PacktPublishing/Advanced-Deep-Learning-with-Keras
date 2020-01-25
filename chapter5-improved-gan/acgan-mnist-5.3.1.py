@@ -158,6 +158,10 @@ def train(models, data, params):
 
 
 def build_and_train_models():
+    """Load the dataset, build ACGAN discriminator,
+    generator, and adversarial models.
+    Call the ACGAN train routine.
+    """
     # load MNIST dataset
     (x_train, y_train), (_, _) = mnist.load_data()
 

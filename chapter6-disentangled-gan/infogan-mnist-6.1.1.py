@@ -184,6 +184,10 @@ def mi_loss(c, q_of_c_given_x):
 
 
 def build_and_train_models(latent_size=100):
+    """Load the dataset, build InfoGAN discriminator,
+    generator, and adversarial models.
+    Call the InfoGAN train routine.
+    """
     # load MNIST dataset
     (x_train, y_train), (_, _) = mnist.load_data()
 

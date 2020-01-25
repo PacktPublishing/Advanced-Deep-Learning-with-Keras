@@ -30,6 +30,10 @@ from lib import gan
 
 
 def build_and_train_models():
+    """Load the dataset, build LSGAN discriminator,
+    generator, and adversarial models.
+    Call the LSGAN train routine.
+    """
     # load MNIST dataset
     (x_train, _), (_, _) = mnist.load_data()
 
