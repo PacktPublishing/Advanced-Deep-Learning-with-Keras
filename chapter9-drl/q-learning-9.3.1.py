@@ -23,6 +23,9 @@ from termcolor import colored
 
 class QWorld:
     def __init__(self):
+        """Simulated determinsitic world made of 6 states.
+        Q-Learning by Bellman Equation. 
+        """
         # 4 actions
         # 0 - Left, 1 - Down, 2 - Right, 3 - Up
         self.col = 4
@@ -50,13 +53,13 @@ class QWorld:
         self.is_explore = True
 
 
-    # start of episode
     def reset(self):
+        """start of episode"""
         self.state = 0
         return self.state
 
-    # agent wins when the goal is reached
     def is_in_win_state(self):
+        """agent wins when the goal is reached"""
         return self.state == 2
 
 
@@ -119,8 +122,11 @@ class QWorld:
         self.transition_table[5, 3] = 5
         
     
-    # execute the action on the environment
     def step(self, action):
+        """execute the action on the environment
+        Argument:
+            action (tensor): An action in Action space
+        """
         # determine the next_state given state and action
         next_state = self.transition_table[self.state, action]
         # done is True if next_state is Goal or Hole
@@ -132,8 +138,11 @@ class QWorld:
         return next_state, reward, done
 
     
-    # determine the next action
     def act(self):
+        """determine the next action
+        either fr Q Table(exploitation) or
+        random(exploration)
+        """
         # 0 - Left, 1 - Down, 2 - Right, 3 - Up
         # action is from exploration
         if np.random.rand() <= self.epsilon:
@@ -147,28 +156,36 @@ class QWorld:
         return np.argmax(self.q_table[self.state])
 
 
-    # Q-Learning - update the Q Table using Q(s, a)
     def update_q_table(self, state, action, reward, next_state):
+        """Q-Learning - update the Q Table using Q(s, a)
+        Arguments:
+            state (tensor) : agent state
+            action (tensor): action executed by the agent
+            reward (float): reward after executing action 
+                for a given state
+            next_state (tensor): next state after executing
+                action for a given state
+        """
         # Q(s, a) = reward + gamma * max_a' Q(s', a')
         q_value = self.gamma * np.amax(self.q_table[next_state])
         q_value += reward
         self.q_table[state, action] = q_value
 
 
-    # UI to dump Q Table contents
     def print_q_table(self):
+        """UI to dump Q Table contents"""
         print("Q-Table (Epsilon: %0.2f)" % self.epsilon)
         print(self.q_table)
 
 
-    # update Exploration-Exploitation mix
     def update_epsilon(self):
+        """update Exploration-Exploitation mix"""
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
 
-    # UI to display agent moving on the grid
     def print_cell(self, row=0):
+        """UI to display agent moving on the grid"""
         print("")
         for i in range(13):
             j = i - 2
@@ -197,8 +214,8 @@ class QWorld:
         print("")
 
 
-    # UI to display mode and action of agent
     def print_world(self, action, step):
+        """UI to display mode and action of agent"""
         actions = { 0: "(Left)", 1: "(Down)", 2: "(Right)", 3: "(Up)" }
         explore = "Explore" if self.is_explore else "Exploit"
         print("Step", step, ":", explore, actions[action])
@@ -213,8 +230,13 @@ class QWorld:
         print("")
 
 
-# UI to display episode count
 def print_episode(episode, delay=1):
+    """UI to display episode count
+    Arguments:
+        episode (int): episode number
+        delay (int): sec delay
+
+    """
     os.system('clear')
     for _ in range(13):
         print('=', end='')
@@ -226,8 +248,10 @@ def print_episode(episode, delay=1):
     time.sleep(delay)
 
 
-# UI to display the world, delay of 1 sec for ease of understanding
 def print_status(q_world, done, step, delay=1):
+    """UI to display the world, 
+        delay of 1 sec for ease of understanding
+    """
     os.system('clear')
     q_world.print_world(action, step)
     q_world.print_q_table()

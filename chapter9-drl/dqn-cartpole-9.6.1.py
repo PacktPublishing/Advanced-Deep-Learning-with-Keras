@@ -13,14 +13,18 @@ import argparse
 import gym
 from gym import wrappers, logger
 
-
 class DQNAgent:
     def __init__(self,
                  state_space, 
                  action_space, 
-                 args, 
                  episodes=500):
+        """DQN Agent on CartPole-v0 environment
 
+        Arguments:
+            state_space (tensor): state space
+            action_space (tensor): action space
+            episodes (int): number of episodes to train
+        """
         self.action_space = action_space
 
         # experience buffer
@@ -51,15 +55,18 @@ class DQNAgent:
         self.update_weights()
 
         self.replay_counter = 0
-        self.ddqn = True if args.ddqn else False
-        if self.ddqn:
-            print("----------Double DQN--------")
-        else:
-            print("-------------DQN------------")
 
     
-    # Q Network is 256-256-256 MLP
     def build_model(self, n_inputs, n_outputs):
+        """Q Network is 256-256-256 MLP
+
+        Arguments:
+            n_inputs (int): input dim
+            n_outputs (int): output dim
+
+        Returns:
+            q_model (Model): DQN
+        """
         inputs = Input(shape=(n_inputs, ), name='state')
         x = Dense(256, activation='relu')(inputs)
         x = Dense(256, activation='relu')(x)
@@ -72,18 +79,21 @@ class DQNAgent:
         return q_model
 
 
-    # save Q Network params to a file
     def save_weights(self):
+        """save Q Network params to a file"""
         self.q_model.save_weights(self.weights_file)
 
 
-    # copy trained Q Network params to target Q Network
     def update_weights(self):
+        """copy trained Q Network params to target Q Network"""
         self.target_q_model.set_weights(self.q_model.get_weights())
 
 
-    # eps-greedy policy
     def act(self, state):
+        """eps-greedy policy
+        Returns:
+            action (tensor): action to execute
+        """
         if np.random.rand() < self.epsilon:
             # explore - do random action
             return self.action_space.sample()
@@ -94,32 +104,37 @@ class DQNAgent:
         return np.argmax(q_values[0])
 
 
-    # store experiences in the replay buffer
     def remember(self, state, action, reward, next_state, done):
+        """store experiences in the replay buffer
+        Arguments:
+            state (tensor): env state
+            action (tensor): agent action
+            reward (float): reward received after executing
+                action on state
+            next_state (tensor): next state
+        """
         item = (state, action, reward, next_state, done)
         self.memory.append(item)
 
 
-    # compute Q_max
-    # use of target Q Network solves the non-stationarity problem
     def get_target_q_value(self, next_state, reward):
+        """compute Q_max
+           Use of target Q Network solves the 
+            non-stationarity problem
+        Arguments:
+            reward (float): reward received after executing
+                action on state
+            next_state (tensor): next state
+        Returns:
+            q_value (float): max Q-value computed
+        """
         # max Q value among next state's actions
-        if self.ddqn:
-            # DDQN
-            # current Q Network selects the action
-            # a'_max = argmax_a' Q(s', a')
-            action = np.argmax(self.q_model.predict(next_state)[0])
-            # target Q Network evaluates the action
-            # Q_max = Q_target(s', a'_max)
-            q_value = self.target_q_model.predict(\
-                                          next_state)[0][action]
-        else:
-            # DQN chooses the max Q value among next actions
-            # selection and evaluation of action is 
-            # on the target Q Network
-            # Q_max = max_a' Q_target(s', a')
-            q_value = np.amax(\
-                      self.target_q_model.predict(next_state)[0])
+        # DQN chooses the max Q value among next actions
+        # selection and evaluation of action is 
+        # on the target Q Network
+        # Q_max = max_a' Q_target(s', a')
+        q_value = np.amax(\
+                     self.target_q_model.predict(next_state)[0])
 
         # Q_max = reward + gamma * Q_max
         q_value *= self.gamma
@@ -127,9 +142,13 @@ class DQNAgent:
         return q_value
 
 
-    # experience replay addresses the correlation issue 
-    # between samples
     def replay(self, batch_size):
+        """experience replay addresses the correlation issue 
+            between samples
+        Arguments:
+            batch_size (int): replay buffer batch 
+                sample size
+        """
         # sars = state, action, reward, state' (next_state)
         sars_batch = random.sample(self.memory, batch_size)
         state_batch, q_values_batch = [], []
@@ -168,11 +187,59 @@ class DQNAgent:
         self.replay_counter += 1
 
     
-    # decrease the exploration, increase exploitation
     def update_epsilon(self):
+        """decrease the exploration, increase exploitation"""
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
         
+
+class DDQNAgent(DQNAgent):
+    def __init__(self,
+                 state_space, 
+                 action_space, 
+                 episodes=500):
+        super().__init__(state_space, 
+                         action_space, 
+                         episodes)
+        """DDQN Agent on CartPole-v0 environment
+
+        Arguments:
+            state_space (tensor): state space
+            action_space (tensor): action space
+            episodes (int): number of episodes to train
+        """
+
+        # Q Network weights filename
+        self.weights_file = 'ddqn_cartpole.h5'
+        print("-------------DDQN------------")
+
+    def get_target_q_value(self, next_state, reward):
+        """compute Q_max
+           Use of target Q Network solves the 
+            non-stationarity problem
+        Arguments:
+            reward (float): reward received after executing
+                action on state
+            next_state (tensor): next state
+        Returns:
+            q_value (float): max Q-value computed
+        """
+        # max Q value among next state's actions
+        # DDQN
+        # current Q Network selects the action
+        # a'_max = argmax_a' Q(s', a')
+        action = np.argmax(self.q_model.predict(next_state)[0])
+        # target Q Network evaluates the action
+        # Q_max = Q_target(s', a'_max)
+        q_value = self.target_q_model.predict(\
+                                      next_state)[0][action]
+
+        # Q_max = reward + gamma * Q_max
+        q_value *= self.gamma
+        q_value += reward
+        return q_value
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=None)
@@ -221,7 +288,10 @@ if __name__ == '__main__':
     env.seed(0)
 
     # instantiate the DQN/DDQN agent
-    agent = DQNAgent(env.observation_space, env.action_space, args)
+    if args.ddqn:
+        agent = DDQNAgent(env.observation_space, env.action_space)
+    else:
+        agent = DQNAgent(env.observation_space, env.action_space)
 
     # should be solved in this number of episodes
     episode_count = 3000

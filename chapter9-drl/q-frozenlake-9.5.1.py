@@ -18,6 +18,15 @@ class QAgent:
                  demo=False,
                  slippery=False,
                  episodes=40000):
+        """Q-Learning agent on FrozenLake-v0 environment
+
+        Arguments:
+            observation_space (tensor): state space
+            action_space (tensor): action space
+            demo (Bool): whether for demo or training
+            slippery (Bool): 2 versions of FLv0 env
+            episodes (int): number of episodes to train
+        """
         
         self.action_space = action_space
         # number of columns is equal to number of actions
@@ -54,10 +63,14 @@ class QAgent:
         if demo:
             self.epsilon = 0
 
-    # determine the next action
-    # if random, choose from random action space
-    # else use the Q Table
     def act(self, state, is_explore=False):
+        """determine the next action
+            if random, choose from random action space
+            else use the Q Table
+        Arguments:
+            state (tensor): agent's current state
+            is_explore (Bool): exploration mode or not
+        """
         # 0 - left, 1 - Down, 2 - Right, 3 - Up
         if is_explore or np.random.rand() < self.epsilon:
             # explore - do random action
@@ -67,8 +80,16 @@ class QAgent:
         return np.argmax(self.q_table[state])
 
 
-    # TD(0) learning (generalized Q-Learning) with learning rate
     def update_q_table(self, state, action, reward, next_state):
+        """TD(0) learning (generalized Q-Learning) with learning rate
+        Arguments:
+            state (tensor): environment state
+            action (tensor): action executed by the agent for
+                the given state
+            reward (float): reward received by the agent for
+                executing the action
+            next_state (tensor): the environment next state
+        """
         # Q(s, a) += 
         # alpha * (reward + gamma * max_a' Q(s', a') - Q(s, a))
         q_value = self.gamma * np.amax(self.q_table[next_state])
@@ -79,24 +100,24 @@ class QAgent:
         self.q_table[state, action] = q_value
 
 
-    # dump Q Table
     def print_q_table(self):
+        """dump Q Table"""
         print(self.q_table)
         print("Epsilon : ", self.epsilon)
 
 
-    # save trained Q Table
     def save_q_table(self):
+        """save trained Q Table"""
         np.save(self.filename, self.q_table)
 
 
-    # load trained Q Table
     def load_q_table(self):
+        """load trained Q Table"""
         self.q_table = np.load(self.filename)
 
 
-    # adjust epsilon
     def update_epsilon(self):
+        """adjust epsilon"""
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
