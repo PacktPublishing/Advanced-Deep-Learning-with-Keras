@@ -64,7 +64,7 @@ class DQNAgent:
             n_inputs (int): input dim
             n_outputs (int): output dim
 
-        Returns:
+        Return:
             q_model (Model): DQN
         """
         inputs = Input(shape=(n_inputs, ), name='state')
@@ -91,7 +91,7 @@ class DQNAgent:
 
     def act(self, state):
         """eps-greedy policy
-        Returns:
+        Return:
             action (tensor): action to execute
         """
         if np.random.rand() < self.epsilon:
@@ -101,7 +101,8 @@ class DQNAgent:
         # exploit
         q_values = self.q_model.predict(state)
         # select the action with max Q-value
-        return np.argmax(q_values[0])
+        action = np.argmax(q_values[0])
+        return action
 
 
     def remember(self, state, action, reward, next_state, done):
@@ -125,7 +126,7 @@ class DQNAgent:
             reward (float): reward received after executing
                 action on state
             next_state (tensor): next state
-        Returns:
+        Return:
             q_value (float): max Q-value computed
         """
         # max Q value among next state's actions

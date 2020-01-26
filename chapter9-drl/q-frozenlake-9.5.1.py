@@ -70,6 +70,9 @@ class QAgent:
         Arguments:
             state (tensor): agent's current state
             is_explore (Bool): exploration mode or not
+        Return:
+            action (tensor): action that the agent
+                must execute
         """
         # 0 - left, 1 - Down, 2 - Right, 3 - Up
         if is_explore or np.random.rand() < self.epsilon:
@@ -77,7 +80,8 @@ class QAgent:
             return self.action_space.sample()
 
         # exploit - choose action with max Q-value
-        return np.argmax(self.q_table[state])
+        action = np.argmax(self.q_table[state])
+        return action
 
 
     def update_q_table(self, state, action, reward, next_state):

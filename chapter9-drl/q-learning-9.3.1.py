@@ -23,7 +23,7 @@ from termcolor import colored
 
 class QWorld:
     def __init__(self):
-        """Simulated determinsitic world made of 6 states.
+        """Simulated deterministic world made of 6 states.
         Q-Learning by Bellman Equation. 
         """
         # 4 actions
@@ -126,6 +126,11 @@ class QWorld:
         """execute the action on the environment
         Argument:
             action (tensor): An action in Action space
+        Returns:
+            next_state (tensor): next env state
+            reward (float): reward received by the agent
+            done (Bool): whether the terminal state 
+                is reached
         """
         # determine the next_state given state and action
         next_state = self.transition_table[self.state, action]
@@ -140,8 +145,11 @@ class QWorld:
     
     def act(self):
         """determine the next action
-        either fr Q Table(exploitation) or
-        random(exploration)
+            either fr Q Table(exploitation) or
+            random(exploration)
+        Return:
+            action (tensor): action that the agent
+                must execute
         """
         # 0 - Left, 1 - Down, 2 - Right, 3 - Up
         # action is from exploration
@@ -153,7 +161,8 @@ class QWorld:
         # or action is from exploitation
         # exploit - choose action with max Q-value
         self.is_explore = False
-        return np.argmax(self.q_table[self.state])
+        action = np.argmax(self.q_table[self.state])
+        return action
 
 
     def update_q_table(self, state, action, reward, next_state):
