@@ -38,16 +38,23 @@ import datetime
 import math
 
 
-# some implementations use a modified softplus to ensure that
-# the stddev is never zero
 def softplusk(x):
+    """Some implementations use a modified softplus 
+        to ensure that the stddev is never zero
+    Argument:
+        x (tensor): activation input
+    """
     return K.softplus(x) + 1e-10
 
 
-# implements the models and training of Policy Gradient
-# Methods
 class PolicyAgent:
     def __init__(self, env, args):
+        """Implements the models and training of 
+            Policy Gradient Methods
+        Arguments:
+            env (Object): OpenAI gym environment
+            args : User-defined arguments
+        """
 
         self.env = env
         self.args = args
@@ -62,20 +69,27 @@ class PolicyAgent:
         self.build_autoencoder()
 
 
-    # clear the memory before the start of every episode
     def reset_memory(self):
+        """Clear the memory before the start 
+            of every episode
+        """
         self.memory = []
 
 
-    # remember every s,a,r,s' in every step of the episode
     def remember(self, item):
+        """Remember every s,a,r,s' in every step of the episode
+        """
         self.memory.append(item)
 
 
-    # given mean and stddev, sample an action, clip and return
-    # we assume Gaussian distribution of probability 
-    # of selecting an action given a state
     def action(self, args):
+        """Given mean and stddev, sample an action, clip 
+            and return
+            we assume Gaussian distribution of probability 
+            of selecting an action given a state
+        Arguments:
+            args (list) : mean, stddev list
+        """
         mean, stddev = args
         dist = tfp.distributions.Normal(loc=mean, scale=stddev)
         action = dist.sample(1)
@@ -85,25 +99,33 @@ class PolicyAgent:
         return action
 
 
-    # given mean, stddev, and action compute
-    # the log probability of the Gaussian distribution
     def logp(self, args):
+        """Given mean, stddev, and action compute
+            the log probability of the Gaussian distribution
+        Arguments:
+            args (list) : mean, stddev action, list
+        """
         mean, stddev, action = args
         dist = tfp.distributions.Normal(loc=mean, scale=stddev)
         logp = dist.log_prob(action)
         return logp
 
 
-    # given the mean and stddev compute the Gaussian dist entropy
     def entropy(self, args):
+        """Given the mean and stddev compute 
+            the Gaussian dist entropy
+        Arguments:
+            args (list) : mean, stddev list
+        """
         mean, stddev = args
         dist = tfp.distributions.Normal(loc=mean, scale=stddev)
         entropy = dist.entropy()
         return entropy
 
 
-    # autoencoder to convert states into features
     def build_autoencoder(self):
+        """Autoencoder to convert states into features
+        """
         # first build the encoder model
         inputs = Input(shape=(self.state_dim, ), name='state')
         feature_size = 32
@@ -148,9 +170,13 @@ class PolicyAgent:
         self.autoencoder.compile(loss='mse', optimizer='adam')
 
 
-    # training the autoencoder using randomly sampled
-    # states from the environment
     def train_autoencoder(self, x_train, x_test):
+        """Training the autoencoder using randomly sampled
+            states from the environment
+        Arguments:
+            x_train (tensor): autoencoder train dataset
+            x_test (tensor): autoencoder test dataset
+        """
         # train the autoencoder
         batch_size = 32
         self.autoencoder.fit(x_train,
@@ -160,14 +186,17 @@ class PolicyAgent:
                              batch_size=batch_size)
 
 
-    # 4 models are built but 3 models share the same parameters.
-    # hence training one, trains the rest.
-    # the 3 models that share the same parameters are action, logp,
-    # and entropy models. entropy model is used by A2C only.
-    # each model has the same MLP structure:
-    # Input(2)-Encoder-Output(1).
-    # the output activation depends on the nature of the output.
     def build_actor_critic(self):
+        """4 models are built but 3 models share the
+            same parameters. hence training one, trains the rest.
+            The 3 models that share the same parameters 
+                are action, logp, and entropy models. 
+            Entropy model is used by A2C only.
+            Each model has the same MLP structure:
+            Input(2)-Encoder-Output(1).
+            The output activation depends on the nature 
+                of the output.
+        """
         inputs = Input(shape=(self.state_dim, ), name='state')
         self.encoder.trainable = False
         x = self.encoder(inputs)
@@ -233,10 +262,14 @@ class PolicyAgent:
         self.value_model.compile(loss=loss, optimizer=optimizer)
 
 
-    # logp loss, the 3rd and 4th variables (entropy and beta)
-    # are needed by A2C so we have a different 
-    # loss function structure
     def logp_loss(self, entropy, beta=0.0):
+        """logp loss, the 3rd and 4th variables 
+            (entropy and beta) are needed by A2C 
+            so we have a different loss function structure
+        Arguments:
+            entropy (tensor): Entropy loss
+            beta (float): Entropy loss weight
+        """
         def loss(y_true, y_pred):
             return -K.mean((y_pred * y_true) \
                     + (beta * entropy), axis=-1)
@@ -244,60 +277,97 @@ class PolicyAgent:
         return loss
 
 
-    # typical loss function structure that accepts 2 arguments only
-    # this will be used by value loss of all methods except A2C
     def value_loss(self, y_true, y_pred):
+        """Typical loss function structure that accepts 
+            2 arguments only
+           this will be used by value loss of all methods 
+            except A2C
+        Arguments:
+            y_true (tensor): value ground truth
+            y_pred (tensor): value prediction
+        """
         return -K.mean(y_pred * y_true, axis=-1)
 
 
-    # save the actor, critic and encoder weights
-    # useful for restoring the trained models
     def save_weights(self, 
                      actor_weights, 
                      encoder_weights, 
                      value_weights=None):
+        """Save the actor, critic and encoder weights
+            useful for restoring the trained models
+        Arguments:
+            actor_weights (tensor): actor net parameters
+            encoder_weights (tensor): encoder weights
+            value_weights (tensor): value net parameters
+        """
         self.actor_model.save_weights(actor_weights)
         self.encoder.save_weights(encoder_weights)
         if value_weights is not None:
             self.value_model.save_weights(value_weights)
 
 
-    # load the trained weights
-    # useful if we are interested in using the network right away
-    def load_weights(self, actor_weights, value_weights=None):
+    def load_weights(self,
+                     actor_weights, 
+                     value_weights=None):
+        """Load the trained weights
+           useful if we are interested in using 
+                the network right away
+        Arguments:
+            actor_weights (string): filename containing actor net
+                weights
+            value_weights (string): filename containing value net
+                weights
+        """
         self.actor_model.load_weights(actor_weights)
         if value_weights is not None:
             self.value_model.load_weights(value_weights)
 
     
-    # load encoder trained weights
-    # useful if we are interested in using the network right away
     def load_encoder_weights(self, encoder_weights):
+        """Load encoder trained weights
+           useful if we are interested in using 
+            the network right away
+        Arguments:
+            encoder_weights (string): filename containing encoder net
+                weights
+        """
         self.encoder.load_weights(encoder_weights)
 
     
-    # call the policy network to sample an action
     def act(self, state):
+        """Call the policy network to sample an action
+        Arguments:
+            state (tensor): environment state
+        """
         action = self.actor_model.predict(state)
         return action[0]
 
 
-    # call the value network to predict the value of state
     def value(self, state):
+        """Call the value network to predict the value of state
+        Arguments:
+            state (tensor): environment state
+        """
         value = self.value_model.predict(state)
         return value[0]
 
 
-    # return the entropy of the policy distribution
     def get_entropy(self, state):
+        """Return the entropy of the policy distribution
+        Arguments:
+            state (tensor): environment state
+        """
         entropy = self.entropy_model.predict(state)
         return entropy[0]
 
 
-    # train by episode (REINFORCE, REINFORCE with baseline
-    # and A2C use this routine to prepare the dataset before
-    # the step by step training)
     def train_by_episode(self, last_value=0):
+        """Train by episode (REINFORCE, REINFORCE with baseline
+            and A2C use this routine to prepare the dataset before
+            the step by step training)
+        Arguments:
+            last_value (float): previous prediction of value net
+        """
         if self.args.actor_critic:
             print("Actor-Critic must be trained per step")
             return
@@ -345,9 +415,13 @@ class PolicyAgent:
             self.train(item, gamma=gamma)
 
 
-    # main routine for training as used 
-    # by all 4 policy gradient methods
     def train(self, item, gamma=1.0):
+        """Main routine for training as used 
+            by all 4 policy gradient methods
+        Arguments:
+            item (list) : one experience unit
+            gamma (float) : discount factor [0,1]
+        """
         [step, state, next_state, reward, done] = item
 
         # must save state for entropy computation
@@ -448,7 +522,10 @@ def setup_parser():
 
 
 def setup_files(args):
-    # housekeeping to keep the output logs in separate folders
+    """Housekeeping to keep the output logs in separate folders
+    Arguments:
+        args: user-defined arguments
+    """
     postfix = 'reinforce'
     has_value_model = False
     if args.baseline:
@@ -489,6 +566,11 @@ def setup_files(args):
 
 
 def setup_agent(env, args):
+    """Agent initialization
+    Arguments:
+        env (Object): OpenAI environment
+        args : user-defined arguments
+    """
     # instantiate agent
     agent = PolicyAgent(env, args)
     # if weights are given, lets load them
@@ -518,6 +600,11 @@ def setup_agent(env, args):
 
 
 def setup_writer(fileid, postfix):
+    """Use to prepare file and writer for data logging
+    Arguments:
+        fileid (string): unique file identfier
+        postfix (string): path
+    """
     # we dump episode num, step, total reward, and 
     # number of episodes solved in a csv file for analysis
     csvfilename = "%s.csv" % fileid
