@@ -48,16 +48,18 @@ def softplusk(x):
 
 
 class PolicyAgent:
-    def __init__(self, env, args):
+    def __init__(self, env):
         """Implements the models and training of 
             Policy Gradient Methods
-        Arguments:
+        Argument:
             env (Object): OpenAI gym environment
-            args : User-defined arguments
         """
 
         self.env = env
-        self.args = args
+        # entropy loss weight
+        self.beta = 0.0
+        # value loss for all policy gradients except A2C
+        self.loss = self.value_loss
         
         # s,a,r,s' are stored in memory
         self.memory = []
@@ -85,10 +87,12 @@ class PolicyAgent:
     def action(self, args):
         """Given mean and stddev, sample an action, clip 
             and return
-            we assume Gaussian distribution of probability 
+            We assume Gaussian distribution of probability 
             of selecting an action given a state
-        Arguments:
+        Argument:
             args (list) : mean, stddev list
+        Return:
+            action (tensor): policy action
         """
         mean, stddev = args
         dist = tfp.distributions.Normal(loc=mean, scale=stddev)
@@ -102,8 +106,10 @@ class PolicyAgent:
     def logp(self, args):
         """Given mean, stddev, and action compute
             the log probability of the Gaussian distribution
-        Arguments:
+        Argument:
             args (list) : mean, stddev action, list
+        Return:
+            logp (tensor): log of action
         """
         mean, stddev, action = args
         dist = tfp.distributions.Normal(loc=mean, scale=stddev)
@@ -114,8 +120,10 @@ class PolicyAgent:
     def entropy(self, args):
         """Given the mean and stddev compute 
             the Gaussian dist entropy
-        Arguments:
+        Argument:
             args (list) : mean, stddev list
+        Return:
+            entropy (tensor): action entropy
         """
         mean, stddev = args
         dist = tfp.distributions.Normal(loc=mean, scale=stddev)
@@ -246,20 +254,15 @@ class PolicyAgent:
                    to_file='value_model.png', 
                    show_shapes=True)
 
-        # beta of entropy used in A2C
-        beta = 0.9 if self.args.a2c else 0.0
 
         # logp loss of policy network
         loss = self.logp_loss(self.get_entropy(self.state), 
-                              beta=beta)
+                              beta=self.beta)
         optimizer = RMSprop(lr=1e-3)
         self.logp_model.compile(loss=loss, optimizer=optimizer)
 
-        # loss function of A2C is mse, while the rest use 
-        # their own loss function called value loss
-        loss = 'mse' if self.args.a2c else self.value_loss
         optimizer = Adam(lr=1e-3)
-        self.value_model.compile(loss=loss, optimizer=optimizer)
+        self.value_model.compile(loss=self.loss, optimizer=optimizer)
 
 
     def logp_loss(self, entropy, beta=0.0):
@@ -269,6 +272,8 @@ class PolicyAgent:
         Arguments:
             entropy (tensor): Entropy loss
             beta (float): Entropy loss weight
+        Return:
+            loss (tensor): computed loss
         """
         def loss(y_true, y_pred):
             return -K.mean((y_pred * y_true) \
@@ -280,13 +285,16 @@ class PolicyAgent:
     def value_loss(self, y_true, y_pred):
         """Typical loss function structure that accepts 
             2 arguments only
-           this will be used by value loss of all methods 
+           This will be used by value loss of all methods 
             except A2C
         Arguments:
             y_true (tensor): value ground truth
             y_pred (tensor): value prediction
+        Return:
+            loss (tensor): computed loss
         """
-        return -K.mean(y_pred * y_true, axis=-1)
+        loss = -K.mean(y_pred * y_true, axis=-1)
+        return loss
 
 
     def save_weights(self, 
@@ -336,8 +344,10 @@ class PolicyAgent:
     
     def act(self, state):
         """Call the policy network to sample an action
-        Arguments:
+        Argument:
             state (tensor): environment state
+        Return:
+            act (tensor): policy action
         """
         action = self.actor_model.predict(state)
         return action[0]
@@ -345,8 +355,10 @@ class PolicyAgent:
 
     def value(self, state):
         """Call the value network to predict the value of state
-        Arguments:
+        Argument:
             state (tensor): environment state
+        Return:
+            value (tensor): state value
         """
         value = self.value_model.predict(state)
         return value[0]
@@ -354,42 +366,28 @@ class PolicyAgent:
 
     def get_entropy(self, state):
         """Return the entropy of the policy distribution
-        Arguments:
+        Argument:
             state (tensor): environment state
+        Return:
+            entropy (tensor): entropy of policy
         """
         entropy = self.entropy_model.predict(state)
         return entropy[0]
 
 
-    def train_by_episode(self, last_value=0):
-        """Train by episode (REINFORCE, REINFORCE with baseline
-            and A2C use this routine to prepare the dataset before
-            the step by step training)
+class REINFORCEAgent(PolicyAgent):
+    def __init__(self, env):
+        """Implements the models and training of 
+           REINFORCE policy gradient method
         Arguments:
-            last_value (float): previous prediction of value net
+            env (Object): OpenAI gym environment
         """
-        if self.args.actor_critic:
-            print("Actor-Critic must be trained per step")
-            return
-        elif self.args.a2c:
-            # implements A2C training from the last state
-            # to the first state
-            # discount factor
-            gamma = 0.95
-            r = last_value
-            # the memory is visited in reverse as shown
-            # in Algorithm 10.5.1
-            for item in self.memory[::-1]:
-                [step, state, next_state, reward, done] = item
-                # compute the return
-                r = reward + gamma*r
-                item = [step, state, next_state, r, done]
-                # train per step
-                # a2c reward has been discounted
-                self.train(item)
+        super().__init__(env) 
 
-            return
-
+    def train_by_episode(self):
+        """Train by episode
+           Prepare the dataset before the step by step training
+        """
         # only REINFORCE and REINFORCE with baseline
         # use the ff codes
         # convert the rewards to returns
@@ -416,8 +414,48 @@ class PolicyAgent:
 
 
     def train(self, item, gamma=1.0):
-        """Main routine for training as used 
-            by all 4 policy gradient methods
+        """Main routine for training 
+        Arguments:
+            item (list) : one experience unit
+            gamma (float) : discount factor [0,1]
+        """
+        [step, state, next_state, reward, done] = item
+
+        # must save state for entropy computation
+        self.state = state
+
+        discount_factor = gamma**step
+        delta = reward
+
+        # apply the discount factor as shown in Algortihms
+        # 10.2.1, 10.3.1 and 10.4.1
+        discounted_delta = delta * discount_factor
+        discounted_delta = np.reshape(discounted_delta, [-1, 1])
+        verbose = 1 if done else 0
+
+        # train the logp model (implies training of actor model
+        # as well) since they share exactly the same set of
+        # parameters
+        self.logp_model.fit(np.array(state),
+                            discounted_delta,
+                            batch_size=1,
+                            epochs=1,
+                            verbose=verbose)
+
+
+class REINFORCEBaselineAgent(REINFORCEAgent):
+    def __init__(self, env):
+        """Implements the models and training of 
+           REINFORCE w/ baseline policy 
+           gradient method
+        Arguments:
+            env (Object): OpenAI gym environment
+        """
+        super().__init__(env) 
+
+
+    def train(self, item, gamma=1.0):
+        """Main routine for training 
         Arguments:
             item (list) : one experience unit
             gamma (float) : discount factor [0,1]
@@ -430,27 +468,82 @@ class PolicyAgent:
         discount_factor = gamma**step
 
         # reinforce-baseline: delta = return - value
-        # actor-critic: delta = reward - value 
-        #       + discounted_next_value
-        # a2c: delta = discounted_reward - value
         delta = reward - self.value(state)[0] 
 
-        # only REINFORCE does not use a critic (value network)
-        critic = False
-        if self.args.baseline:
-            critic = True
-        elif self.args.actor_critic:
-            # since this function is called by Actor-Critic
-            # directly, evaluate the value function here
-            critic = True
-            if not done:
-                next_value = self.value(next_state)[0]
-                # add  the discounted next value
-                delta += gamma*next_value
-        elif self.args.a2c:
-            critic = True
-        else:
-            delta = reward
+        # apply the discount factor as shown in Algortihms
+        # 10.2.1, 10.3.1 and 10.4.1
+        discounted_delta = delta * discount_factor
+        discounted_delta = np.reshape(discounted_delta, [-1, 1])
+        verbose = 1 if done else 0
+
+        # train the logp model (implies training of actor model
+        # as well) since they share exactly the same set of
+        # parameters
+        self.logp_model.fit(np.array(state),
+                            discounted_delta,
+                            batch_size=1,
+                            epochs=1,
+                            verbose=verbose)
+
+        # train the value network (critic)
+        self.value_model.fit(np.array(state),
+                             discounted_delta,
+                             batch_size=1,
+                             epochs=1,
+                             verbose=verbose)
+
+class A2CAgent(PolicyAgent):
+    def __init__(self, env):
+        """Implements the models and training of 
+           A2C policy gradient method
+        Arguments:
+            env (Object): OpenAI gym environment
+        """
+        super().__init__(env) 
+        # beta of entropy used in A2C
+        self.beta = 0.9
+        # loss function of A2C is mse
+        self.loss = 'mse'
+
+
+    def train_by_episode(self, last_value=0):
+        """Train by episode 
+           Prepare the dataset before the step by step training
+        Arguments:
+            last_value (float): previous prediction of value net
+        """
+        # implements A2C training from the last state
+        # to the first state
+        # discount factor
+        gamma = 0.95
+        r = last_value
+        # the memory is visited in reverse as shown
+        # in Algorithm 10.5.1
+        for item in self.memory[::-1]:
+            [step, state, next_state, reward, done] = item
+            # compute the return
+            r = reward + gamma*r
+            item = [step, state, next_state, r, done]
+            # train per step
+            # a2c reward has been discounted
+            self.train(item)
+
+
+    def train(self, item, gamma=1.0):
+        """Main routine for training 
+        Arguments:
+            item (list) : one experience unit
+            gamma (float) : discount factor [0,1]
+        """
+        [step, state, next_state, reward, done] = item
+
+        # must save state for entropy computation
+        self.state = state
+
+        discount_factor = gamma**step
+
+        # a2c: delta = discounted_reward - value
+        delta = reward - self.value(state)[0] 
 
         # apply the discount factor as shown in Algortihms
         # 10.2.1, 10.3.1 and 10.4.1
@@ -469,17 +562,72 @@ class PolicyAgent:
 
         # in A2C, the target value is the return (reward
         # replaced by return in the train_by_episode function)
-        if self.args.a2c:
-            discounted_delta = reward
-            discounted_delta = np.reshape(discounted_delta, [-1, 1])
+        discounted_delta = reward
+        discounted_delta = np.reshape(discounted_delta, [-1, 1])
 
         # train the value network (critic)
-        if critic:
-            self.value_model.fit(np.array(state),
-                                 discounted_delta,
-                                 batch_size=1,
-                                 epochs=1,
-                                 verbose=verbose)
+        self.value_model.fit(np.array(state),
+                             discounted_delta,
+                             batch_size=1,
+                             epochs=1,
+                             verbose=verbose)
+
+
+class ActorCriticAgent(PolicyAgent):
+    def __init__(self, env):
+        """Implements the models and training of 
+           Actor Critic policy gradient method
+        Arguments:
+            env (Object): OpenAI gym environment
+        """
+        super().__init__(env) 
+
+
+    def train(self, item, gamma=1.0):
+        """Main routine for training
+        Arguments:
+            item (list) : one experience unit
+            gamma (float) : discount factor [0,1]
+        """
+        [step, state, next_state, reward, done] = item
+
+        # must save state for entropy computation
+        self.state = state
+
+        discount_factor = gamma**step
+
+        # actor-critic: delta = reward - value 
+        #       + discounted_next_value
+        delta = reward - self.value(state)[0] 
+
+        # since this function is called by Actor-Critic
+        # directly, evaluate the value function here
+        if not done:
+            next_value = self.value(next_state)[0]
+            # add  the discounted next value
+            delta += gamma*next_value
+
+        # apply the discount factor as shown in Algortihms
+        # 10.2.1, 10.3.1 and 10.4.1
+        discounted_delta = delta * discount_factor
+        discounted_delta = np.reshape(discounted_delta, [-1, 1])
+        verbose = 1 if done else 0
+
+        # train the logp model (implies training of actor model
+        # as well) since they share exactly the same set of
+        # parameters
+        self.logp_model.fit(np.array(state),
+                            discounted_delta,
+                            batch_size=1,
+                            epochs=1,
+                            verbose=verbose)
+
+        self.value_model.fit(np.array(state),
+                             discounted_delta,
+                             batch_size=1,
+                             epochs=1,
+                             verbose=verbose)
+
 
 
 def setup_parser():
@@ -493,7 +641,7 @@ def setup_parser():
                         action='store_true',
                         help="Reinforce with baseline")
     parser.add_argument("-a",
-                        "--actor_critic",
+                        "--actor-critic",
                         action='store_true',
                         help="Actor-Critic")
     parser.add_argument("-c",
@@ -505,13 +653,13 @@ def setup_parser():
                         action='store_true',
                         help="Random action policy")
     parser.add_argument("-w",
-                        "--actor_weights",
+                        "--actor-weights",
                         help="Load pre-trained actor model weights")
     parser.add_argument("-y",
-                        "--value_weights",
+                        "--value-weights",
                         help="Load pre-trained value model weights")
     parser.add_argument("-e",
-                        "--encoder_weights",
+                        "--encoder-weights",
                         help="Load pre-trained encoder model weights")
     parser.add_argument("-t",
                         "--train",
@@ -572,7 +720,15 @@ def setup_agent(env, args):
         args : user-defined arguments
     """
     # instantiate agent
-    agent = PolicyAgent(env, args)
+    if args.baseline:
+        agent = REINFORCEBaselineAgent(env)
+    elif args.a2c:
+        agent = A2CAgent(env)
+    elif args.actor_critic:
+        agent = ActorCriticAgent(env)
+    else:
+        agent = REINFORCEAgent(env)
+
     # if weights are given, lets load them
     if args.encoder_weights:
         agent.load_encoder_weights(args.encoder_weights)
@@ -685,8 +841,11 @@ if __name__ == '__main__':
                 # we wait for the completion of the episode before 
                 # training the network(s)
                 # last value as used by A2C
-                v = 0 if reward > 0 else agent.value(next_state)[0]
-                agent.train_by_episode(last_value=v)
+                if args.a2c:
+                    v = 0 if reward > 0 else agent.value(next_state)[0]
+                    agent.train_by_episode(last_value=v)
+                else:
+                    agent.train_by_episode()
 
             # accumulate reward
             total_reward += reward
