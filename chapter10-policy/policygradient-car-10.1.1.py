@@ -389,7 +389,7 @@ class REINFORCEAgent(PolicyAgent):
            Prepare the dataset before the step by step training
         """
         # only REINFORCE and REINFORCE with baseline
-        # use the ff codes
+        # use the ff code
         # convert the rewards to returns
         rewards = []
         gamma = 0.99
@@ -470,7 +470,7 @@ class REINFORCEBaselineAgent(REINFORCEAgent):
         # reinforce-baseline: delta = return - value
         delta = reward - self.value(state)[0] 
 
-        # apply the discount factor as shown in Algortihms
+        # apply the discount factor as shown in Algorithms
         # 10.2.1, 10.3.1 and 10.4.1
         discounted_delta = delta * discount_factor
         discounted_delta = np.reshape(discounted_delta, [-1, 1])
@@ -502,7 +502,7 @@ class A2CAgent(PolicyAgent):
         super().__init__(env) 
         # beta of entropy used in A2C
         self.beta = 0.9
-        # loss function of A2C is mse
+        # loss function of A2C value_model is mse
         self.loss = 'mse'
 
 
@@ -545,10 +545,6 @@ class A2CAgent(PolicyAgent):
         # a2c: delta = discounted_reward - value
         delta = reward - self.value(state)[0] 
 
-        # apply the discount factor as shown in Algortihms
-        # 10.2.1, 10.3.1 and 10.4.1
-        discounted_delta = delta * discount_factor
-        discounted_delta = np.reshape(discounted_delta, [-1, 1])
         verbose = 1 if done else 0
 
         # train the logp model (implies training of actor model
