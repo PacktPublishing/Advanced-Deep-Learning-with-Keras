@@ -168,6 +168,7 @@ def show_boxes(args,
     if show:
         fig, ax = plt.subplots(1)
         ax.imshow(image)
+    yoff = 1
     for idx in indexes:
         #batch, row, col, box
         anchor = anchors[idx] 
@@ -201,16 +202,18 @@ def show_boxes(args,
             bbox = dict(color='white',
                         alpha=1.0)
             ax.text(anchor[0] + 2,
-                    anchor[2] - 16,
+                    anchor[2] - 16 + np.random.randint(0,yoff),
                     class_name,
                     color=color,
-                    fontweight='bold',
+                    #fontweight='bold',
                     bbox=bbox,
-                    fontsize=8,
+                    fontsize=10,
                     verticalalignment='top')
+            yoff += 50
             #t.set_bbox(dict(facecolor='red', alpha=0.5, edgecolor='red'))
 
     if show:
+        plt.savefig("detection.png", dpi=600)
         plt.show()
 
     return class_names, rects, class_ids, boxes
@@ -280,13 +283,13 @@ def show_anchors(image,
                     color='w',
                     fontweight='bold',
                     bbox=bbox,
-                    fontsize=8,
+                    fontsize=16,
                     verticalalignment='top')
             dxmin = label[0] - box[0]
             dxmax = label[1] - box[1]
             dymin = label[2] - box[2]
             dymax = label[3] - box[3]
-            print(index, ":", "(", class_name, ")", iou, dxmin, dxmax, dymin, dymax)
+            print(index, ":", "(", class_name, ")", iou, dxmin, dxmax, dymin, dymax, label[0], label[2])
 
     if labels is None:
         plt.show()
