@@ -197,9 +197,11 @@ Semantic Segmentation
 
 1. [Invariant Information Clustering](http://openaccess.thecvf.com/content_ICCV_2019/papers/Ji_Invariant_Information_Clustering_for_Unsupervised_Image_Classification_and_Segmentation_ICCV_2019_paper.pdf)
 
-2. [MINE: Mutual Information Estimatio](http://proceedings.mlr.press/v80/belghazi18a/belghazi18a.pdf)
+2. [MINE: Mutual Information Estimation](http://proceedings.mlr.press/v80/belghazi18a/belghazi18a.pdf)
 
 
+MINE
+![MINE](chapter13-mi-unsupervised/images/mine.png)
 
 ## Citation
 If you find this work useful, please cite:
