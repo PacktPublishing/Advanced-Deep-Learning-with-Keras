@@ -1,5 +1,7 @@
-# Advanced Deep Learning with Keras
-This is the code repository for [Advanced Deep Learning with Keras](https://www.packtpub.com/big-data-and-business-intelligence/advanced-deep-learning-keras?utm_source=github&utm_medium=repository&utm_campaign=9781788629416), published by [Packt](https://www.packtpub.com/?utm_source=github). It contains all the supporting project files necessary to work through the book from start to finish.
+# Advanced Deep Learning with Keras (Updated for Second Edition)
+This is the code repository for [Advanced Deep Learning with Keras](https://www.packtpub.com/big-data-and-business-intelligence/advanced-deep-learning-keras?utm_source=github&utm_medium=repository&utm_campaign=9781788629416), published by [Packt](https://www.packtpub.com/?utm_source=github). It contains all the supporting project files necessary to work through the book from start to finish. 
+
+Please note that the code examples have been updated to support TensorFlow 2.0 Keras API only. 
 
 ## About the Book
 This book covers advanced deep learning techniques to create successful AI. Using MLPs, CNNs, and RNNs as building blocks to more advanced techniques, you’ll study deep neural network architectures, Autoencoders, Generative Adversarial Networks (GANs), Variational AutoEncoders (VAEs), and Deep Reinforcement Learning (DRL) critical to many cutting-edge AI results.
