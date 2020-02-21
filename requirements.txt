@@ -3,7 +3,7 @@ scipy
 Pillow
 matplotlib
 scikit-image
-tensorflow>=2.0.0
+tensorflow=2.0.0
 h5py
 pydot
 pydot_ng
