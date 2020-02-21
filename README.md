@@ -189,7 +189,16 @@ Single-Shot Detection on 3 Objects
 2. [PSPNet](http://openaccess.thecvf.com/content_cvpr_2017/papers/Zhao_Pyramid_Scene_Parsing_CVPR_2017_paper.pdf)
 
 Semantic Segmentation
+
 ![Semantic Segmentation](chapter12-segmentation/images/sample_prediction.png)
+
+## [Chapter 13 - Unsupervised Learning using Mutual Information](chapter13-mi-unsupervised)
+
+
+1. [Invariant Information Clustering](http://openaccess.thecvf.com/content_ICCV_2019/papers/Ji_Invariant_Information_Clustering_for_Unsupervised_Image_Classification_and_Segmentation_ICCV_2019_paper.pdf)
+
+2. [MINE: Mutual Information Estimatio](http://proceedings.mlr.press/v80/belghazi18a/belghazi18a.pdf)
+
 
 
 ## Citation
