@@ -182,7 +182,7 @@ Policy Gradient on MountainCar Continuous Environment:
 Single-Shot Detection on 3 Objects
 ![SSD](chapter11-detection/images/Figure11.13.2.detection_smooth_l1.png)
 
-## [Chapter 12 - Semantic Segmentation](chapter12-segmenntation)
+## [Chapter 12 - Semantic Segmentation](chapter12-segmentation)
 
 1. [FCN](https://www.cv-foundation.org/openaccess/content_cvpr_2015/papers/Long_Fully_Convolutional_Networks_2015_CVPR_paper.pdf)
 
