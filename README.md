@@ -180,7 +180,7 @@ Policy Gradient on MountainCar Continuous Environment:
 1. [Single-Shot Detection](https://arxiv.org/pdf/1512.02325.pdf)
 
 Single-Shot Detection on 3 Objects
-![SSD](chapter11-detection/Figure11.13.2.detection_smooth_l1.png)
+![SSD](chapter11-detection/images/Figure11.13.2.detection_smooth_l1.png)
 
 
 ## Citation
