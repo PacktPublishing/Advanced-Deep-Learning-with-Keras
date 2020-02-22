@@ -9,3 +9,4 @@ pydot
 pydot_ng
 graphviz
 tensorflow-addons
+termcolor
