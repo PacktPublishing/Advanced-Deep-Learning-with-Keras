@@ -8,3 +8,4 @@ h5py
 pydot
 pydot_ng
 graphviz
+tensorflow-addons
