@@ -11,3 +11,4 @@ graphviz
 tensorflow-addons
 termcolor
 gym
+tensorflow-probability
