@@ -489,7 +489,7 @@ if __name__ == '__main__':
                         help='Number of epochs to train')
     parser.add_argument('--batch-size',
                         type=int,
-                        default=10000,
+                        default=1000,
                         metavar='N',
                         help='Train batch size')
     parser.add_argument('--gaussian',
