@@ -35,6 +35,45 @@ conv = Conv2D(filters=filters,
 
 * [Reinforcement Learning with TensorFlow](https://www.packtpub.com/big-data-and-business-intelligence/reinforcement-learning-tensorflow?utm_source=github&utm_medium=repository&utm_campaign=9781788835725)
 
+## Installation
+It is recommended to run within conda enviroment. Pls download and install anacoda from: [Anaconda](https://www.anaconda.com/distribution). 
+
+A machine with at least 1 NVIDIA GPU (1060 or better) is required. The code examples have been tested on 1060, 1080Ti, RTX 2080Ti, V100, RTX Quadro 8000 on Ubuntu 18.04 LTS. Below is a rough guide to install NVIDIA driver and CuDNN to enable GPU support.  
+
+`sudo add-apt-repository ppa:graphics-drivers/ppa`
+
+`sudo apt update`
+ 
+`sudo ubuntu-drivers autoinstall`
+
+`sudo reboot`
+
+`nvidia-smi`
+
+At the time of writing, `nvidia-smi`shows the NVIDIA driver version is 440.64 and CUDA version is 10.2.
+
+
+We are almost there. The last set of packages must be installed as follows. Some steps might require `sudo` access.
+
+`conda create --name packt`
+
+`conda activate packt`
+
+`cd <github-dir>`
+
+`git clone https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Keras`
+
+`cd Advanced-Deep-Learning-with-Keras`
+
+`pip install -r requirements.txt`
+
+`sudo apt-get install python-pydot`
+`
+Test if a simple model can be trained:
+
+`python3 mlp-mnist-1.3.2.py`
+
+The final output shows the accuracy of the model on MNIST dataset which is about 98.2%.
 
 # [Advanced Deep Learning with Keras](http://a.co/d/e55mrQc) sample code used in the book
 
