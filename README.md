@@ -1,32 +1,16 @@
-# Advanced Deep Learning with Keras (Updated for Second Edition)
-This is the code repository for [Advanced Deep Learning with Keras](https://www.packtpub.com/big-data-and-business-intelligence/advanced-deep-learning-keras?utm_source=github&utm_medium=repository&utm_campaign=9781788629416), published by [Packt](https://www.packtpub.com/?utm_source=github). It contains all the supporting project files necessary to work through the book from start to finish. 
+# Advanced Deep Learning with TensorFlow 2 and Keras (Updated for 2nd Edition)
+This is the code repository for [Advanced Deep Learning with TensoFlow 2 and Keras](https://www.packtpub.com/programming/advanced-deep-learning-with-tensorflow-2-and-keras-second-edition), published by [Packt](https://www.packtpub.com/?utm_source=github). It contains all the supporting project files necessary to work through the book from start to finish. 
 
 **Please note that the code examples have been updated to support TensorFlow 2.0 Keras API only.**
 
 ## About the Book
-This book covers advanced deep learning techniques to create successful AI. Using MLPs, CNNs, and RNNs as building blocks to more advanced techniques, you’ll study deep neural network architectures, Autoencoders, Generative Adversarial Networks (GANs), Variational AutoEncoders (VAEs), and Deep Reinforcement Learning (DRL) critical to many cutting-edge AI results.
+Advanced Deep Learning with TensorFlow 2 and Keras, Second Edition is a completely updated edition of the bestselling guide to the advanced deep learning techniques available today. Revised for TensorFlow 2.x, this edition introduces you to the practical side of deep learning with new chapters on unsupervised learning using mutual information, object detection (SSD), and semantic segmentation (FCN and PSPNet), further allowing you to create your own cutting-edge AI projects.
 
-## Instructions and Navigation
-All of the code is organized into folders. Each folder starts with a number followed by the application name. For example, chapter2-deep-networks.
+Using Keras as an open-source deep learning library, the book features hands-on projects that show you how to create more effective AI with the most up-to-date techniques.
 
+Starting with an overview of multi-layer perceptrons (MLPs), convolutional neural networks (CNNs), and recurrent neural networks (RNNs), the book then introduces more cutting-edge techniques as you explore deep neural network architectures, including ResNet and DenseNet, and how to create autoencoders. You will then learn about GANs, and how they can unlock new levels of AI performance.
 
-
-The code will look like the following:
-```
-def encoder_layer(inputs,
-                  filters=16,
-                  kernel_size=3,
-                  strides=2,
-                  activation='relu',
-                  instance_norm=True):
-"""Builds a generic encoder layer made of Conv2D-IN-LeakyReLU 
-IN is optional, LeakyReLU may be replaced by ReLU
-"""
-conv = Conv2D(filters=filters,
-              kernel_size=kernel_size,
-              strides=strides,
-              padding='same')
-```
+Next, you’ll discover how a variational autoencoder (VAE) is implemented, and how GANs and VAEs have the generative power to synthesize data that can be extremely convincing to humans. You'll also learn to implement DRL such as Deep Q-Learning and Policy Gradient Methods, which are critical to many modern results in AI.
 
 ## Related Products
 * [Deep Reinforcement Learning Hands-On](https://www.packtpub.com/big-data-and-business-intelligence/deep-reinforcement-learning-hands?utm_source=github&utm_medium=repository&utm_campaign=9781788834247)
@@ -68,14 +52,14 @@ We are almost there. The last set of packages must be installed as follows. Some
 `pip install -r requirements.txt`
 
 `sudo apt-get install python-pydot`
-`
+
 Test if a simple model can be trained:
 
 `python3 mlp-mnist-1.3.2.py`
 
 The final output shows the accuracy of the model on MNIST dataset which is about 98.2%.
 
-# [Advanced Deep Learning with Keras](http://a.co/d/e55mrQc) sample code used in the book
+# [Advanced Deep Learning with TensorFlow2 and Keras](https://amzn.to/2wotTnN) code examples used in the book.
 
 ## [Chapter 1 - Introduction](chapter1-keras-quick-tour)
 1. [MLP on MNIST](chapter1-keras-quick-tour/mlp-mnist-1.3.2.py)
@@ -246,10 +230,10 @@ MINE
 If you find this work useful, please cite:
 
 ```
-@book{atienza2018advanced,
-  title={Advanced Deep Learning with Keras},
+@book{atienza2020advanced,
+  title={Advanced Deep Learning with TensorFlow 2 and Keras: Apply DL, GANs, VAEs, deep RL, unsupervised learning, object detection and segmentation, and more},
   author={Atienza, Rowel},
-  year={2018},
+  year={2020},
   publisher={Packt Publishing Ltd}
 }
 ```
