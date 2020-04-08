@@ -20,7 +20,9 @@ Next, you’ll discover how a variational autoencoder (VAE) is implemented, and 
 * [Reinforcement Learning with TensorFlow](https://www.packtpub.com/big-data-and-business-intelligence/reinforcement-learning-tensorflow?utm_source=github&utm_medium=repository&utm_campaign=9781788835725)
 
 ## Installation
-It is recommended to run within conda enviroment. Pls download and install anacoda from: [Anaconda](https://www.anaconda.com/distribution). 
+It is recommended to run within conda enviroment. Pls download Anacoda from: [Anaconda](https://www.anaconda.com/distribution). To install anaconda:
+
+`sh <name-of-downloaded-Anaconda3-installer>`
 
 A machine with at least 1 NVIDIA GPU (1060 or better) is required. The code examples have been tested on 1060, 1080Ti, RTX 2080Ti, V100, RTX Quadro 8000 on Ubuntu 18.04 LTS. Below is a rough guide to install NVIDIA driver and CuDNN to enable GPU support.  
 
@@ -61,7 +63,7 @@ Test if a simple model can be trained without errors:
 
 The final output shows the accuracy of the trained model on MNIST test dataset is about 98.2%.
 
-# [Advanced Deep Learning with TensorFlow2 and Keras](https://amzn.to/2wotTnN) code examples used in the book.
+# [Advanced Deep Learning with TensorFlow 2 and Keras](https://amzn.to/2wotTnN) code examples used in the book.
 
 ## [Chapter 1 - Introduction](chapter1-keras-quick-tour)
 1. [MLP on MNIST](chapter1-keras-quick-tour/mlp-mnist-1.3.2.py)
