@@ -53,11 +53,13 @@ We are almost there. The last set of packages must be installed as follows. Some
 
 `sudo apt-get install python-pydot`
 
-Test if a simple model can be trained:
+Test if a simple model can be trained without errors:
+
+`cd chapter1-keras-quick-tour`
 
 `python3 mlp-mnist-1.3.2.py`
 
-The final output shows the accuracy of the model on MNIST dataset which is about 98.2%.
+The final output shows the accuracy of the trained model on MNIST test dataset is about 98.2%.
 
 # [Advanced Deep Learning with TensorFlow2 and Keras](https://amzn.to/2wotTnN) code examples used in the book.
 
