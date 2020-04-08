@@ -7,9 +7,9 @@ from __future__ import division
 from __future__ import print_function
 
 # keras modules
-from keras.models import Sequential
-from keras.layers import Dense, SimpleRNN
-from keras.optimizers import Adam
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, SimpleRNN
+from tensorflow.keras.optimizers import Adam
 
 timesteps = 30
 input_dim = 12

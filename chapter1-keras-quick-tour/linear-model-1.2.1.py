@@ -9,9 +9,9 @@ from __future__ import print_function
 import numpy as np
 
 # keras modules
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.utils import plot_model
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense 
+from tensorflow.keras.utils import plot_model
 
 # generate x data
 x = np.arange(-1,1,0.2)

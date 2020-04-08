@@ -6,9 +6,9 @@ from __future__ import division
 from __future__ import print_function
 
 # keras modules
-from keras.models import Sequential
-from keras.layers import Dense, Conv2D, Flatten
-from keras.optimizers import RMSprop
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Conv2D, Flatten
+from tensorflow.keras.optimizers import RMSprop
 
 n_digits = 10
 model = Sequential()

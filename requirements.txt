@@ -3,11 +3,11 @@ scipy
 Pillow
 matplotlib
 scikit-image
-tensorflow=2.0.1
+tensorflow-gpu
 h5py
+graphviz
 pydot
 pydot_ng
-graphviz
 tensorflow-addons
 termcolor
 gym
