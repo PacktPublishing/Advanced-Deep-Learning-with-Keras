@@ -159,7 +159,7 @@ outputs = Dense(num_classes,
 model = Model(inputs=inputs, outputs=outputs)
 model.compile(loss='categorical_crossentropy',
               optimizer=RMSprop(1e-3),
-              metrics=['accuracy'])
+              metrics=['acc'])
 model.summary()
 plot_model(model, to_file="cifar10-densenet.png", show_shapes=True)
 

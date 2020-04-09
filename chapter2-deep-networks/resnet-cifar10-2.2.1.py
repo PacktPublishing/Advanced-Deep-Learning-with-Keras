@@ -351,7 +351,7 @@ else:
 
 model.compile(loss='categorical_crossentropy',
               optimizer=Adam(lr=lr_schedule(0)),
-              metrics=['accuracy'])
+              metrics=['acc'])
 model.summary()
 plot_model(model, to_file="%s.png" % model_type, show_shapes=True)
 print(model_type)
