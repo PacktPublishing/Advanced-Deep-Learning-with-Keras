@@ -365,7 +365,7 @@ filepath = os.path.join(save_dir, model_name)
 
 # prepare callbacks for model saving and for learning rate adjustment.
 checkpoint = ModelCheckpoint(filepath=filepath,
-                             monitor='val_accuracy',
+                             monitor='val_acc',
                              verbose=1,
                              save_best_only=True)
 
