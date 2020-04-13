@@ -55,6 +55,8 @@ We are almost there. The last set of packages must be installed as follows. Some
 
 `sudo apt-get install python-pydot`
 
+`sudo apt-get install ffmpeg`
+
 Test if a simple model can be trained without errors:
 
 `cd chapter1-keras-quick-tour`

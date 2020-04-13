@@ -545,6 +545,8 @@ class A2CAgent(PolicyAgent):
         # a2c: delta = discounted_reward - value
         delta = reward - self.value(state)[0] 
 
+        discounted_delta = delta * discount_factor
+        discounted_delta = np.reshape(discounted_delta, [-1, 1])
         verbose = 1 if done else 0
 
         # train the logp model (implies training of actor model
@@ -603,7 +605,7 @@ class ActorCriticAgent(PolicyAgent):
             # add  the discounted next value
             delta += gamma*next_value
 
-        # apply the discount factor as shown in Algortihms
+        # apply the discount factor as shown in Algorithms
         # 10.2.1, 10.3.1 and 10.4.1
         discounted_delta = delta * discount_factor
         discounted_delta = np.reshape(discounted_delta, [-1, 1])
@@ -799,7 +801,6 @@ if __name__ == '__main__':
     episode_count = 1000
     state_dim = env.observation_space.shape[0]
     n_solved = 0 
-    start_time = datetime.datetime.now()
     # sampling and fitting
     for episode in range(episode_count):
         state = env.reset()
@@ -811,6 +812,7 @@ if __name__ == '__main__':
         total_reward = 0
         done = False
         agent.reset_memory()
+        start_time = datetime.datetime.now()
         while not done:
             # [min, max] action = [-1.0, 1.0]
             # for baseline, random choice of action will not move
