@@ -194,11 +194,10 @@ class SSD:
 
         callbacks = [checkpoint, scheduler]
         # train the ssd network
-        self.ssd.fit_generator(generator=self.train_generator,
-                               use_multiprocessing=True,
-                               callbacks=callbacks,
-                               epochs=self.args.epochs,
-                               workers=self.args.workers)
+        self.ssd.fit(self.train_generator,
+                     use_multiprocessing=False,
+                     callbacks=callbacks,
+                     epochs=self.args.epochs)
 
 
     def restore_weights(self):
