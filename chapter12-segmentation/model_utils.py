@@ -35,8 +35,7 @@ def parser():
                         type=int,
                         help=help_)
     help_ = "Batch size during training"
-    parser.add_argument("-b",
-                        "--batch_size",
+    parser.add_argument("--batch-size",
                         default=4,
                         type=int,
                         help=help_)

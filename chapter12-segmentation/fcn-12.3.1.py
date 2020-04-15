@@ -148,11 +148,11 @@ class FCN:
 
         callbacks = [accuracy, scheduler]
         # train the fcn network
-        self.fcn.fit_generator(generator=self.train_generator,
-                               use_multiprocessing=True,
-                               callbacks=callbacks,
-                               epochs=self.args.epochs,
-                               workers=self.args.workers)
+        self.fcn.fit(x=self.train_generator,
+                     use_multiprocessing=False,
+                     callbacks=callbacks,
+                     epochs=self.args.epochs)
+                     #workers=self.args.workers)
 
 
     def restore_weights(self):
