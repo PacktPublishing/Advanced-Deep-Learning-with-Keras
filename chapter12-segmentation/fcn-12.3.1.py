@@ -202,7 +202,8 @@ class FCN:
             imagefile = os.path.splitext(imagefile)[0]
         elif self.args.image_file is not None:
             image = skimage.img_as_float(imread(self.args.image_file))
-            imagefile = os.path.splitext(self.args.image_file)[0]
+            imagefile = os.path.split(self.args.image_file)[-1]
+            print("imagefile:", imagefile)
         else:
             raise ValueError("Image file must be known")
 
