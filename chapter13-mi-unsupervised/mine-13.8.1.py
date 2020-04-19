@@ -376,12 +376,11 @@ class MINE:
         lr_scheduler = LearningRateScheduler(lr_schedule,
                                              verbose=1)
         callbacks = [accuracy, lr_scheduler]
-        self._model.fit_generator(generator=self.train_gen,
-                                  use_multiprocessing=True,
-                                  epochs=self.args.epochs,
-                                  callbacks=callbacks,
-                                  workers=4,
-                                  shuffle=True)
+        self._model.fit(x=self.train_gen,
+                        use_multiprocessing=False,
+                        epochs=self.args.epochs,
+                        callbacks=callbacks,
+                        shuffle=True)
 
 
     def load_eval_dataset(self):
