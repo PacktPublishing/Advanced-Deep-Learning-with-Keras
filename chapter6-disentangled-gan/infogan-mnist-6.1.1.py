@@ -61,6 +61,8 @@ def train(models, data, params):
             params
     # the generator image is saved every 500 steps
     save_interval = 500
+    # code standard deviation
+    code_std = 0.5
     # noise vector to see how the generator output 
     # evolves during training
     noise_input = np.random.uniform(-1.0,
@@ -68,14 +70,13 @@ def train(models, data, params):
                                     size=[16, latent_size])
     # random class labels and codes
     noise_label = np.eye(num_labels)[np.arange(0, 16) % num_labels]
-    noise_code1 = np.random.normal(scale=0.5, size=[16, 1])
-    noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
+    noise_code1 = np.random.normal(scale=code_std, size=[16, 1])
+    noise_code2 = np.random.normal(scale=code_std, size=[16, 1])
     # number of elements in train dataset
     train_size = x_train.shape[0]
     print(model_name,
           "Labels for generated images: ",
           np.argmax(noise_label, axis=1))
-
     for i in range(train_steps):
         # train the discriminator for 1 batch
         # 1 batch of real (label=1.0) and fake images (label=0.0)
@@ -87,9 +88,9 @@ def train(models, data, params):
         real_images = x_train[rand_indexes]
         real_labels = y_train[rand_indexes]
         # random codes for real images
-        real_code1 = np.random.normal(scale=0.5,
+        real_code1 = np.random.normal(scale=code_std,
                                       size=[batch_size, 1])
-        real_code2 = np.random.normal(scale=0.5, 
+        real_code2 = np.random.normal(scale=code_std, 
                                       size=[batch_size, 1])
         # generate fake images, labels and codes
         noise = np.random.uniform(-1.0,
@@ -97,9 +98,9 @@ def train(models, data, params):
                                   size=[batch_size, latent_size])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
-        fake_code1 = np.random.normal(scale=0.5,
+        fake_code1 = np.random.normal(scale=code_std,
                                       size=[batch_size, 1])
-        fake_code2 = np.random.normal(scale=0.5, 
+        fake_code2 = np.random.normal(scale=code_std, 
                                       size=[batch_size, 1])
         inputs = [noise, fake_labels, fake_code1, fake_code2]
         fake_images = generator.predict(inputs)
@@ -124,8 +125,8 @@ def train(models, data, params):
         # 'label_acc', 'code1_acc', 'code2_acc']
         # from discriminator.metrics_names
         metrics = discriminator.train_on_batch(x, outputs)
-        fmt = "%d: [discriminator loss: %f, label_acc: %f]"
-        log = fmt % (i, metrics[0], metrics[6])
+        fmt = "%d: [dis: %f, bce: %f, ce: %f, mi: %f, mi:%f, acc: %f]"
+        log = fmt % (i, metrics[0], metrics[1], metrics[2], metrics[3], metrics[4], metrics[6])
 
         # train the adversarial network for 1 batch
         # 1 batch of fake images with label=1.0 and
@@ -138,9 +139,9 @@ def train(models, data, params):
                                   size=[batch_size, latent_size])
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
-        fake_code1 = np.random.normal(scale=0.5,
+        fake_code1 = np.random.normal(scale=code_std,
                                       size=[batch_size, 1])
-        fake_code2 = np.random.normal(scale=0.5, 
+        fake_code2 = np.random.normal(scale=code_std, 
                                       size=[batch_size, 1])
         # label fake images as real
         y = np.ones([batch_size, 1])
@@ -154,8 +155,8 @@ def train(models, data, params):
         inputs = [noise, fake_labels, fake_code1, fake_code2]
         outputs = [y, fake_labels, fake_code1, fake_code2]
         metrics  = adversarial.train_on_batch(inputs, outputs)
-        fmt = "%s [adversarial loss: %f, label_acc: %f]"
-        log = fmt % (log, metrics[0], metrics[6])
+        fmt = "%s [adv: %f, bce: %f, ce: %f, mi: %f, mi:%f, acc: %f]"
+        log = fmt % (log, metrics[0], metrics[1], metrics[2], metrics[3], metrics[4], metrics[6])
 
         print(log)
         if (i + 1) % save_interval == 0:
@@ -168,10 +169,11 @@ def train(models, data, params):
                             step=(i + 1),
                             model_name=model_name)
    
-    # save the model after training the generator
-    # the trained generator can be reloaded for
-    # future MNIST digit generation
-    generator.save(model_name + ".h5")
+        # save the model after training the generator
+        # the trained generator can be reloaded for
+        # future MNIST digit generation
+        if (i + 1) % (2 * save_interval) == 0:
+            generator.save(model_name + ".h5")
 
 
 def mi_loss(c, q_of_c_given_x):
@@ -179,8 +181,8 @@ def mi_loss(c, q_of_c_given_x):
         assuming H(c) is constant
     """
     # mi_loss = -c * log(Q(c|x))
-    return K.mean(-K.sum(K.log(q_of_c_given_x + K.epsilon()) * c, 
-                               axis=1))
+    return -K.mean(K.sum(c * K.log(q_of_c_given_x + K.epsilon()), 
+                                   axis=1))
 
 
 def build_and_train_models(latent_size=100):
@@ -287,11 +289,12 @@ def test_generator(generator, params, latent_size=100):
         noise_label[:,label] = 1
         step = label
 
+    code_std = 2
     if code1 is None:
         noise_code1 = np.random.normal(scale=0.5, size=[16, 1])
     else:
         if p1:
-            a = np.linspace(-2, 2, 16)
+            a = np.linspace(-code_std, code_std, 16)
             a = np.reshape(a, [16, 1])
             noise_code1 = np.ones((16, 1)) * a
         else:
@@ -302,7 +305,7 @@ def test_generator(generator, params, latent_size=100):
         noise_code2 = np.random.normal(scale=0.5, size=[16, 1])
     else:
         if p2:
-            a = np.linspace(-2, 2, 16)
+            a = np.linspace(-code_std, code_std, 16)
             a = np.reshape(a, [16, 1])
             noise_code2 = np.ones((16, 1)) * a
         else:
