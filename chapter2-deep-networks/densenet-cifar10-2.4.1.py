@@ -161,7 +161,9 @@ model.compile(loss='categorical_crossentropy',
               optimizer=RMSprop(1e-3),
               metrics=['acc'])
 model.summary()
-plot_model(model, to_file="cifar10-densenet.png", show_shapes=True)
+# enable this if pydot can be installed
+# pip install pydot
+#plot_model(model, to_file="cifar10-densenet.png", show_shapes=True)
 
 # prepare model model saving directory
 save_dir = os.path.join(os.getcwd(), 'saved_models')

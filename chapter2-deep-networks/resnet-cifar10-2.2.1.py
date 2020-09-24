@@ -353,7 +353,10 @@ model.compile(loss='categorical_crossentropy',
               optimizer=Adam(lr=lr_schedule(0)),
               metrics=['acc'])
 model.summary()
-plot_model(model, to_file="%s.png" % model_type, show_shapes=True)
+
+# enable this if pydot can be installed
+# pip install pydot
+#plot_model(model, to_file="%s.png" % model_type, show_shapes=True)
 print(model_type)
 
 # prepare model model saving directory.

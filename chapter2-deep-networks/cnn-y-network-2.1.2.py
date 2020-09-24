@@ -79,8 +79,12 @@ outputs = Dense(num_labels, activation='softmax')(y)
 
 # build the model in functional API
 model = Model([left_inputs, right_inputs], outputs)
+
 # verify the model using graph
-plot_model(model, to_file='cnn-y-network.png', show_shapes=True)
+# enable this if pydot can be installed
+# pip install pydot
+#plot_model(model, to_file='cnn-y-network.png', show_shapes=True)
+
 # verify the model using layer text description
 model.summary()
 
