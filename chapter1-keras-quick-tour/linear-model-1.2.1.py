@@ -38,7 +38,9 @@ model.add(Dense(units=1))
 # print summary to double check the network
 model.summary()
 # create a nice image of the network model
-plot_model(model, to_file='linear-model.png', show_shapes=True)
+# enable this if pydot can be installed
+# pip install pydot
+#plot_model(model, to_file='linear-model.png', show_shapes=True)
 # indicate the loss function and use stochastic gradient descent
 # (sgd) as optimizer
 model.compile(loss='mse', optimizer='sgd')

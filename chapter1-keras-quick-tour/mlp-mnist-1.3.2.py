@@ -53,7 +53,10 @@ model.add(Dense(num_labels))
 # this is the output for one-hot vector
 model.add(Activation('softmax'))
 model.summary()
-plot_model(model, to_file='mlp-mnist.png', show_shapes=True)
+#
+# enable this if pydot can be installed
+# pip install pydot
+#plot_model(model, to_file='mlp-mnist.png', show_shapes=True)
 
 # loss function for one-hot vector
 # use of adam optimizer
