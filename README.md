@@ -65,6 +65,14 @@ Test if a simple model can be trained without errors:
 
 The final output shows the accuracy of the trained model on MNIST test dataset is about 98.2%.
 
+### Alternative TensorFlow Installation
+If you are having problems with CUDA libraries (ie `tf` could not load or find `libcudart.so.10.X`), TensorFlow and CUDA libraries can be installed together using conda:
+
+```
+pip uninstall tensorflow-gpu
+conda install -c anaconda tensorflow-gpu
+```
+
 # [Advanced Deep Learning with TensorFlow 2 and Keras](https://amzn.to/2wotTnN) code examples used in the book.
 
 ## [Chapter 1 - Introduction](chapter1-keras-quick-tour)
