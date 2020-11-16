@@ -295,7 +295,7 @@ class SSD:
                         fp += 1
 
             # objects that we missed (false negative)
-            fn = abs(len(gt_class_ids) - tp)
+            fn = abs(len(gt_class_ids) - tp - fp)
             s_iou += (np.sum(s_image_iou) / iou.shape[0])
             s_precision += (tp/(tp + fp))
             s_recall += (tp/(tp + fn))
