@@ -1,8 +1,3 @@
-## $5 Tech Unlocked 2021!
-[Buy and download this Book for only $5 on PacktPub.com](https://www.packtpub.com/product/advanced-deep-learning-with-tensorflow-2-and-keras-second-edition/9781838821654)
------
-*If you have read this book, please leave a review on [Amazon.com](https://www.amazon.com/gp/product/1838821651).     Potential readers can then use your unbiased opinion to help them make purchase decisions. Thank you. The $5 campaign         runs from __December 15th 2020__ to __January 13th 2021.__*
-
 # Advanced Deep Learning with TensorFlow 2 and Keras (Updated for 2nd Edition)
 This is the code repository for [Advanced Deep Learning with TensoFlow 2 and Keras](https://www.packtpub.com/programming/advanced-deep-learning-with-tensorflow-2-and-keras-second-edition), published by [Packt](https://www.packtpub.com/?utm_source=github). It contains all the supporting project files necessary to work through the book from start to finish. 
 
